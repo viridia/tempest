@@ -1,0 +1,14 @@
+/* ================================================================== *
+ * Configuration Variables
+ * ================================================================== */
+
+#ifndef TEMPEST_CONFIG_H
+#define TEMPEST_CONFIG_H
+
+// Note: this assumes that all of the standard headers are present, so no need for
+// inclusion guards. This may change if we start using non-standard functionality.
+
+// C++ headers
+// #cmakedefine TEMPEST_HAVE_CASSERT 1
+
+#endif

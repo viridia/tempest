@@ -1,4 +1,3 @@
-#define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include "tempest/sema/graph/env.h"
 #include "tempest/sema/graph/type.h"

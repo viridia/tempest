@@ -5,10 +5,13 @@
 #ifndef TEMPEST_CONFIG_H
 #define TEMPEST_CONFIG_H
 
-// Note: this assumes that all of the standard headers are present, so no need for
-// inclusion guards. This may change if we start using non-standard functionality.
+// Note: this assumes that all of the standard C++ headers are present.
 
 // C++ headers
-// #cmakedefine TEMPEST_HAVE_CASSERT 1
+#cmakedefine TEMPEST_HAVE_CSIGNAL 1
+#cmakedefine TEMPEST_HAVE_UNISTD_H 1
+#cmakedefine TEMPEST_HAVE_EXECINFO_H 1
+#cmakedefine TEMPEST_HAVE_CXXABI_H 1
+#cmakedefine TEMPEST_HAVE_DLFCN_H 1
 
 #endif

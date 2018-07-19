@@ -224,45 +224,6 @@ namespace tempest::sema::graph {
     static bool classof(const TypeVar* t) { return true; }
     static bool classof(const Type* t) { return t->kind == Kind::TYPE_VAR; }
   };
-
-  /** A tuple of types that can be used as a lookup key. */
-  class TypeKey {
-  public:
-    TypeKey() {}
-    TypeKey(const TypeArray& members) : _members(members.begin(), members.end()) {}
-    TypeKey(const TypeKey& key) : _members(key._members) {}
-
-    /** Assignment operator. */
-    TypeKey& operator=(const TypeKey& key) {
-      _members = key._members;
-      return *this;
-    }
-
-    /** Equality comparison. */
-    friend bool operator==(const TypeKey& lhs, const TypeKey& rhs) {
-      return lhs._members == rhs._members;
-    }
-
-    /** Inequality comparison. */
-    friend bool operator!=(const TypeKey& lhs, const TypeKey& rhs) {
-      return lhs._members != rhs._members;
-    }
-
-    /** Iteration. */
-    TypeArray::const_iterator begin() const { return _members.begin(); }
-    TypeArray::const_iterator end() const { return _members.end(); }
-
-    /** Return the length of the key. */
-    size_t size() const { return _members.size(); }
-
-    /** Read-only random access. */
-    Type* operator[](int index) const {
-      return _members[index];
-    }
-
-  private:
-    llvm::SmallVector<Type*, 4> _members;
-  };
 }
 
 #endif

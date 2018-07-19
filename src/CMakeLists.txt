@@ -17,14 +17,18 @@ find_package(ZLIB REQUIRED)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Macros we'll need
-include(CheckCXXSourceCompiles)
 include(CheckIncludeFile)
+include(CheckIncludeFileCXX)
+include(CheckCXXSourceCompiles)
 
 # C Headers.
 check_include_file(cxxabi.h TEMPEST_HAVE_CXXABI_H)
+check_include_file(dlfcn.h TEMPEST_HAVE_DLFCN_H)
+check_include_file(execinfo.h TEMPEST_HAVE_EXECINFO_H)
+check_include_file(unistd.h TEMPEST_HAVE_UNISTD_H)
 
 # C++ Headers.
-# check_include_file_cxx(memory TEMPEST_HAVE_MEMORY)
+check_include_file_cxx(csignal TEMPEST_HAVE_CSIGNAL)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 

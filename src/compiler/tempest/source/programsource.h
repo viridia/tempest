@@ -13,6 +13,7 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <llvm/ADT/StringRef.h>
 
 namespace tempest::source {

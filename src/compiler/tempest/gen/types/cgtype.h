@@ -1,7 +1,3 @@
-// ============================================================================
-// gen/cgstringliteral.h: generated string literals.
-// ============================================================================
-
 #ifndef TEMPEST_GEN_TYPES_CGTYPE_H
 #define TEMPEST_GEN_TYPES_CGTYPE_H 1
 
@@ -19,17 +15,25 @@ namespace tempest::gen::types {
   /** Represents and generates IR types. */
   class CGType {
   public:
-    CGType(Type* type);
+    CGType(const Type* type)
+      : _type(type)
+      , _irType(nullptr)
+    {}
+
+    CGType(const Type* type, llvm::Type* irType)
+      : _type(type)
+      , _irType(irType)
+    {}
 
     /** The semantic graph type corresponding to this type. */
-    Type* type() const { return _type; }
+    const Type* type() const { return _type; }
 
     /** The IR type. */
     llvm::Type* irType() const { return _irType; }
     // Add irFieldType for when it is used as a field.
 
   private:
-    Type* _type;
+    const Type* _type;
     llvm::Type* _irType;
   };
 }

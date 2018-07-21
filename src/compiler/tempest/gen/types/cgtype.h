@@ -15,14 +15,21 @@ namespace tempest::gen::types {
   /** Represents and generates IR types. */
   class CGType {
   public:
-    CGType(const Type* type)
-      : _type(type)
-      , _irType(nullptr)
-    {}
+    // CGType(const Type* type)
+    //   : _type(type)
+    //   , _irType(irType)
+    // {}
 
     CGType(const Type* type, llvm::Type* irType)
       : _type(type)
       , _irType(irType)
+      , _irMemberType(irType)
+    {}
+
+    CGType(const Type* type, llvm::Type* irType, llvm::Type* irMemberType)
+      : _type(type)
+      , _irType(irType)
+      , _irMemberType(irMemberType)
     {}
 
     /** The semantic graph type corresponding to this type. */
@@ -30,11 +37,14 @@ namespace tempest::gen::types {
 
     /** The IR type. */
     llvm::Type* irType() const { return _irType; }
-    // Add irFieldType for when it is used as a field.
+
+    /** The IR type used when this type is used as a member. */
+    llvm::Type* irMemberType() const { return _irMemberType; }
 
   private:
     const Type* _type;
     llvm::Type* _irType;
+    llvm::Type* _irMemberType;
   };
 }
 

@@ -1,7 +1,3 @@
-// ============================================================================
-// sema/graph/type.h: Semantic graph nodes for types.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_TYPE_H
 #define TEMPEST_SEMA_GRAPH_TYPE_H 1
 
@@ -23,6 +19,7 @@
 
 namespace tempest::sema::graph {
 
+  class SpecializedDefn;
   class TypeDefn;
   class TypeParameter;
 
@@ -43,11 +40,11 @@ namespace tempest::sema::graph {
 
       // Derived types
       UNION,          // Disjoint types
-      INTERSECTION,   // Intersection types
       TUPLE,          // Tuple of types
       FUNCTION,       // Function type
       CONST,          // Const type modifier
-      SPECIALIZED,    // Instantiation of a type
+      SPECIALIZED,    // Specialization of a generic user-defined type
+      WITH_ARGS,      // A type specialization, i.e X[A]
       VALUE_PARAM,    // A type parameter bound to an immutable value
 
       // Types used internally during compilation
@@ -134,21 +131,6 @@ namespace tempest::sema::graph {
     static bool classof(const Type* t) { return t->kind == Kind::UNION; }
   };
 
-  /** Intersection type. */
-  class IntersectionType : public Type {
-  public:
-    /** Array of members of this union or tuple. */
-    const llvm::SmallVector<Type*, 4> members;
-
-    IntersectionType(const TypeArray& members)
-      : Type(Kind::INTERSECTION)
-      , members(members.begin(), members.end()) {}
-
-    /** Dynamic casting support. */
-    static bool classof(const IntersectionType* t) { return true; }
-    static bool classof(const Type* t) { return t->kind == Kind::INTERSECTION; }
-  };
-
   /** Tuple type. */
   class TupleType : public Type {
   public:
@@ -220,9 +202,46 @@ namespace tempest::sema::graph {
 
     TypeVar(TypeParameter* param) : Type(Kind::TYPE_VAR), param(param) {}
 
+    /** The ordinal index of this type variable relative to other type variables. */
+    int32_t index() const;
+
     /** Dynamic casting support. */
     static bool classof(const TypeVar* t) { return true; }
     static bool classof(const Type* t) { return t->kind == Kind::TYPE_VAR; }
+  };
+
+  /** A reference to a specialized user-defined type, generated from TypeWithArgs. */
+  class SpecializedType : public Type {
+  public:
+    /** Reference to the specialized definition. */
+    const SpecializedDefn* spec;
+
+    SpecializedType(SpecializedDefn* spec)
+      : Type(Kind::SPECIALIZED)
+      , spec(spec)
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const SpecializedType* t) { return true; }
+    static bool classof(const Type* t) { return t->kind == Kind::SPECIALIZED; }
+  };
+
+  /** A type + type arguments. Only used when we know nothing about the base type. */
+  class TypeWithArgs : public Type {
+  public:
+    /** Type being specializd; most likely a UserDefinedType. */
+    const Type* base;
+    const llvm::SmallVector<Type*, 4> typeArgs;
+
+    TypeWithArgs(Type* base, llvm::ArrayRef<Type*>& typeArgs)
+      : Type(Kind::WITH_ARGS)
+      , base(base)
+      , typeArgs(typeArgs.begin(), typeArgs.end())
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const TypeWithArgs* t) { return true; }
+    static bool classof(const Type* t) { return t->kind == Kind::WITH_ARGS; }
   };
 }
 

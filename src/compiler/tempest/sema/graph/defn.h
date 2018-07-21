@@ -1,7 +1,3 @@
-// ============================================================================
-// sema/graph/defn.h: Semantic Graph Definitions.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_DEFN_H
 #define TEMPEST_SEMA_GRAPH_DEFN_H 1
 
@@ -30,7 +26,7 @@ namespace tempest::sema::graph {
     Defn(
         Kind kind,
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : Member(kind, name)
       , _definedIn(definedIn)
@@ -46,6 +42,9 @@ namespace tempest::sema::graph {
 
     /** Source location where this was defined. */
     const source::Location& location() const { return _location; }
+
+    /** The scope in which this definition was defined. */
+    Member* definedIn() const { return _definedIn; }
 
     /** Visibility of this symbol. */
     Visibility visibility() const { return _visibility; }
@@ -87,6 +86,16 @@ namespace tempest::sema::graph {
 
     // Defn* asDefn() final { return this; }
 
+    static bool classof(const Defn* m) { return true; }
+    static bool classof(const Member* m) {
+      return m->kind == Kind::TYPE
+          || m->kind == Kind::TYPE_PARAM
+          || m->kind == Kind::CONST_DEF
+          || m->kind == Kind::LET_DEF
+          || m->kind == Kind::FUNCTION
+          || m->kind == Kind::FUNCTION_PARAM;
+    }
+
   protected:
     void formatModifiers(std::ostream& out) const;
 
@@ -113,7 +122,7 @@ namespace tempest::sema::graph {
     GenericDefn(
         Kind kind,
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn)
       : Defn(kind, location, name, definedIn)
       , _typeParamScope(std::make_unique<SymbolTable>())
@@ -125,6 +134,10 @@ namespace tempest::sema::graph {
     /** List of template parameters. */
     std::vector<TypeParameter*>& typeParams() { return _typeParams; }
     const std::vector<TypeParameter*>& typeParams() const { return _typeParams; }
+
+    /** List of all template parameters including the ones from enclosing scopes. */
+    std::vector<TypeParameter*>& allTypeParams() { return _allTypeParams; }
+    const std::vector<TypeParameter*>& allTypeParams() const { return _allTypeParams; }
 
     /** Scope containing all of the type parameters of this type. */
     SymbolTable* typeParamScope() const { return _typeParamScope.get(); }
@@ -153,6 +166,7 @@ namespace tempest::sema::graph {
 
   private:
     std::vector<TypeParameter*> _typeParams;
+    std::vector<TypeParameter*> _allTypeParams;
     std::unique_ptr<SymbolTable> _typeParamScope;
     // std::unique_ptr<SymbolTable> _requiredMethodScope;
     // std::unordered_map<Member*, SymbolTable*> _interceptScopes;
@@ -163,7 +177,7 @@ namespace tempest::sema::graph {
   public:
     TypeDefn(
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : GenericDefn(Kind::TYPE, location, name, definedIn)
       , _memberScope(std::make_unique<SymbolTable>())
@@ -212,12 +226,26 @@ namespace tempest::sema::graph {
   public:
     TypeParameter(
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : Defn(Kind::TYPE_PARAM, location, name, definedIn)
       , _valueType(nullptr)
       , _typeVar(nullptr)
       , _defaultType(nullptr)
+      , _index(0)
+      , _variadic(false)
+    {}
+
+    TypeParameter(
+        const source::Location& location,
+        llvm::StringRef name,
+        int32_t index,
+        Member* definedIn = nullptr)
+      : Defn(Kind::TYPE_PARAM, location, name, definedIn)
+      , _valueType(nullptr)
+      , _typeVar(nullptr)
+      , _defaultType(nullptr)
+      , _index(index)
       , _variadic(false)
     {}
 
@@ -235,6 +263,17 @@ namespace tempest::sema::graph {
         the type parameter. nullptr if no default has been specified. */
     Type* defaultType() const { return _defaultType; }
     void setDefaultType(Type* type) { _defaultType = type; }
+
+    /** The ordinal index of this type parameter relative to other type parameters on
+        the same definition. This includes type parameters defined in enclosing scopes,
+        which precede type parameters in the current scope.
+
+        Using the index, a specialization of a generic definition can be represented
+        as a tuple, where the index of each type parameter is used to access the associated
+        tuple member.
+    */
+    bool index() const { return _index; }
+    void setIndex(int32_t index) { _index = index; }
 
     /** Indicates this type parameter accepts a list of types. */
     bool isVariadic() const { return _variadic; }
@@ -265,18 +304,20 @@ namespace tempest::sema::graph {
     Type* _valueType;
     TypeVar* _typeVar;
     Type* _defaultType;
+    int32_t _index;
     bool _variadic;
     bool _selfParam;
     bool _classParam;
     TypeArray _subtypeConstraints;
   };
 
+  /** Base class of let, const and enum value definitions. */
   class ValueDefn : public Defn {
   public:
     ValueDefn(
         Kind kind,
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : Defn(kind, location, name, definedIn)
       , _type(nullptr)
@@ -307,8 +348,8 @@ namespace tempest::sema::graph {
     /** Dynamic casting support. */
     static bool classof(const ValueDefn* m) { return true; }
     static bool classof(const Member* m) {
-      return m->kind == Kind::VAR ||
-          m->kind == Kind::CONST ||
+      return m->kind == Kind::LET_DEF ||
+          m->kind == Kind::CONST_DEF ||
           m->kind == Kind::ENUM_VAL ||
           m->kind == Kind::FUNCTION_PARAM ||
           m->kind == Kind::TUPLE_MEMBER;
@@ -325,7 +366,7 @@ namespace tempest::sema::graph {
   public:
     EnumValueDefn(
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : ValueDefn(Kind::ENUM_VAL, location, name, definedIn)
       , _ordinal(0)
@@ -349,7 +390,7 @@ namespace tempest::sema::graph {
   public:
     ParameterDefn(
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : ValueDefn(Kind::FUNCTION_PARAM, location, name, definedIn)
       , _internalType(nullptr)
@@ -408,7 +449,7 @@ namespace tempest::sema::graph {
   public:
     FunctionDefn(
         const source::Location& location,
-        const llvm::StringRef& name,
+        llvm::StringRef name,
         Member* definedIn = nullptr)
       : GenericDefn(Kind::FUNCTION, location, name, definedIn)
       , _type(nullptr)
@@ -487,6 +528,33 @@ namespace tempest::sema::graph {
     int32_t _methodIndex;
     //linkageName: string = 10;     # If present, indicates the symbolic linkage name of this function
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
+  };
+
+  /** A specialized generic definition. */
+  class SpecializedDefn : public Member {
+  public:
+    SpecializedDefn(
+        GenericDefn* base,
+        const llvm::ArrayRef<Type*>& typeArgs)
+      : Member(Kind::SPECIALIZED, base->name())
+      , _base(base)
+      , _typeArgs(typeArgs.begin(), typeArgs.end())
+    {
+    }
+
+    /** The generic type that this is a specialiation of. */
+    GenericDefn* base() const { return _base; }
+
+    /** The array of type arguments for this type. */
+    const llvm::ArrayRef<Type*> typeArgs() const { return _typeArgs; }
+
+    /** Dynamic casting support. */
+    static bool classof(const SpecializedDefn* m) { return true; }
+    static bool classof(const Member* m) { return m->kind == Kind::SPECIALIZED; }
+
+  private:
+    GenericDefn* _base;
+    llvm::SmallVector<Type*, 4> _typeArgs;
   };
 }
 

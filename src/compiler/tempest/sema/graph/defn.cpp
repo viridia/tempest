@@ -28,9 +28,9 @@ namespace tempest::sema::graph {
   }
 
   GenericDefn::~GenericDefn() {
-    for (auto tparam : _typeParams) {
-      delete tparam;
-    }
+    // for (auto tparam : _typeParams) {
+    //   delete tparam;
+    // }
     // for (auto iscope : _interceptScopes) {
     //   delete iscope.second;
     // }
@@ -64,8 +64,8 @@ namespace tempest::sema::graph {
   void ValueDefn::format(std::ostream& out) const {
     formatModifiers(out);
     switch (kind) {
-      case Kind::CONST: out << "let "; break;
-      case Kind::VAR: out << "var "; break;
+      case Kind::CONST_DEF: out << "const "; break;
+      case Kind::LET_DEF: out << "let "; break;
       default:
         assert(false);
     }

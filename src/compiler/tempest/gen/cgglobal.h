@@ -1,7 +1,3 @@
-// ============================================================================
-// gen/cgglobal.h: base class for global symbols.
-// ============================================================================
-
 #ifndef TEMPEST_GEN_CGGLOBAL_H
 #define TEMPEST_GEN_CGGLOBAL_H 1
 

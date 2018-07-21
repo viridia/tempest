@@ -1,0 +1,51 @@
+#include "catch.hpp"
+#include "tempest/gen/types/cgtypefactory.h"
+#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/sema/graph/typestore.h"
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/Allocator.h>
+
+using namespace tempest::sema::graph;
+using namespace tempest::gen::types;
+
+TEST_CASE("CGTypeFactory", "[gen]") {
+  llvm::LLVMContext context;
+  llvm::BumpPtrAllocator alloc;
+  CGTypeFactory types(context, alloc);
+
+  SECTION("Void") {
+    llvm::Type* t = types.get(&VoidType::VOID);
+    REQUIRE(t->isVoidTy());
+    llvm::Type* t2 = types.get(&VoidType::VOID);
+    REQUIRE(t == t2);
+  }
+
+  SECTION("Boolean") {
+    llvm::Type* t = types.get(&BooleanType::BOOL);
+    REQUIRE(t->isIntegerTy());
+    llvm::Type* t2 = types.get(&BooleanType::BOOL);
+    REQUIRE(t == t2);
+  }
+
+  SECTION("Integer") {
+    llvm::Type* t = types.get(&IntegerType::I16);
+    REQUIRE(t->isIntegerTy());
+    llvm::Type* t2 = types.get(&IntegerType::I16);
+    REQUIRE(t == t2);
+  }
+
+  SECTION("Float") {
+    llvm::Type* t = types.get(&FloatType::F32);
+    REQUIRE(t->isFloatTy());
+    llvm::Type* t2 = types.get(&FloatType::F32);
+    REQUIRE(t == t2);
+  }
+
+  SECTION("Tuple") {
+    TypeStore store;
+    Type* tupleType = store.createTupleType({ &IntegerType::I16, &IntegerType::I32 });
+    llvm::Type* t = types.get(tupleType);
+    REQUIRE(t->isStructTy());
+    // REQUIRE(t->getStructNumElements() == 2);
+  }
+}

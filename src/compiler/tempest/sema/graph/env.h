@@ -1,7 +1,3 @@
-// ============================================================================
-// sema/graph/env.h: Environments.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_ENV_H
 #define TEMPEST_SEMA_GRAPH_ENV_H 1
 
@@ -217,6 +213,16 @@ namespace tempest::sema::graph {
   /** A concatenation of environments. This represents the operation of applying a sequence
       of substitutions to a type expression. Note that this does not take ownership of
       the previous environment.
+
+      Typical use case:
+
+        class A[T] {
+          let m: Array[T];
+        }
+        let a: A[i32]; // What's the type of a.m?
+
+      Env { T => i32 }
+      Env { ElementType => T }
   */
   class EnvChain {
   public:
@@ -224,12 +230,14 @@ namespace tempest::sema::graph {
     const EnvChain* const prev;
 
     EnvChain(const Env& e) : env(e), prev(&NIL) {}
-  //  EnvChain(Env& e, EnvChain* p) : env(e), prev(p) {}
     EnvChain(const Env& e, const EnvChain& p) : env(e), prev(&p) {}
     EnvChain(const EnvChain& e) : env(e.env), prev(e.prev) {}
 
     /** Returns true if this is the sentinel node at the end of the linked list. */
     bool isNil() const { return this == &NIL; }
+
+    /** Given a type variable, return the concrete type it maps to. */
+    // Type* get(const TypeVar* tv);
 
     /** Sentinel node to indicate the end of the linked list of Envs. */
     static EnvChain NIL;

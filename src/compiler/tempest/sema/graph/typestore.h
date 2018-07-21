@@ -1,7 +1,3 @@
-// ============================================================================
-// sema/typestore.h: Class for creating and managing derived types.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_TYPESTORE_H
 #define TEMPEST_SEMA_GRAPH_TYPESTORE_H 1
 
@@ -69,13 +65,54 @@ namespace tempest::sema::graph {
   }
 
   struct TypeKeyHash {
-    /** Combine two hash vaues. */
     inline std::size_t operator()(const TypeKey& value) const {
       std::size_t seed = 0;
       for (tempest::sema::graph::Type* member : value) {
         hash_combine(seed, std::hash<tempest::sema::graph::Type*>()(member));
       }
       return seed;
+    }
+  };
+
+  /** A hashable tuple of types that can be used as a lookup key. */
+  class SpecializedTypeKey {
+  public:
+    SpecializedTypeKey() {}
+    SpecializedTypeKey(const SpecializedTypeKey& key)
+      : _baseType(key._baseType)
+      , _typeArgs(key._typeArgs)
+    {}
+    SpecializedTypeKey(UserDefinedType* baseType, const TypeKey& typeArgs)
+      : _baseType(baseType)
+      , _typeArgs(typeArgs)
+    {}
+
+    /** The generic type to be specialized. */
+    UserDefinedType* baseType() const { return _baseType; }
+
+    /** The type arguments to the generic type. */
+    const TypeKey typeArgs() const { return _typeArgs; }
+
+    /** Equality comparison. */
+    friend bool operator==(const SpecializedTypeKey& lhs, const SpecializedTypeKey& rhs) {
+      return lhs._baseType == rhs._baseType && lhs._typeArgs == rhs._typeArgs;
+    }
+
+    /** Inequality comparison. */
+    friend bool operator!=(const SpecializedTypeKey& lhs, const SpecializedTypeKey& rhs) {
+      return lhs._baseType != rhs._baseType || lhs._typeArgs != rhs._typeArgs;
+    }
+
+  private:
+    UserDefinedType* _baseType;
+    TypeKey _typeArgs;
+  };
+
+  struct SpecializedTypeKeyHash {
+    inline std::size_t operator()(const SpecializedTypeKey& value) const {
+      std::size_t hash = std::hash<tempest::sema::graph::Type*>()(value.baseType());
+      hash_combine(hash, TypeKeyHash()(value.typeArgs()));
+      return hash;
     }
   };
 

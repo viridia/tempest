@@ -90,6 +90,11 @@ namespace tempest::sema::graph {
       , _defn(nullptr)
     {}
 
+    UserDefinedType(Kind kind, TypeDefn* defn)
+      : Type(kind)
+      , _defn(defn)
+    {}
+
     /** Definition for this type. */
     TypeDefn* defn() const { return _defn; }
     void setDefn(TypeDefn* defn) { _defn = defn; }

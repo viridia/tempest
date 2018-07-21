@@ -65,6 +65,9 @@ namespace tempest::sema::graph {
     /** The name of this member. */
     llvm::StringRef name() const { return _name; }
 
+    /** Scope in which this module was defined. */
+    virtual Member* definedIn() const { return nullptr; }
+
     /** Produce a string representation of this member (for unit tests). */
     // virtual void format(std::ostream& out) const = 0;
 

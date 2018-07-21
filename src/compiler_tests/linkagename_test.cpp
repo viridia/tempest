@@ -51,6 +51,10 @@ TEST_CASE("LinkageName", "[gen]") {
     const UnionType* ut1 = ts.createUnionType({ &IntegerType::I16, &IntegerType::I32 });
     getLinkageName(name, ut1);
     REQUIRE(name == "i16|i32");
+    const UnionType* ut2 = ts.createUnionType({ &FloatType::F32, &IntegerType::I32 });
+    name.clear();
+    getLinkageName(name, ut2);
+    REQUIRE(name == "i32|f32");
   }
 
   SECTION("TupleType") {

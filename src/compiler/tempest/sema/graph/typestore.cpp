@@ -1,6 +1,7 @@
 #include "tempest/sema/graph/defn.h"
-#include "tempest/sema/graph/typestore.h"
 #include "tempest/sema/graph/type.h"
+#include "tempest/sema/graph/typestore.h"
+#include "tempest/sema/graph/typeorder.h"
 
 namespace tempest::sema::graph {
   // Type* TypeStore::memberType(Member* m) {
@@ -55,9 +56,7 @@ namespace tempest::sema::graph {
   UnionType* TypeStore::createUnionType(const TypeArray& members) {
     // Sort members by pointer. This makes the type key hash independent of order.
     llvm::SmallVector<Type*, 4> sortedMembers(members.begin(), members.end());
-    std::sort(sortedMembers.begin(), sortedMembers.end(), [](Type* a, Type* b) {
-      return (uintptr_t)a < (uintptr_t)b;
-    });
+    std::sort(sortedMembers.begin(), sortedMembers.end(), TypeOrder());
 
     // Return matching union instance if already exists.
     TypeKey key(sortedMembers);
@@ -67,7 +66,7 @@ namespace tempest::sema::graph {
     }
 
     // Allocate type arrays of both the original and sorted orders.
-    auto membersCopy = new (_alloc) TypeArray(members.begin(), members.end());
+    auto membersCopy = new (_alloc) TypeArray(sortedMembers.begin(), sortedMembers.end());
     auto ut = new (_alloc) UnionType(*membersCopy);
     auto keyCopy = new (_alloc) TypeArray(key.begin(), key.end());
     _unionTypes[TypeKey(*keyCopy)] = ut;

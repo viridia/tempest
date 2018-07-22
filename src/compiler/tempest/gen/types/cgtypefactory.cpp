@@ -1,5 +1,6 @@
 #include "tempest/gen/types/cgtypefactory.h"
 #include "tempest/gen/linkagename.h"
+#include "tempest/intrinsic/defns.h"
 #include "tempest/sema/graph/primitivetype.h"
 #include <llvm/IR/DerivedTypes.h>
 #include <assert.h>
@@ -7,6 +8,7 @@
 namespace tempest::gen::types {
   using namespace tempest::sema::graph;
   using tempest::gen::getLinkageName;
+  using tempest::intrinsic::IntrinsicDefns;
 
   llvm::Type* CGTypeFactory::get(const Type* ty, const llvm::ArrayRef<const Type*>& typeArgs) {
     switch (ty->kind) {
@@ -103,8 +105,22 @@ namespace tempest::gen::types {
     getLinkageName(linkageName, td);
 
     // Base class
-    if (cls->extends().empty()) {
-      // Insert Object fields
+    if (td->intrinsic() != IntrinsicType::NONE) {
+      switch (td->intrinsic()) {
+        case IntrinsicType::OBJECT_CLASS: {
+          // ClassDescriptor pointer
+          elts.push_back(llvm::PointerType::getUnqual(llvm::Type::getVoidTy(_context)));
+          // GCInfo field - might be a forwarding pointer.
+          elts.push_back(llvm::PointerType::getUnqual(llvm::Type::getVoidTy(_context)));
+          break;
+        }
+
+        default:
+          assert(false && "Invalid class intrinsic");
+      }
+    } else if (cls->extends().empty()) {
+      // Object base class.
+      elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), {}));
     } else {
       auto base = cls->extends()[0];
       elts.push_back(get(base, typeArgs));

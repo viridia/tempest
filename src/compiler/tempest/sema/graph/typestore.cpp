@@ -4,55 +4,6 @@
 #include "tempest/sema/graph/typeorder.h"
 
 namespace tempest::sema::graph {
-  // Type* TypeStore::memberType(Member* m) {
-  //   switch (m->kind()) {
-  //     case Member::Kind::MODULE:
-  //     case Member::Kind::PACKAGE:
-  //       return &Type::ERROR;
-  //     case Member::Kind::TYPE:
-  //       assert(static_cast<TypeDefn*>(m)->type() != nullptr);
-  //       return static_cast<TypeDefn*>(m)->type();
-  //     case Member::Kind::FUNCTION:
-  //       assert(false && "Unsupported kind: function.");
-  //     case Member::Kind::PROPERTY:
-  //       assert(false && "Unsupported kind: property.");
-  //     case Member::Kind::LET:
-  //     case Member::Kind::VAR:
-  //     case Member::Kind::ENUM_VAL:
-  //     case Member::Kind::PARAM:
-  //     case Member::Kind::TUPLE_MEMBER:
-  //       assert(static_cast<ValueDefn*>(m)->type() != nullptr);
-  //       return static_cast<ValueDefn*>(m)->type();
-  //     case Member::Kind::TYPE_PARAM:
-  //       return static_cast<TypeParameter*>(m)->typeVar();
-  //     case Member::Kind::SPECIALIZED:
-  //       assert(false && "Unsupported kind: specialized.");
-  //     default:
-  //       assert(false && "Unsupported kind.");
-  //   }
-  //   assert(false);
-  // }
-
-  // Env TypeStore::createEnv(const Env& env) {
-  //   // TODO: Definitely going to need unit tests for this.
-  //   auto it = _envs.find(env);
-  //   if (it != _envs.end()) {
-  //     return *it;
-  // //     return Env(Env::Bindings(it->data(), it->size()));
-  //   }
-
-  //   // Make a copy of the data on the arena
-  //   auto data = reinterpret_cast<TypeBinding*>(_alloc.allocate(env.size() * sizeof(TypeBinding)));
-  //   std::uninitialized_copy(env.begin(), env.end(), data);
-  //   auto newEnv = semgraph::ImmutableEnv(data, env.size());
-  //   _envs.insert(newEnv);
-  //   return newEnv;
-  // /*
-
-  //   // Return a new environment object.
-  //   return Env(Env::Bindings(data, env.size()));*/
-  // }
-
   UnionType* TypeStore::createUnionType(const TypeArray& members) {
     // Sort members by pointer. This makes the type key hash independent of order.
     llvm::SmallVector<Type*, 4> sortedMembers(members.begin(), members.end());
@@ -68,13 +19,12 @@ namespace tempest::sema::graph {
     // Allocate type arrays of both the original and sorted orders.
     auto membersCopy = new (_alloc) TypeArray(sortedMembers.begin(), sortedMembers.end());
     auto ut = new (_alloc) UnionType(*membersCopy);
-    auto keyCopy = new (_alloc) TypeArray(key.begin(), key.end());
-    _unionTypes[TypeKey(*keyCopy)] = ut;
+    _unionTypes[TypeKey(ut->members)] = ut;
     return ut;
   }
 
   TupleType* TypeStore::createTupleType(const TypeArray& members) {
-    TypeKey key = TypeKey(members);
+    TypeKey key(members);
     auto it = _tupleTypes.find(key);
     if (it != _tupleTypes.end()) {
       return it->second;
@@ -124,5 +74,18 @@ namespace tempest::sema::graph {
       paramTypes.push_back(param->type());
     }
     return createFunctionType(returnType, paramTypes);
+  }
+
+  /** Specialize a generic definition. */
+  SpecializedDefn* TypeStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
+    SpecializationKey key(base, typeArgs);
+    auto it = _specs.find(key);
+    if (it != _specs.end()) {
+      return it->second;
+    }
+
+    auto spec = new (_alloc) SpecializedDefn(base, typeArgs);
+    _specs[key] = spec;
+    return spec;
   }
 }

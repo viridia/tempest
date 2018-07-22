@@ -9,10 +9,6 @@
   #include "tempest/sema/graph/module.h"
 #endif
 
-#ifndef TEMPEST_GEN_TYPES_CGTYPEFACTORY_H
-  #include "tempest/gen/types/cgtypefactory.h"
-#endif
-
 #ifndef LLVM_ADT_SMALLVECTOR_H
   #include <llvm/ADT/SmallVector.h>
 #endif
@@ -49,9 +45,6 @@ namespace tempest::gen {
     /** Allocator for this module. */
     llvm::BumpPtrAllocator& alloc() { return _alloc; }
 
-    /** Type factory instance for this module. */
-    types::CGTypeFactory& types() { return _types; }
-
     /** List of globals in this module. */
     std::vector<CGGlobal*>& globals() { return _globals; }
     const std::vector<CGGlobal*>& globals() const { return _globals; }
@@ -63,7 +56,6 @@ namespace tempest::gen {
   private:
     std::unique_ptr<llvm::Module> _irModule;
     llvm::BumpPtrAllocator _alloc;
-    types::CGTypeFactory _types;
     llvm::StringMap<CGStringLiteral*> _stringLiterals;
     std::vector<CGGlobal*> _globals;
     std::vector<CGFunction*> _functions;

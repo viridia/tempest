@@ -9,7 +9,6 @@ namespace tempest::gen {
 
   CGModule::CGModule(llvm::StringRef name, llvm::LLVMContext& context)
     : _irModule(std::make_unique<llvm::Module>(name, context))
-    , _types(context, _alloc)
   {
   }
 }

@@ -14,7 +14,6 @@
 #endif
 
 #include <unordered_set>
-// #include <utility>
 
 namespace tempest::sema::graph {
   class Env;
@@ -75,42 +74,39 @@ namespace tempest::sema::graph {
   };
 
   /** A hashable tuple of types that can be used as a lookup key. */
-  class SpecializedTypeKey {
+  class SpecializationKey {
   public:
-    SpecializedTypeKey() {}
-    SpecializedTypeKey(const SpecializedTypeKey& key)
-      : _baseType(key._baseType)
-      , _typeArgs(key._typeArgs)
-    {}
-    SpecializedTypeKey(UserDefinedType* baseType, const TypeKey& typeArgs)
-      : _baseType(baseType)
-      , _typeArgs(typeArgs)
+    SpecializationKey() = default;
+    SpecializationKey(const SpecializationKey& key) = default;
+    SpecializationKey(const GenericDefn* base, const TypeArray& typeArgs)
+      : _base(base)
+      , _typeArgs(TypeKey(typeArgs))
     {}
 
     /** The generic type to be specialized. */
-    UserDefinedType* baseType() const { return _baseType; }
+    const GenericDefn* base() const { return _base; }
 
     /** The type arguments to the generic type. */
     const TypeKey typeArgs() const { return _typeArgs; }
 
     /** Equality comparison. */
-    friend bool operator==(const SpecializedTypeKey& lhs, const SpecializedTypeKey& rhs) {
-      return lhs._baseType == rhs._baseType && lhs._typeArgs == rhs._typeArgs;
+    friend bool operator==(const SpecializationKey& lhs, const SpecializationKey& rhs) {
+      return lhs._base == rhs._base && lhs._typeArgs == rhs._typeArgs;
     }
 
     /** Inequality comparison. */
-    friend bool operator!=(const SpecializedTypeKey& lhs, const SpecializedTypeKey& rhs) {
-      return lhs._baseType != rhs._baseType || lhs._typeArgs != rhs._typeArgs;
+    friend bool operator!=(const SpecializationKey& lhs, const SpecializationKey& rhs) {
+      return lhs._base != rhs._base || lhs._typeArgs != rhs._typeArgs;
     }
 
   private:
-    UserDefinedType* _baseType;
+    const GenericDefn* _base;
     TypeKey _typeArgs;
   };
 
-  struct SpecializedTypeKeyHash {
-    inline std::size_t operator()(const SpecializedTypeKey& value) const {
-      std::size_t hash = std::hash<tempest::sema::graph::Type*>()(value.baseType());
+  struct SpecializationKeyHash {
+    inline std::size_t operator()(const SpecializationKey& value) const {
+      std::size_t hash = std::hash<const tempest::sema::graph::GenericDefn*>()(value.base());
       hash_combine(hash, TypeKeyHash()(value.typeArgs()));
       return hash;
     }
@@ -122,10 +118,6 @@ namespace tempest::sema::graph {
     /** TypeStore has its own allocator. */
     llvm::BumpPtrAllocator& alloc() { return _alloc; }
 
-    /** Return the type of the specified member. If the member is a specialized member, it may
-        be necessary to construct a specialized type. */
-    // Type* memberType(Member* m);
-
     /** Create an environment object from a set of type mappings. */
     Env createEnv(const Env& env);
 
@@ -134,6 +126,9 @@ namespace tempest::sema::graph {
 
     /** Create a tuple type from the given type key. */
     TupleType* createTupleType(const TypeArray& members);
+
+    /** Specialize a generic definition. */
+    SpecializedDefn* specialize(GenericDefn* base, const TypeArray& typeArgs);
 
     /** Create a function type from a return type and parameter types. */
     FunctionType* createFunctionType(Type* returnType, const TypeArray& paramTypes);
@@ -162,14 +157,11 @@ namespace tempest::sema::graph {
     };
 
     llvm::BumpPtrAllocator _alloc;
-    // std::unordered_set<Env> _envs;
-  //     self.uniqueEnvs = {}
-  //     self.uniqueTypes = {}
-  //     self.phiTypes = {}
     std::unordered_map<TypeKey, UnionType*, TypeKeyHash> _unionTypes;
     std::unordered_map<TypeKey, TupleType*, TypeKeyHash> _tupleTypes;
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;
     std::unordered_map<ConstKey, ConstType*, ConstKeyHash> _constTypes;
+    std::unordered_map<SpecializationKey, SpecializedDefn*, SpecializationKeyHash> _specs;
     std::unordered_set<Type*> _addressTypes;
   //     self.valueRefTypes = {}
   };

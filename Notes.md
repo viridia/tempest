@@ -112,6 +112,20 @@ extend Type implements Trait {
 I think we can lose the Spark concept of having multiple implementations of class specializations.
 Those can be better done with trait extensions. Yes.
 
+## Operator overloading
+
+Via traits:
+
+* Addition
+* Subtraction
+* Multiplication
+* Division
+* Modulus
+* BitwiseAnd
+* BitwiseOr
+* BitwiseXor
+* PartialOrder
+
 ## Unsolved syntactical problems:
 
 * Type extensions and scope

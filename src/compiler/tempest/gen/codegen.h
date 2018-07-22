@@ -5,12 +5,12 @@
   #include "tempest/sema/graph/defn.h"
 #endif
 
+#ifndef TEMPEST_GEN_TYPES_CGTYPEFACTORY_H
+  #include "tempest/gen/types/cgtypefactory.h"
+#endif
+
 // #ifndef TEMPEST_SEMA_GRAPH_MODULE_H
 //   #include "tempest/sema/graph/module.h"
-// #endif
-
-// #ifndef TEMPEST_GEN_TYPES_CGTYPEFACTORY_H
-//   #include "tempest/gen/types/cgtypefactory.h"
 // #endif
 
 // #ifndef LLVM_ADT_SMALLVECTOR_H
@@ -34,17 +34,21 @@
 namespace tempest::gen {
   using tempest::sema::graph::Module;
 
-  class CGGlobal;
   class CGFunction;
   class CGStringLiteral;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
   class CodeGen {
   public:
-    CodeGen(llvm::StringRef name, llvm::LLVMContext& context);
+    CodeGen(llvm::StringRef name, llvm::LLVMContext& context)
+      : _types(context, _alloc)
+    {}
 
     /** The current module. */
     CGModule* module() { return _module.get(); }
+
+    /** Type factory instance for this module. */
+    types::CGTypeFactory& types() { return _types; }
 
     /** Temporary storage for code generation. */
     llvm::BumpPtrAllocator& alloc() { return _alloc; }
@@ -60,6 +64,7 @@ namespace tempest::gen {
 
   private:
     std::unique_ptr<CGModule> _module;
+    types::CGTypeFactory _types;
     llvm::BumpPtrAllocator _alloc;
   };
 }

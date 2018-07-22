@@ -3,6 +3,7 @@
 #include "tempest/sema/graph/typestore.h"
 
 using namespace tempest::sema::graph;
+using tempest::source::Location;
 
 TEST_CASE("TypeKey", "[type]") {
   SECTION("Ordered") {
@@ -31,5 +32,14 @@ TEST_CASE("TypeStore", "[type]") {
     REQUIRE(tt1->members[1] == &IntegerType::I32);
     REQUIRE(tt2->members[0] == &IntegerType::I32);
     REQUIRE(tt2->members[1] == &IntegerType::I16);
+  }
+
+  SECTION("Specialize") {
+    TypeDefn clsDefnA(Location(), "A");
+    const SpecializedDefn* sd1 = ts.specialize(&clsDefnA, { &IntegerType::I16, &IntegerType::I32 });
+    const SpecializedDefn* sd2 = ts.specialize(&clsDefnA, { &IntegerType::I16, &IntegerType::I32 });
+    const SpecializedDefn* sd3 = ts.specialize(&clsDefnA, { &IntegerType::I32, &IntegerType::I32 });
+    REQUIRE(sd1 == sd2);
+    REQUIRE(sd1 != sd3);
   }
 }

@@ -20,6 +20,12 @@ namespace tempest::sema::graph {
     INTERNAL,
   };
 
+  /** Indicates that the type definition is a builtin type .*/
+  enum class IntrinsicType {
+    NONE = 0,
+    OBJECT_CLASS,
+  };
+
   /** Base class for semantic graph definitions. */
   class Defn : public Member {
   public:
@@ -181,7 +187,6 @@ namespace tempest::sema::graph {
         Member* definedIn = nullptr)
       : GenericDefn(Kind::TYPE, location, name, definedIn)
       , _memberScope(std::make_unique<SymbolTable>())
-      // , _intrinsic(nullptr)
     {
     }
 
@@ -199,10 +204,10 @@ namespace tempest::sema::graph {
     SymbolTable* memberScope() const { return _memberScope.get(); }
 
     /** If this type is an intrinsic type, here is the information for it. */
-    // intrinsic::IntrinsicType* intrinsic() const { return _intrinsic; }
-    // void setIntrinsic(intrinsic::IntrinsicType* i) { _intrinsic = i; }
+    IntrinsicType intrinsic() const { return _intrinsic; }
+    void setIntrinsic(IntrinsicType i) { _intrinsic = i; }
 
-    void format(std::ostream& out) const;
+    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const TypeDefn* m) { return true; }
@@ -212,7 +217,7 @@ namespace tempest::sema::graph {
     Type* _type;
     std::vector<Defn*> _members;
     std::unique_ptr<SymbolTable> _memberScope;
-    // intrinsic::IntrinsicType* _intrinsic;
+    IntrinsicType _intrinsic = IntrinsicType::NONE;
 
   //   # List of friend declarations for thibs class
   //   friends: list[Member] = 3;
@@ -294,7 +299,7 @@ namespace tempest::sema::graph {
     const TypeArray& subtypeConstraints() const { return _subtypeConstraints; }
     void setSubtypeConstraints(const TypeArray& types) { _subtypeConstraints = types; }
 
-    void format(std::ostream& out) const;
+    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const TypeParameter* m) { return true; }
@@ -343,7 +348,7 @@ namespace tempest::sema::graph {
     bool isDefined() const { return _defined; }
     void setDefined(bool defined) { _defined = defined; }
 
-    void format(std::ostream& out) const;
+    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const ValueDefn* m) { return true; }
@@ -376,7 +381,7 @@ namespace tempest::sema::graph {
     int32_t ordinal() const { return _ordinal; }
     void setOrdinal(int32_t n) { _ordinal = n; }
 
-    void format(std::ostream& out) const;
+    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const EnumValueDefn* m) { return true; }
@@ -426,7 +431,7 @@ namespace tempest::sema::graph {
     bool isClassParam() const { return _classParam; }
     void setClassParam(bool classParam) { _classParam = classParam; }
 
-    void format(std::ostream& out) const;
+    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const ParameterDefn* m) { return true; }
@@ -508,7 +513,7 @@ namespace tempest::sema::graph {
     int32_t methodIndex() const { return _methodIndex; }
     void setMethodIndex(int32_t index) { _methodIndex = index; }
 
-    void format(std::ostream& out) const;
+    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const FunctionDefn* m) { return true; }

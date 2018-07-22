@@ -1,0 +1,4 @@
+/** Standard built-in array class. */
+class Array[T] {
+
+}

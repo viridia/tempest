@@ -1,0 +1,59 @@
+/** Standard built-in linear slice type.
+    Slice objects can be taken from arrays, strings, or other data structures which have
+    a contiguous, linear memory layout.
+*/
+struct Slice[T] implements Iterable[T] {
+  private {
+    // Object containing the elements which this slice references.
+    const base: Object;
+    // Offset of the first element from the base address.
+    const offset: uint;
+  }
+
+  /** Number of elements in the slice. */
+  const size: int;
+
+  /** Slice constructor.
+      This is marked as unsafe because `offset` and `size` need to be within the bounds of the
+      memory allocated for `base`.
+  */
+  unsafe new(base:Object, offset: uint; size: int) {
+    self = { base, offset, size };
+  }
+
+  /** Return the value of the element whose position corresponds to `index`. */
+  __intrinsic__ get (index: int): T;
+
+  /** Set the value of the element whose position corresponds to `index`. */
+  __intrinsic__ set (index: int, value: T);
+
+  /** True if this is an empty slice. */
+  get empty: bool => .size == 0;
+
+  /** Return a subslice.
+      @param start Defaults to zero, will be clamped between 0 and the size of this slice.
+      @param end Defaults to the end of the slice, will be clamped between start and end.
+  */
+  fn slice (start: int = 0, end: int = int.MAX_VAL): Slice[T] {
+    const startClamped = Math.clamp(start, 0, .size);
+    const endClamped = Math.clamp(end, start, .size);
+    Slice { base, offset + start * sizeof(T), end - start }
+  }
+
+  /** Iterate over the elements of the slice. */
+  fn iterate() => SliceIterator[T](self);
+}
+
+/** Iterator over a Slice. */
+struct SliceIterator[T] implements Iterator[T] {
+  private {
+    slice: Slice[T];
+    index: int = 0;
+  }
+
+  fn! next(): Optional[T] {
+    if index < slice.count {
+      slice[index++];
+    }
+  }
+}

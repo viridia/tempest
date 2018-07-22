@@ -113,7 +113,7 @@ namespace tempest::sema::graph {
 
     /** Dynamic casting support. */
     static bool classof(const UserDefinedType* t) { return true; }
-    static bool classof(const Type* t) { return t->kind >= Kind::CLASS && t->kind <= Kind::ENUM; }
+    static bool classof(const Type* t) { return t->kind >= Kind::CLASS && t->kind <= Kind::ALIAS; }
 
   private:
     TypeDefn* _defn;

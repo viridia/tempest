@@ -48,8 +48,8 @@ namespace tempest::sema::graph {
     /** Allocator used for AST nodes. */
     llvm::BumpPtrAllocator& astAlloc() { return _astAlloc; }
 
-    /** Allocator used for temporary specializations and environments. */
-    llvm::BumpPtrAllocator& specAlloc() { return _specAlloc; }
+    /** Allocator used for semantic graph. */
+    llvm::BumpPtrAllocator& semaAlloc() { return _semaAlloc; }
 
     /** The absolute path to this module on disk. May be empty if the package was loaded from
         a library. */
@@ -70,7 +70,10 @@ namespace tempest::sema::graph {
     std::unique_ptr<SymbolTable> _importScope;
     std::string _path;
     llvm::BumpPtrAllocator _astAlloc;
-    llvm::BumpPtrAllocator _specAlloc;
+    llvm::BumpPtrAllocator _semaAlloc;
+    // References to Specialized functions
+    // References to Type Descriptors
+    // std::unordered_set<SpecializedDefn*> _syntheticFunctions;
   };
 }
 

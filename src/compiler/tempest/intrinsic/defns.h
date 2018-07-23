@@ -27,6 +27,13 @@ namespace tempest::intrinsic {
     // std::unique_ptr<TypeDefn*> iterableTrait;
     // std::unique_ptr<TypeDefn*> iteratorTrait;
 
+    // Operator traits
+    std::unique_ptr<TypeDefn> additionTrait;
+    std::unique_ptr<TypeDefn> subtractionTrait;
+    std::unique_ptr<TypeDefn> multiplicationTrait;
+    std::unique_ptr<TypeDefn> divisionTrait;
+    std::unique_ptr<TypeDefn> modulusTrait;
+
     // Singleton getter.
     static IntrinsicDefns* get();
 

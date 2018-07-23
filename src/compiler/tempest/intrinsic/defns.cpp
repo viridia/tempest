@@ -7,12 +7,9 @@ namespace tempest::intrinsic {
 
   /** Class to contain all of the various intrinsic definitions. */
   IntrinsicDefns::IntrinsicDefns() {
+    // Built-in classes
     objectClass = makeTypeDefn(Type::Kind::CLASS, "Object");
     objectClass->setIntrinsic(IntrinsicType::OBJECT_CLASS);
-    // auto clsDesc = addValueDefn(objectClass, Member::Kind::CONST_DEF, "__class");
-    // clsDesc->setType(&VoidType::VOID);
-    // auto gcInfo = addValueDefn(objectClass, Member::Kind::CONST_DEF, "__gcInfo");
-    // gcInfo->setType(&IntegerType::U32);
 
     // std::unique_ptr<TypeDefn*> objectClass;
     // std::unique_ptr<TypeDefn*> throwableClass;
@@ -20,6 +17,10 @@ namespace tempest::intrinsic {
     // std::unique_ptr<TypeDefn*> interfaceDescriptorStruct;
     // std::unique_ptr<TypeDefn*> iterableTrait;
     // std::unique_ptr<TypeDefn*> iteratorTrait;
+
+    // Built-in traits
+    // additionTrait = makeTypeDefn(Type::Kind::CLASS, "Addition");
+    // additionTrait->setIntrinsic(IntrinsicType::ADDITION_TRAIT);
   }
 
   std::unique_ptr<TypeDefn> IntrinsicDefns::makeTypeDefn(Type::Kind kind, llvm::StringRef name) {

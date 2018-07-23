@@ -92,4 +92,10 @@ TEST_CASE("LinkageName", "[gen]") {
     getLinkageName(name, &specDefn);
     REQUIRE(name == "A[i16,i32]");
   }
+
+  SECTION("Function") {
+    FunctionType* ft = ts.createFunctionType(&VoidType::VOID, { &IntegerType::I32 });
+    getLinkageName(name, ft);
+    REQUIRE(name == "(i32)->void");
+  }
 }

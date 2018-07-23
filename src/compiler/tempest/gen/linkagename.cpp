@@ -3,12 +3,14 @@
 #include "tempest/sema/graph/primitivetype.h"
 #include "tempest/gen/linkagename.h"
 #include <llvm/Support/Casting.h>
+#include <assert.h>
 
 namespace tempest::gen {
   using namespace tempest::sema::graph;
   using llvm::dyn_cast;
 
   void getDefnLinkageName(std::string& out, const Member* m, llvm::ArrayRef<Type*> typeArgs) {
+    assert(m != nullptr);
     auto defn = llvm::dyn_cast<const Defn>(m);
     if (defn && defn->definedIn()) {
       getDefnLinkageName(out, defn->definedIn(), typeArgs);
@@ -41,11 +43,17 @@ namespace tempest::gen {
         break;
       }
  
+      case Member::Kind::FUNCTION: {
+        auto fd = static_cast<const FunctionDefn*>(m);
+        out.append(fd->name());
+        getTypeLinkageName(out, fd->type(), typeArgs);
+        break;
+      }
+
       // TYPE_PARAM,
       // CONST,
       // VAR,
       // ENUM_VAL,
-      // FUNCTION,
       // FUNCTION_PARAM,
 
       // MODULE,
@@ -58,6 +66,7 @@ namespace tempest::gen {
   }
 
   void getTypeLinkageName(std::string& out, const Type* ty, llvm::ArrayRef<Type*> typeArgs) {
+    assert(ty != nullptr);
     switch (ty->kind) {
       case Type::Kind::VOID: {
         out.append("void");
@@ -106,6 +115,23 @@ namespace tempest::gen {
           sep = '|';
           getTypeLinkageName(out, member, typeArgs);
         }
+        break;
+      }
+
+      case Type::Kind::FUNCTION: {
+        auto funcTy = static_cast<const FunctionType*>(ty);
+        char sep = 0;
+        out.push_back('(');
+        for (auto member : funcTy->paramTypes) {
+          if (sep) {
+            out.push_back(sep);
+          }
+          sep = ',';
+          getTypeLinkageName(out, member, typeArgs);
+        }
+        out.push_back(')');
+        out.append("->");
+        getTypeLinkageName(out, funcTy->returnType, typeArgs);
         break;
       }
 

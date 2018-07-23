@@ -5,66 +5,78 @@
   #include "tempest/sema/graph/defn.h"
 #endif
 
-#ifndef TEMPEST_GEN_TYPES_CGTYPEFACTORY_H
-  #include "tempest/gen/types/cgtypefactory.h"
+#ifndef TEMPEST_SEMA_GRAPH_MODULE_H
+  #include "tempest/sema/graph/module.h"
 #endif
 
-// #ifndef TEMPEST_SEMA_GRAPH_MODULE_H
-//   #include "tempest/sema/graph/module.h"
-// #endif
-
-// #ifndef LLVM_ADT_SMALLVECTOR_H
-//   #include <llvm/ADT/SmallVector.h>
-// #endif
-
-// #ifndef LLVM_ADT_STRINGMAP_H
-//   #include <llvm/ADT/StringMap.h>
-// #endif
+#ifndef TEMPEST_GEN_CGTYPEBUILDER_H
+  #include "tempest/gen/cgtypebuilder.h"
+#endif
 
 #ifndef LLVM_SUPPORT_ALLOCATOR_H
   #include <llvm/Support/Allocator.h>
 #endif
 
-// #ifndef LLVM_IR_MODULE_H
-//   #include <llvm/IR/Module.h>
-// #endif
+#ifndef TEMPEST_ERROR_REPORTER_H
+  #include "tempest/error/reporter.h"
+#endif
+
+#ifndef LLVM_IR_FUNCTION_H
+  #include <llvm/IR/Function.h>
+#endif
 
 // #include <vector>
 
 namespace tempest::gen {
+  using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Module;
+  // using tempest::sema::graph::Type;
 
   class CGFunction;
+  class CGModule;
   class CGStringLiteral;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
   class CodeGen {
   public:
-    CodeGen(llvm::StringRef name, llvm::LLVMContext& context)
-      : _types(context, _alloc)
+    llvm::LLVMContext& context;
+
+    CodeGen(llvm::LLVMContext& context)
+      : context(context)
+      , _module(nullptr)
+      , _types(context, _alloc)
     {}
 
     /** The current module. */
-    CGModule* module() { return _module.get(); }
+    CGModule* module() { return _module; }
 
     /** Type factory instance for this module. */
-    types::CGTypeFactory& types() { return _types; }
+    CGTypeBuilder& types() { return _types; }
 
     /** Temporary storage for code generation. */
     llvm::BumpPtrAllocator& alloc() { return _alloc; }
 
+    /** Create a new module. */
+    CGModule* createModule(llvm::StringRef name);
+
+    /** Generate a declaration for a function in the current module. */
+    llvm::Function* genFunctionValue(FunctionDefn* func);
+
+    /** Generate a definition for a function in the current module. */
+    llvm::Function* genFunction(FunctionDefn* func);
+
     /** Set the current type arguments for the definition being generated. Returns the previous
         type arguments. */
-    void setTypeArgs(const llvm::ArrayRef<Type*>& args, llvm::SmallVectorBase<Type*>& oldArgs);
+    // void setTypeArgs(const llvm::ArrayRef<Type*>& args, llvm::SmallVectorBase<Type*>& oldArgs);
 
-    /** Restore the type arguments to their previous values. */
-    void restoreTypeArgs(llvm::SmallVectorBase<Type*>& oldArgs);
+    // /** Restore the type arguments to their previous values. */
+    // void restoreTypeArgs(llvm::SmallVectorBase<Type*>& oldArgs);
 
     // visitModule
 
   private:
-    std::unique_ptr<CGModule> _module;
-    types::CGTypeFactory _types;
+    CGModule* _module;
+    CGTypeBuilder _types;
     llvm::BumpPtrAllocator _alloc;
   };
 }

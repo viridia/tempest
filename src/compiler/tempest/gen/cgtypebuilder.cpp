@@ -1,16 +1,16 @@
-#include "tempest/gen/types/cgtypefactory.h"
+#include "tempest/gen/cgtypebuilder.h"
 #include "tempest/gen/linkagename.h"
 #include "tempest/intrinsic/defns.h"
 #include "tempest/sema/graph/primitivetype.h"
 #include <llvm/IR/DerivedTypes.h>
 #include <assert.h>
 
-namespace tempest::gen::types {
+namespace tempest::gen {
   using namespace tempest::sema::graph;
   using tempest::gen::getLinkageName;
   using tempest::intrinsic::IntrinsicDefns;
 
-  llvm::Type* CGTypeFactory::get(const Type* ty, const llvm::ArrayRef<const Type*>& typeArgs) {
+  llvm::Type* CGTypeBuilder::get(const Type* ty, const llvm::ArrayRef<const Type*>& typeArgs) {
     switch (ty->kind) {
       case Type::Kind::VOID: {
         return llvm::Type::getVoidTy(_context);
@@ -65,11 +65,20 @@ namespace tempest::gen::types {
       // TYPE_VAR,       // Reference to a template parameter
 
       // // Derived types
-      // UNION,          // Disjoint types
-      // TUPLE,          // Tuple of types
-      // FUNCTION,       // Function type
       // CONST,          // Const type modifier
 
+      case Type::Kind::FUNCTION: {
+        auto fty = static_cast<const FunctionType*>(ty);
+        llvm::SmallVector<llvm::Type*, 16> paramTypes;
+        for (auto param : fty->paramTypes) {
+          // TODO: getParamType or getInternalParamType
+          paramTypes.push_back(getMemberType(param, typeArgs));
+        }
+        auto returnType = getMemberType(fty->returnType, typeArgs);
+        return llvm::FunctionType::get(returnType, paramTypes, false);
+      }
+
+      // TODO: We shouldn't need this; Everything should be expanded at this point.
       // case Type::Kind::SPECIALIZED: {
       //   auto specTy = static_cast<const SpecializedType*>(ty);
       //   result = get(specTy->base, EnvChain(specTy->env, env));
@@ -82,7 +91,7 @@ namespace tempest::gen::types {
     }
   }
 
-  llvm::Type* CGTypeFactory::getMemberType(
+  llvm::Type* CGTypeBuilder::getMemberType(
       const Type* ty,
       const llvm::ArrayRef<const Type*>& typeArgs) {
     llvm::Type* result = get(ty, typeArgs);
@@ -92,7 +101,7 @@ namespace tempest::gen::types {
     return result;
   }
 
-  llvm::Type* CGTypeFactory::createClass(
+  llvm::Type* CGTypeBuilder::createClass(
       const UserDefinedType* cls,
       const llvm::ArrayRef<const Type*>& typeArgs) {
     auto td = cls->defn();

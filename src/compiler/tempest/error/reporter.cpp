@@ -38,6 +38,8 @@ namespace tempest::error {
 
   #define UNCHANGED   ""
 
+  ConsoleReporter ConsoleReporter::INSTANCE;
+
   static const char * severityNames[SEVERITY_LEVELS] = {
     "debug",
     "status",

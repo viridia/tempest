@@ -59,14 +59,13 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/compiler
-    ${CMAKE_CURRENT_BINARY_DIR})
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/compiler)
 
 # Generate the config.h file
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+    ${CMAKE_BINARY_DIR}/include/config.h)
 
 add_subdirectory(compiler)
 add_subdirectory(compiler_tests)

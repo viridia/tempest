@@ -1,17 +1,17 @@
 #include "catch.hpp"
-#include "tempest/gen/types/cgtypefactory.h"
+#include "tempest/gen/cgtypebuilder.h"
 #include "tempest/sema/graph/primitivetype.h"
 #include "tempest/sema/graph/typestore.h"
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/Allocator.h>
 
 using namespace tempest::sema::graph;
-using namespace tempest::gen::types;
+using namespace tempest::gen;
 
-TEST_CASE("CGTypeFactory", "[gen]") {
+TEST_CASE("CGTypeBuilder", "[gen]") {
   llvm::LLVMContext context;
   llvm::BumpPtrAllocator alloc;
-  CGTypeFactory types(context, alloc);
+  CGTypeBuilder types(context, alloc);
 
   SECTION("Void") {
     llvm::Type* t = types.get(&VoidType::VOID);

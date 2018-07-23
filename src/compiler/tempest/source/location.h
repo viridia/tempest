@@ -1,7 +1,3 @@
-// ============================================================================
-// location.h: Data structures for recording source line information.
-// ============================================================================
-
 #ifndef TEMPEST_SOURCE_LOCATION_H
 #define TEMPEST_SOURCE_LOCATION_H 1
 
@@ -112,6 +108,11 @@ namespace tempest::source {
     }
     return os;
   }
+
+  class Locatable {
+  public:
+    virtual const Location& getLocation() const = 0;
+  };
 }
 
 namespace llvm {

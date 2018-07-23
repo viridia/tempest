@@ -17,7 +17,7 @@ I think the representations we want are:
   * AST
   * Semantic Graph
   * Optimized Semantic Graph (Incuding template expansions, dispatch tables, etc.)
-  * Output Symbols
+  * Output Symbols - Code Flow Graph
 
 Specific ties we want to break:
 
@@ -31,6 +31,19 @@ and environments are often created during analysis.
 
 There's an ownership problem in that the name lookup function can return either temporary or
 permanent objects.
+
+Memory management is made much harder by the idea that we might want to run all of this as a server
+for syntax checking and parsing. Basically any stage up to type inference need to be able to reset
+memory.
+
+I think the general strategy should be:
+
+Allocations:
+
+* AST: per module
+* Semantic Graph: per module
+* Type Store: per compilation unit
+* Synthetic definitions: per compilation unit, with possible caching.
 
 ## Output symbol graph
 
@@ -125,6 +138,16 @@ Via traits:
 * BitwiseOr
 * BitwiseXor
 * PartialOrder
+
+One problem with using traits for operator overloading is that operators have two arguments which
+can be of different types (path / string for example).
+
+// I think the operator traits will have to be simple markers.
+trait Addition {}
+
+class String implements Addition {
+  static fn add(s0: String, s1: String): String;
+}
 
 ## Unsolved syntactical problems:
 

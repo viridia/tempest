@@ -6,6 +6,8 @@
 #endif
 
 namespace tempest::sema::graph {
+  using tempest::source::Locatable;
+
   class Expr;
   class Type;
   class TypeVar;
@@ -23,11 +25,20 @@ namespace tempest::sema::graph {
   /** Indicates that the type definition is a builtin type .*/
   enum class IntrinsicType {
     NONE = 0,
+
+    // Built-in classes
     OBJECT_CLASS,
+
+    // Build-in traits
+    ADDITION_TRAIT,
+    SUBTRACTION_TRAIT,
+    MULTIPLICATION_TRAIT,
+    DIVISION_TRAIT,
+    MODULUS_TRAIT,
   };
 
   /** Base class for semantic graph definitions. */
-  class Defn : public Member {
+  class Defn : public Member, public Locatable {
   public:
     Defn(
         Kind kind,
@@ -89,6 +100,9 @@ namespace tempest::sema::graph {
     // If non-zero, means this is the Nth member with the same name.
     int32_t overloadIndex() const { return _overloadIndex; }
     void setOverloadIndex(int32_t index) { _overloadIndex = index; }
+
+    /** Implemente Locatable. */
+    const source::Location& getLocation() const { return location(); }
 
     // Defn* asDefn() final { return this; }
 

@@ -1,7 +1,3 @@
-// ============================================================================
-// reporter.h: Error reporter.
-// ============================================================================
-
 #ifndef TEMPEST_ERROR_REPORTER_H
 #define TEMPEST_ERROR_REPORTER_H 1
 
@@ -67,42 +63,6 @@ namespace tempest::error {
   /** Reporter interface. */
   class Reporter {
   public:
-
-    /** Fatal error. */
-    inline MessageStream fatal(Location loc = Location()) {
-      return MessageStream(this, FATAL, loc);
-    }
-
-    /** Error. */
-    inline MessageStream error(Location loc = Location()) {
-      return MessageStream(this, ERROR, loc);
-    }
-
-    /** Warning message. */
-    inline MessageStream warn(Location loc = Location()) {
-      return MessageStream(this, WARNING, loc);
-    }
-
-    /** Info message. */
-    inline MessageStream info(Location loc = Location()) {
-      return MessageStream(this, INFO, loc);
-    }
-
-    /** Status message. */
-    inline MessageStream status(Location loc = Location()) {
-      return MessageStream(this, STATUS, loc);
-    }
-
-    /** Debugging message. */
-    inline MessageStream debug(Location loc = Location()) {
-      return MessageStream(this, DEBUG, loc);
-    }
-
-    /** Message with variable severity. */
-    inline MessageStream report(Severity sev, Location loc = Location()) {
-      return MessageStream(this, sev, loc);
-    }
-
     /** Write a message to the output stream. */
     virtual void report(Severity sev, Location loc, StringRef msg) = 0;
 
@@ -166,6 +126,8 @@ namespace tempest::error {
     /** Print a stack backtrace if possible. */
     static void printStackTrace(int skipFrames);
 
+    static ConsoleReporter INSTANCE;
+
   private:
     int _messageCountArray[SEVERITY_LEVELS];
   //   RecoveryState _recovery;
@@ -175,26 +137,7 @@ namespace tempest::error {
     void resetColor();
   };
 
-  /** Convenience class that increases indentation level within a scope. */
-  class AutoIndent {
-  public:
-    AutoIndent(Reporter& reporter, bool enabled = true)
-      : _reporter(reporter)
-      , _enabled(enabled)
-    {
-      if (_enabled) _reporter.indent();
-    }
-
-    ~AutoIndent() {
-      if (_enabled) _reporter.unindent();
-    }
-
-  private:
-    Reporter& _reporter;
-    bool _enabled;
-  };
-
-  // How to print a StringRef.
+  // How to print severity.
   inline ::std::ostream& operator<<(::std::ostream& os, Severity sev) {
     switch (sev) {
       case DEBUG: os << "DEBUG"; break;

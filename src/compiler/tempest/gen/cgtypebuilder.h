@@ -1,5 +1,5 @@
-#ifndef TEMPEST_GEN_TYPES_CGTYPEFACTORY_H
-#define TEMPEST_GEN_TYPES_CGTYPEFACTORY_H 1
+#ifndef TEMPEST_GEN_CGTYPEBUILDER_H
+#define TEMPEST_GEN_CGTYPEBUILDER_H 1
 
 #ifndef TEMPEST_SEMA_GRAPH_TYPE_H
   #include "tempest/sema/graph/type.h"
@@ -11,15 +11,15 @@
 
 #include <unordered_map>
 
-namespace tempest::gen::types {
+namespace tempest::gen {
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
 
   /** Maps Tempest type expressions to LLVM types. */
-  class CGTypeFactory {
+  class CGTypeBuilder {
   public:
-    CGTypeFactory(llvm::LLVMContext& context, llvm::BumpPtrAllocator &alloc)
+    CGTypeBuilder(llvm::LLVMContext& context, llvm::BumpPtrAllocator &alloc)
       : _context(context)
       // , _alloc(alloc)
     {}

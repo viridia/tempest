@@ -16,6 +16,8 @@
 #include <unordered_set>
 
 namespace tempest::sema::graph {
+  using tempest::sema::graph::Type;
+
   class Env;
   class Member;
   class ParameterDefn;
@@ -66,8 +68,8 @@ namespace tempest::sema::graph {
   struct TypeKeyHash {
     inline std::size_t operator()(const TypeKey& value) const {
       std::size_t seed = 0;
-      for (tempest::sema::graph::Type* member : value) {
-        hash_combine(seed, std::hash<tempest::sema::graph::Type*>()(member));
+      for (Type* member : value) {
+        hash_combine(seed, std::hash<Type*>()(member));
       }
       return seed;
     }
@@ -134,9 +136,9 @@ namespace tempest::sema::graph {
     FunctionType* createFunctionType(Type* returnType, const TypeArray& paramTypes);
 
     /** Create a function type from a return type and a parameter list. */
-    FunctionType* createFunctionType(
-        Type* returnType,
-        const llvm::ArrayRef<ParameterDefn*>& params);
+    // FunctionType* createFunctionType(
+    //     Type* returnType,
+    //     const llvm::ArrayRef<ParameterDefn*>& params);
 
     /** Create a const type. */
     ConstType* createConstType(Type* base, bool provisional);

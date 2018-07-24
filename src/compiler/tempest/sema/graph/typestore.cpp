@@ -65,16 +65,16 @@ namespace tempest::sema::graph {
     return ft;
   }
 
-  FunctionType* TypeStore::createFunctionType(
-      Type* returnType,
-      const llvm::ArrayRef<ParameterDefn*>& params) {
-    std::vector<Type*> paramTypes;
-    paramTypes.reserve(params.size());
-    for (auto param : params) {
-      paramTypes.push_back(param->type());
-    }
-    return createFunctionType(returnType, paramTypes);
-  }
+  // FunctionType* TypeStore::createFunctionType(
+  //     Type* returnType,
+  //     const llvm::ArrayRef<ParameterDefn*>& params) {
+  //   std::vector<Type*> paramTypes;
+  //   paramTypes.reserve(params.size());
+  //   for (auto param : params) {
+  //     paramTypes.push_back(param->type());
+  //   }
+  //   return createFunctionType(returnType, paramTypes);
+  // }
 
   /** Specialize a generic definition. */
   SpecializedDefn* TypeStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {

@@ -28,6 +28,7 @@
 #include <vector>
 
 namespace tempest::gen {
+  using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Module;
 
   class CGGlobal;
@@ -53,7 +54,11 @@ namespace tempest::gen {
     std::vector<CGFunction*>& functions() { return _functions; }
     const std::vector<CGFunction*>& functions() const { return _functions; }
 
+    /** Generate code to call function fdef as the main entry point. */
+    void makeEntryPoint(FunctionDefn* fdef);
+
   private:
+    llvm::LLVMContext& _context;
     std::unique_ptr<llvm::Module> _irModule;
     llvm::BumpPtrAllocator _alloc;
     llvm::StringMap<CGStringLiteral*> _stringLiterals;

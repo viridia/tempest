@@ -19,10 +19,7 @@ namespace tempest::gen {
   /** Maps Tempest type expressions to LLVM types. */
   class CGTypeBuilder {
   public:
-    CGTypeBuilder(llvm::LLVMContext& context, llvm::BumpPtrAllocator &alloc)
-      : _context(context)
-      // , _alloc(alloc)
-    {}
+    CGTypeBuilder(llvm::LLVMContext& context) : _context(context) {}
 
     llvm::Type* get(const Type*, const llvm::ArrayRef<const Type*>& typeArgs = {});
     llvm::Type* getMemberType(const Type*, const llvm::ArrayRef<const Type*>& typeArgs);
@@ -34,7 +31,6 @@ namespace tempest::gen {
     typedef std::unordered_map<const TypeDefn*, llvm::Type*> TypeDefnMap;
 
     llvm::LLVMContext& _context;
-    // llvm::BumpPtrAllocator& _alloc;
     TypeMap _types;
     TypeDefnMap _typeDefns;
   };

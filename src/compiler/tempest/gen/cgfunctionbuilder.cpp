@@ -3,6 +3,7 @@
 #include "tempest/gen/cgfunctionbuilder.h"
 #include "tempest/gen/linkagename.h"
 #include "tempest/sema/graph/expr_literal.h"
+#include "tempest/sema/graph/expr_op.h"
 #include "tempest/sema/graph/expr_stmt.h"
 #include "tempest/sema/graph/primitivetype.h"
 
@@ -13,7 +14,9 @@ namespace tempest::gen {
   using tempest::error::diag;
   using namespace tempest::sema::graph;
   using llvm::cast;
+  using llvm::dyn_cast;
   using llvm::BasicBlock;
+  using llvm::Value;
 
   CGFunctionBuilder::CGFunctionBuilder(CodeGen& gen, CGModule* module)
     : _gen(gen)
@@ -26,6 +29,7 @@ namespace tempest::gen {
 
   llvm::Function* CGFunctionBuilder::genFunctionValue(FunctionDefn* func) {
     std::string linkageName;
+    linkageName.reserve(64);
     getLinkageName(linkageName, func);
 
     // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ParameterTypePass), fdef);
@@ -110,12 +114,22 @@ namespace tempest::gen {
       //   }
       // }
 
-      // if (debug_) {
-      //   dbgContext_ = genDISubprogram(fdef);
+      if (_module->isDebug()) {
+        std::string linkageName;
+        linkageName.reserve(64);
+        getLinkageName(linkageName, func);
+        // TODO: get this from the module
+        llvm::DIFile* diFile = _module->getDIFile(func->location().source);
+        llvm::DISubprogram* sp = _module->diBuilder().createFunction(
+          _module->diCompileUnit(), func->name(), linkageName, diFile, func->location().startLine,
+          _module->diTypeBuilder().createFunctionType(func->type()),
+          false /* internal linkage */, true /* definition */, 0,
+          llvm::DINode::FlagPrototyped, false);
+        _irFunction->setSubprogram(sp);
       //   //dbgContext_ = genLexicalBlock(fdef->location());
       //   dbgInlineContext_ = DIScope();
       //   setDebugLocation(fdef->location());
-      // }
+      }
 
       // BasicBlock * prologue = BasicBlock::Create(context_, "prologue", f);
 
@@ -285,18 +299,175 @@ namespace tempest::gen {
   //   //     IntegerType::get(32),
   //   //     IntegerType::get(32),
   //   //     NULL);
-  //   // Function* gcd = cast<Function>(c);    
+  //   // Function* gcd = cast<Function>(c);
 
   //   visitExpr(fd->body());
   //   return nullptr;
   // }
 
-  llvm::Value* CGFunctionBuilder::visitExpr(Expr* expr) {
+  Value* CGFunctionBuilder::visitExpr(Expr* expr) {
     switch (expr->kind) {
       case Expr::Kind::BLOCK:
         return visitBlockStmt(static_cast<BlockStmt*>(expr));
+
       case Expr::Kind::RETURN:
         return visitReturnStmt(static_cast<ReturnStmt*>(expr));
+
+      case Expr::Kind::ADD: {
+        auto iop = static_cast<InfixOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFAdd(lhs, rhs);
+        } else {
+          return _builder.CreateAdd(lhs, rhs);
+        }
+      }
+
+      case Expr::Kind::SUBTRACT: {
+        auto iop = static_cast<InfixOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFSub(lhs, rhs);
+        } else {
+          return _builder.CreateSub(lhs, rhs);
+        }
+      }
+
+      case Expr::Kind::MULTIPLY: {
+        auto iop = static_cast<InfixOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFMul(lhs, rhs);
+        } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          return _builder.CreateMul(lhs, rhs);
+        }
+      }
+
+      case Expr::Kind::DIVIDE: {
+        auto iop = static_cast<InfixOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFDiv(lhs, rhs);
+        } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          if (itype->isUnsigned()) {
+            return _builder.CreateUDiv(lhs, rhs);
+          } else {
+            return _builder.CreateSDiv(lhs, rhs);
+          }
+        } else {
+          assert(false && "Invalid division type");
+        }
+      }
+
+      case Expr::Kind::REMAINDER: {
+        auto iop = static_cast<InfixOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          if (itype->isUnsigned()) {
+            return _builder.CreateURem(lhs, rhs);
+          } else {
+            return _builder.CreateSRem(lhs, rhs);
+          }
+        } else {
+          assert(false && "Invalid remainder type");
+        }
+      }
+
+      case Expr::Kind::EQ: {
+        auto iop = static_cast<RelationalOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFCmpOEQ(lhs, rhs);
+        } else {
+          return _builder.CreateICmpEQ(lhs, rhs);
+        }
+      }
+
+      case Expr::Kind::NE: {
+        auto iop = static_cast<RelationalOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFCmpONE(lhs, rhs);
+        } else {
+          return _builder.CreateICmpNE(lhs, rhs);
+        }
+      }
+
+      case Expr::Kind::LT: {
+        auto iop = static_cast<RelationalOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFCmpOLT(lhs, rhs);
+        } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          if (itype->isUnsigned()) {
+            return _builder.CreateICmpULT(lhs, rhs);
+          } else {
+            return _builder.CreateICmpSLT(lhs, rhs);
+          }
+        } else {
+          assert(false && "Invalid LT type");
+        }
+      }
+
+      case Expr::Kind::LE: {
+        auto iop = static_cast<RelationalOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFCmpOLE(lhs, rhs);
+        } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          if (itype->isUnsigned()) {
+            return _builder.CreateICmpULE(lhs, rhs);
+          } else {
+            return _builder.CreateICmpSLE(lhs, rhs);
+          }
+        } else {
+          assert(false && "Invalid LT type");
+        }
+      }
+
+      case Expr::Kind::GT: {
+        auto iop = static_cast<RelationalOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFCmpOGT(lhs, rhs);
+        } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          if (itype->isUnsigned()) {
+            return _builder.CreateICmpUGT(lhs, rhs);
+          } else {
+            return _builder.CreateICmpSGT(lhs, rhs);
+          }
+        } else {
+          assert(false && "Invalid LT type");
+        }
+      }
+
+      case Expr::Kind::GE: {
+        auto iop = static_cast<RelationalOp*>(expr);
+        auto lhs = visitExpr(iop->lhs);
+        auto rhs = visitExpr(iop->rhs);
+        if (iop->type->kind == Type::Kind::FLOAT) {
+          return _builder.CreateFCmpOGE(lhs, rhs);
+        } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
+          if (itype->isUnsigned()) {
+            return _builder.CreateICmpUGE(lhs, rhs);
+          } else {
+            return _builder.CreateICmpSGE(lhs, rhs);
+          }
+        } else {
+          assert(false && "Invalid LT type");
+        }
+      }
+
       case Expr::Kind::INTEGER_LITERAL:
         return visitIntegerLiteral(static_cast<IntegerLiteral*>(expr));
       default:
@@ -304,8 +475,7 @@ namespace tempest::gen {
     }
   }
 
-  llvm::Value* CGFunctionBuilder::visitBlockStmt(BlockStmt* blk) {
-    llvm::Value * result = nullptr;
+  Value* CGFunctionBuilder::visitBlockStmt(BlockStmt* blk) {
     // size_t savedRootCount = rootStackSize();
     // pushRoots(in->scope());
 
@@ -319,22 +489,23 @@ namespace tempest::gen {
         diag.warn(*it) << "Unreachable statement";
       }
       // setDebugLocation((*it)->location());
-      result = visitExpr(*it);
-      if (result == NULL) {
+      if (!visitExpr(*it)) {
         //endLexicalBlock(savedScope);
         return NULL;
       }
     }
+
+    auto result = blk->result() ? visitExpr(blk->result()) : voidValue();
 
     // if (!atTerminator()) {
     //   popRootStack(savedRootCount);
     // }
 
     // dbgContext_ = saveContext;
-    return result ? result : voidValue();
+    return result;
   }
 
-  llvm::Value* CGFunctionBuilder::visitReturnStmt(ReturnStmt* in) {
+  Value* CGFunctionBuilder::visitReturnStmt(ReturnStmt* in) {
     // Execute all cleanups
     // for (BlockExits * be = blockExits_; be != NULL; be = be->parent()) {
     //   if (be->cleanupBlock() != NULL) {
@@ -349,7 +520,7 @@ namespace tempest::gen {
     } else {
       // Generate the return value.
       Expr* returnVal = in->expr();
-      llvm::Value* value = visitExpr(returnVal);
+      Value* value = visitExpr(returnVal);
       if (value == NULL) {
         return NULL;
       }
@@ -381,13 +552,13 @@ namespace tempest::gen {
     return voidValue();
   }
 
-  llvm::Value* CGFunctionBuilder::visitIntegerLiteral(IntegerLiteral* value) {
+  Value* CGFunctionBuilder::visitIntegerLiteral(IntegerLiteral* value) {
     return llvm::Constant::getIntegerValue(types().get(value->type()), value->value());
   }
 
   CGTypeBuilder& CGFunctionBuilder::types() { return _gen.types(); }
 
-  llvm::Value* CGFunctionBuilder::voidValue() const {
+  Value* CGFunctionBuilder::voidValue() const {
     return llvm::UndefValue::get(llvm::Type::getVoidTy(_gen.context));
   }
 

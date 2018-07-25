@@ -43,6 +43,23 @@ namespace tempest::sema::graph {
 
       // Unary Operators
 
+      // Binary Operators
+      ADD,
+      SUBTRACT,
+      MULTIPLY,
+      DIVIDE,
+      REMAINDER,
+      LSHIFT,
+      RSHIFT,
+
+      // Relational operators
+      EQ,
+      NE,
+      LT,
+      LE,
+      GT,
+      GE,
+
       // Assignment operators
       ASSIGN,
 
@@ -146,6 +163,11 @@ namespace tempest::sema::graph {
     //   UNARY_OP,
     //   BINARY_OP,
     //   CAST_OP,
+
+      INFIX_START = ADD,
+      INFIX_END = RSHIFT,
+      RELATIONAL_START = EQ,
+      RELATIONAL_END = GE,
     };
 
     const Kind kind;

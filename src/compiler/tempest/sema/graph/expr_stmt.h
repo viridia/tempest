@@ -13,20 +13,26 @@ namespace tempest::sema::graph {
   /** A statement block. */
   class BlockStmt : public Expr {
   public:
-    BlockStmt(Location location, const ArrayRef<Expr*>& stmts)
+    BlockStmt(Location location, const ArrayRef<Expr*>& stmts, Expr* result = nullptr)
       : Expr(Kind::BLOCK, location)
       , _stmts(stmts)
+      , _result(result)
     {}
 
     /** The list of stmts to assign to. */
     const ArrayRef<Expr*>& stmts() const { return _stmts; }
     void setStmts(const ArrayRef<Expr*>& stmts) { _stmts = stmts; }
 
+    /** The result expression of the block. */
+    Expr* result() const { return _result; }
+    void setResult(Expr* result) { _result = result; }
+
     /** Dynamic casting support. */
     static bool classof(const BlockStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::BLOCK; }
   private:
     ArrayRef<Expr*> _stmts;
+    Expr* _result;
   };
 
   /** An if-statement. */

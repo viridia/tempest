@@ -11,6 +11,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/TargetSelect.h>
 
 using namespace tempest::sema::graph;
 using namespace tempest::gen;
@@ -21,6 +22,10 @@ using llvm::verifyModule;
 TEST_CASE("CodeGen", "[gen]") {
   TypeStore ts;
   llvm::LLVMContext context;
+  tempest::source::StringSource source("source.te", "");
+  Location loc(&source, 1, 1, 1, 10);
+
+  llvm::InitializeNativeTarget();
 
   SECTION("Empty function") {
     ReturnStmt ret(nullptr);
@@ -39,15 +44,17 @@ TEST_CASE("CodeGen", "[gen]") {
   SECTION("Function with return") {
     IntegerLiteral intLit(1, &IntegerType::I32);
     ReturnStmt ret(&intLit);
-    BlockStmt block(Location(), { &ret });
-    FunctionDefn fdef(Location(), "testReturn");
+    BlockStmt block(loc, {}, &ret);
+    FunctionDefn fdef(loc, "testReturn");
     fdef.setBody(&block);
     fdef.setType(ts.createFunctionType(&IntegerType::I32, {}));
     CodeGen gen(context);
     auto mod = gen.createModule("TestMod");
+    mod->diInit("testmod.te", "");
     auto fn = gen.genFunction(&fdef);
     mod->makeEntryPoint(&fdef);
     REQUIRE(fn != nullptr);
+    mod->diFinalize();
 
     verifyModule(*mod->irModule(), &(llvm::errs()));
 

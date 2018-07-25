@@ -9,6 +9,10 @@
   #include "tempest/sema/graph/module.h"
 #endif
 
+#ifndef TEMPEST_GEN_CGDEBUGTYPEBUILDER_H
+  #include "tempest/gen/cgdebugtypebuilder.h"
+#endif
+
 #ifndef LLVM_ADT_SMALLVECTOR_H
   #include <llvm/ADT/SmallVector.h>
 #endif
@@ -25,11 +29,16 @@
   #include <llvm/IR/Module.h>
 #endif
 
+#ifndef LLVM_IR_DIBUILDER_H
+  #include <llvm/IR/DIBuilder.h>
+#endif
+
 #include <vector>
 
 namespace tempest::gen {
   using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Module;
+  using tempest::source::ProgramSource;
 
   class CGGlobal;
   class CGFunction;
@@ -40,8 +49,21 @@ namespace tempest::gen {
   public:
     CGModule(llvm::StringRef name, llvm::LLVMContext& context);
 
+    /** Initialized the debug info. */
+    void diInit(llvm::StringRef fileName, llvm::StringRef dirName);
+    void diFinalize();
+
     /** The LLVM Module. */
     llvm::Module* irModule() { return _irModule.get(); }
+
+    /** The DebugInfo builder. */
+    llvm::DIBuilder& diBuilder() { return _diBuilder; }
+
+    /** The DebugInfo Type builder. */
+    CGDebugTypeBuilder& diTypeBuilder() { return _diTypeBuilder; }
+
+    /** The DebugInfo compile unit. */
+    llvm::DICompileUnit* diCompileUnit() { return _diCompileUnit; }
 
     /** Allocator for this module. */
     llvm::BumpPtrAllocator& alloc() { return _alloc; }
@@ -54,28 +76,27 @@ namespace tempest::gen {
     std::vector<CGFunction*>& functions() { return _functions; }
     const std::vector<CGFunction*>& functions() const { return _functions; }
 
+    /** If true, means we're generating debug info. */
+    bool isDebug() const { return _debug; }
+
     /** Generate code to call function fdef as the main entry point. */
     void makeEntryPoint(FunctionDefn* fdef);
+
+    /** Get a file from a program source. */
+    llvm::DIFile* getDIFile(ProgramSource* src);
 
   private:
     llvm::LLVMContext& _context;
     std::unique_ptr<llvm::Module> _irModule;
+    llvm::DIBuilder _diBuilder;
+    llvm::DICompileUnit* _diCompileUnit;
     llvm::BumpPtrAllocator _alloc;
     llvm::StringMap<CGStringLiteral*> _stringLiterals;
     std::vector<CGGlobal*> _globals;
     std::vector<CGFunction*> _functions;
+    CGDebugTypeBuilder _diTypeBuilder;
+    bool _debug;
   };
 }
-
-// AliasListType AliasList;        ///< The Aliases in the module
-// IFuncListType IFuncList;        ///< The IFuncs in the module
-// NamedMDListType NamedMDList;    ///< The named metadata in the module
-// ValueSymbolTable *ValSymTab;    ///< Symbol table for values
-// std::unique_ptr<GVMaterializer>
-// Materializer;                   ///< Used to materialize GlobalValues
-// std::string TargetTriple;       ///< Platform target triple Module compiled on
-//                                 ///< Format: (arch)(sub)-(vendor)-(sys0-(abi)
-// void *NamedMDSymTab;            ///< NamedMDNode names.
-// DataLayout DL;                  ///< DataLayout associated with the module
 
 #endif

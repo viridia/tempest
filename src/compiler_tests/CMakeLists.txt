@@ -7,7 +7,7 @@ file(GLOB_RECURSE headers **/*.h **/*.hpp)
 file(GLOB_RECURSE sources *.cpp **/*.cpp)
 
 # Find the libraries that correspond to the LLVM components that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core scalaropts)
+llvm_map_components_to_libnames(llvm_libs core support scalaropts x86info x86codegen)
 
 add_executable(compiler_tests ${sources} ${headers})
 target_link_libraries(compiler_tests ${llvm_libs} tec)

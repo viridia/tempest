@@ -1,6 +1,8 @@
 #include "catch.hpp"
 #include "tempest/gen/cgmodule.h"
 #include "tempest/sema/graph/module.h"
+
+#include <llvm/Support/TargetSelect.h>
 #include <memory>
 
 using namespace tempest::sema::graph;
@@ -10,6 +12,8 @@ TEST_CASE("CGModule", "[gen]") {
   tempest::source::StringSource source("source.te", "");
   // Module m(&source, "TestModule");
   llvm::LLVMContext context;
+
+  llvm::InitializeNativeTarget();
 
   SECTION("new") {
     CGModule cgMod("TestModule", context);

@@ -44,7 +44,7 @@ namespace tempest::gen {
     CodeGen(llvm::LLVMContext& context)
       : context(context)
       , _module(nullptr)
-      , _types(context, _alloc)
+      , _types(context)
     {}
 
     /** The current module. */

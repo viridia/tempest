@@ -89,6 +89,7 @@ namespace tempest::parse {
       { "super", TOKEN_SUPER },
       { "switch", TOKEN_SWITCH },
       { "throw", TOKEN_THROW },
+      { "trait", TOKEN_TRAIT },
       { "true", TOKEN_TRUE },
       { "try", TOKEN_TRY },
       { "u16", TOKEN_U16 },

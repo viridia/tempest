@@ -1,5 +1,5 @@
-#include "tempest/sema/graph/defn.h"
-#include "tempest/sema/graph/type.h"
+#include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/type.hpp"
 #include <assert.h>
 
 namespace tempest::sema::graph {

@@ -1,13 +1,13 @@
 #include "catch.hpp"
-#include "tempest/gen/codegen.h"
-#include "tempest/gen/cgmodule.h"
-#include "tempest/sema/graph/defn.h"
-#include "tempest/sema/graph/expr_literal.h"
-#include "tempest/sema/graph/expr_op.h"
-#include "tempest/sema/graph/expr_stmt.h"
-#include "tempest/sema/graph/primitivetype.h"
-#include "tempest/sema/graph/typestore.h"
-#include "tempest/opt/basicopts.h"
+#include "tempest/gen/codegen.hpp"
+#include "tempest/gen/cgmodule.hpp"
+#include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_op.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/typestore.hpp"
+#include "tempest/opt/basicopts.hpp"
 
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/FileSystem.h>

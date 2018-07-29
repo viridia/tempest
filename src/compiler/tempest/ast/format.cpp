@@ -1,9 +1,10 @@
 #include "tempest/ast/node.hpp"
+#include "tempest/ast/defn.hpp"
 #include "tempest/ast/ident.hpp"
 #include "tempest/ast/literal.hpp"
 #include "tempest/ast/module.hpp"
 #include "tempest/ast/oper.hpp"
-#include "tempest/error/diagnostics.h"
+#include "tempest/error/diagnostics.hpp"
 
 namespace tempest::ast {
   using tempest::error::diag;
@@ -16,6 +17,7 @@ namespace tempest::ast {
     Formatter(::std::ostream& out, bool pretty) : out(out), pretty(pretty) {}
     void visit(const Node* node);
     void visitList(const NodeList& nodes);
+    void visitNamedList(const NodeList& nodes, llvm::StringRef name);
   };
 
   void Formatter::visit(const Node* node) {
@@ -239,9 +241,6 @@ namespace tempest::ast {
       // case Node::Kind::VISIBILITY: return "VISIBILITY";
       // case Node::Kind::DEFN: return "DEFN";
       // case Node::Kind::TYPE_DEFN: return "TYPE_DEFN";
-      // case Node::Kind::CLASS_DEFN: return "CLASS_DEFN";
-      // case Node::Kind::STRUCT_DEFN: return "STRUCT_DEFN";
-      // case Node::Kind::INTERFACE_DEFN: return "INTERFACE_DEFN";
       // case Node::Kind::EXTEND_DEFN: return "EXTEND_DEFN";
       // case Node::Kind::OBJECT_DEFN: return "OBJECT_DEFN";
       // case Node::Kind::ENUM_DEFN: return "ENUM_DEFN";
@@ -253,6 +252,37 @@ namespace tempest::ast {
       // case Node::Kind::TYPE_PARAMETER: return "TYPE_PARAMETER";
       // case Node::Kind::FUNCTION: return "FUNCTION";
       // case Node::Kind::DEFN_END: return "DEFN_END";
+
+      case Node::Kind::CLASS_DEFN:
+      case Node::Kind::STRUCT_DEFN:
+      case Node::Kind::INTERFACE_DEFN:
+      case Node::Kind::TRAIT_DEFN: {
+        auto de = static_cast<const Defn*>(node);
+        out << "(#" << Node::KindName(de->kind) << ' ' << de->name;
+        indent += 2;
+        if (de->isPrivate()) {
+          out << '\n' << std::string(indent, ' ') << "#private";
+        }
+        if (de->isProtected()) {
+          out << '\n' << std::string(indent, ' ') << "#protected";
+        }
+        if (de->isStatic()) {
+          out << '\n' << std::string(indent, ' ') << "#static";
+        }
+        if (de->isFinal()) {
+          out << '\n' << std::string(indent, ' ') << "#final";
+        }
+        if (de->isAbstract()) {
+          out << '\n' << std::string(indent, ' ') << "#abstract";
+        }
+        indent -= 2;
+        visitNamedList(de->attributes, "attributes");
+        visitNamedList(de->typeParams, "typeParams");
+        visitNamedList(de->requires, "requires");
+        visitList(de->members);
+        out << ')';
+        break;
+      }
 
       case Node::Kind::MODULE: {
         auto mod = static_cast<const Module*>(node);
@@ -291,6 +321,22 @@ namespace tempest::ast {
       for (auto arg : nodes) {
         out << ' ';
         visit(arg);
+      }
+    }
+  }
+
+  void Formatter::visitNamedList(const NodeList& nodes, llvm::StringRef name) {
+    if (nodes.size() > 0) {
+      if (pretty) {
+        indent += 2;
+        out << '\n' << std::string(indent, ' ') << "(" << name;
+        visitList(nodes);
+        out << ')';
+        indent -= 2;
+      } else {
+        out << "(" << name;
+        visitList(nodes);
+        out << ')';
       }
     }
   }

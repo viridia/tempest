@@ -1,6 +1,6 @@
-#include "tempest/error/diagnostics.h"
-#include "tempest/gen/cgmodule.h"
-#include "tempest/gen/linkagename.h"
+#include "tempest/error/diagnostics.hpp"
+#include "tempest/gen/cgmodule.hpp"
+#include "tempest/gen/linkagename.hpp"
 
 #include <llvm/ADT/Twine.h>
 #include <llvm/IR/DerivedTypes.h>

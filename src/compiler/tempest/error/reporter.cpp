@@ -1,5 +1,5 @@
-#include "tempest/error/reporter.h"
-#include "tempest/source/programsource.h"
+#include "tempest/error/reporter.hpp"
+#include "tempest/source/programsource.hpp"
 #include <cassert>
 #include <iostream>
 #include <stdio.h>
@@ -8,19 +8,19 @@
   #include <csignal>
 #endif
 
-#if TEMPEST_HAVE_UNISTD_H
+#if TEMPEST_HAVE_UNISTD_HPP
   #include <unistd.h>
 #endif
 
-#if TEMPEST_HAVE_EXECINFO_H
+#if TEMPEST_HAVE_EXECINFO_HPP
   #include <execinfo.h>         // For backtrace().
 #endif
 
-#if TEMPEST_HAVE_CXXABI_H
+#if TEMPEST_HAVE_CXXABI_HPP
   #include <cxxabi.h>
 #endif
 
-#if TEMPEST_HAVE_DLFCN_H && __GNUG__
+#if TEMPEST_HAVE_DLFCN_HPP && __GNUG__
   #include <dlfcn.h>
 #endif
 
@@ -80,7 +80,7 @@ namespace tempest::error {
     _messageCountArray[(int)sev] += 1;
 
     bool colorChanged = false;
-    #if TEMPEST_HAVE_UNISTD_H
+    #if TEMPEST_HAVE_UNISTD_HPP
       if (::isatty(STDERR_FILENO)) {
         if (sev >= ERROR) {
           changeColor(RED, true);
@@ -115,7 +115,7 @@ namespace tempest::error {
     }
 
     if (showErrorLine) {
-      #if TEMPEST_HAVE_UNISTD_H
+      #if TEMPEST_HAVE_UNISTD_HPP
         if (colorChanged) {
           changeColor(UNCHANGED, true);
         }
@@ -129,7 +129,7 @@ namespace tempest::error {
           endCol = line.size();
         }
         std::cerr << line << "\n";
-        #if TEMPEST_HAVE_UNISTD_H
+        #if TEMPEST_HAVE_UNISTD_HPP
           if (colorChanged) {
             resetColor();
           }
@@ -141,7 +141,7 @@ namespace tempest::error {
         }
         std::cerr << "\n";
       } else if (colorChanged) {
-        #if TEMPEST_HAVE_UNISTD_H
+        #if TEMPEST_HAVE_UNISTD_HPP
           resetColor();
         #endif
       }
@@ -165,13 +165,13 @@ namespace tempest::error {
     int depth = backtrace(stackTrace,
         static_cast<int>(sizeof(stackTrace) / sizeof(stackTrace[0])));
 
-  #if false && TEMPEST_HAVE_DLFCN_H && __GNUG__
+  #if false && TEMPEST_HAVE_DLFCN_HPP && __GNUG__
     for (int i = skipFrames; i < depth; ++i) {
       Dl_info dlinfo;
       dladdr(stackTrace[i], &dlinfo);
       if (dlinfo.dli_sname != nullptr) {
         ::fputs("   ", stderr);
-  #if TEMPEST_HAVE_CXXABI_H
+  #if TEMPEST_HAVE_CXXABI_HPP
         int status;
         char* d = abi::__cxa_demangle(dlinfo.dli_sname, nullptr, nullptr, &status);
         if (d == nullptr) ::fputs(dlinfo.dli_sname, stderr);
@@ -185,7 +185,7 @@ namespace tempest::error {
       }
       ::fputc('\n', stderr);
     }
-  #elif TEMPEST_HAVE_CXXABI_H
+  #elif TEMPEST_HAVE_CXXABI_HPP
     if (char** symbols = backtrace_symbols(stackTrace, depth)) {
 
       // Name buffer used to contain demangling result.

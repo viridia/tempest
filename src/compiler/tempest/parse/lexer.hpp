@@ -5,16 +5,16 @@
   #include "tempest/ast/node.hpp"
 #endif
 
-#ifndef TEMPEST_SOURCE_PROGRAMSOURCE_H
-  #include "tempest/source/programsource.h"
+#ifndef TEMPEST_SOURCE_PROGRAMSOURCE_HPP
+  #include "tempest/source/programsource.hpp"
 #endif
 
-#ifndef TEMPEST_SOURCE_DOCCOMMENT_H
-  #include "tempest/source/doccomment.h"
+#ifndef TEMPEST_SOURCE_DOCCOMMENT_HPP
+  #include "tempest/source/doccomment.hpp"
 #endif
 
-#ifndef TEMPEST_SOURCE_LOCATION_H
-  #include "tempest/source/location.h"
+#ifndef TEMPEST_SOURCE_LOCATION_HPP
+  #include "tempest/source/location.hpp"
 #endif
 
 #ifndef TEMPEST_PARSE_TOKENS_HPP

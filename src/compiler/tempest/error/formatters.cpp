@@ -1,4 +1,4 @@
-#include "tempest/error/formatters.h"
+#include "tempest/error/formatters.hpp"
 
 namespace tempest::error {
 

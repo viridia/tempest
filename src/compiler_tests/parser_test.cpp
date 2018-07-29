@@ -53,6 +53,21 @@ TEST_CASE("Parser", "[parse]") {
         "  (#EXPORT 0 f.e.d\n"
         "    C))\n"
       ));
+
+    REQUIRE_THAT(
+      parseModule(alloc,
+        "class X {}\n"
+        "struct X {}\n"
+        "trait X {}\n"
+        "interface X {}\n"
+      ),
+      ASTEQ(
+        "(#MODULE\n"
+        "  (#CLASS_DEFN X)\n"
+        "  (#STRUCT_DEFN X)\n"
+        "  (#TRAIT_DEFN X)\n"
+        "  (#INTERFACE_DEFN X))\n"
+      ));
   }
 
   SECTION("InfixOperators") {

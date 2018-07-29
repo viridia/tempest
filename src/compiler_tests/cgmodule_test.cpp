@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include "tempest/gen/cgmodule.h"
-#include "tempest/sema/graph/module.h"
+#include "tempest/gen/cgmodule.hpp"
+#include "tempest/sema/graph/module.hpp"
 
 #include <llvm/Support/TargetSelect.h>
 #include <memory>

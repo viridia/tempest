@@ -1,5 +1,5 @@
-#include "tempest/gen/codegen.h"
-#include "tempest/gen/cgfunctionbuilder.h"
+#include "tempest/gen/codegen.hpp"
+#include "tempest/gen/cgfunctionbuilder.hpp"
 
 namespace tempest::gen {
   CGModule* CodeGen::createModule(llvm::StringRef name) {

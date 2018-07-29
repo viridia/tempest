@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include "tempest/sema/graph/env.h"
-#include "tempest/sema/graph/type.h"
+#include "tempest/sema/graph/env.hpp"
+#include "tempest/sema/graph/type.hpp"
 #include <memory>
 
 using tempest::sema::graph::Env;

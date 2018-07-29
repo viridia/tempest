@@ -1,7 +1,7 @@
 #include "catch.hpp"
-#include "tempest/gen/cgtypebuilder.h"
-#include "tempest/sema/graph/primitivetype.h"
-#include "tempest/sema/graph/typestore.h"
+#include "tempest/gen/cgtypebuilder.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/typestore.hpp"
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/Allocator.h>
 

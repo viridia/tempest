@@ -1,4 +1,4 @@
-#include "tempest/sema/graph/type.h"
+#include "tempest/sema/graph/type.hpp"
 
 int main() {
   return 0;

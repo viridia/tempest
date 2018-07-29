@@ -5,8 +5,8 @@
   #include "tempest/ast/node.hpp"
 #endif
 
-#ifndef TEMPEST_SOURCE_LOCATION_H
-  #include "tempest/source/location.h"
+#ifndef TEMPEST_SOURCE_LOCATION_HPP
+  #include "tempest/source/location.hpp"
 #endif
 
 #ifndef LLVM_ADT_ARRAYREF_H

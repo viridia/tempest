@@ -1,4 +1,4 @@
-#include "tempest/sema/graph/env.h"
+#include "tempest/sema/graph/env.hpp"
 
 namespace tempest::sema::graph {
   static ImmutableEnv emptyEnv;

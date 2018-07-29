@@ -1,7 +1,7 @@
-#include "tempest/sema/graph/defn.h"
-#include "tempest/sema/graph/type.h"
-#include "tempest/sema/graph/primitivetype.h"
-#include "tempest/gen/linkagename.h"
+#include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/type.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/gen/linkagename.hpp"
 #include <llvm/Support/Casting.h>
 #include <assert.h>
 
@@ -23,7 +23,7 @@ namespace tempest::gen {
         out.append(td->name());
         break;
       }
- 
+
       case Member::Kind::SPECIALIZED: {
         auto sd = static_cast<const SpecializedDefn*>(m);
         auto base = sd->base();
@@ -42,7 +42,7 @@ namespace tempest::gen {
         out.push_back(']');
         break;
       }
- 
+
       case Member::Kind::FUNCTION: {
         auto fd = static_cast<const FunctionDefn*>(m);
         out.append(fd->name());

@@ -1,4 +1,4 @@
-#include "tempest/opt/basicopts.h"
+#include "tempest/opt/basicopts.hpp"
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>

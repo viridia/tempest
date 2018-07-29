@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include "tempest/sema/graph/symboltable.h"
+#include "tempest/sema/graph/symboltable.hpp"
 #include <memory>
 
 using tempest::sema::graph::SymbolTable;

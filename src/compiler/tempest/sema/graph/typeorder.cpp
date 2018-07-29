@@ -1,6 +1,6 @@
-#include "tempest/sema/graph/typeorder.h"
-#include "tempest/sema/graph/primitivetype.h"
-#include "tempest/sema/graph/defn.h"
+#include "tempest/sema/graph/typeorder.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/defn.hpp"
 
 namespace tempest::sema::graph {
   bool TypeOrder::operator()(const Type* lhs, const Type* rhs) const {

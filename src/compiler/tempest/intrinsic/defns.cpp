@@ -1,5 +1,5 @@
-#include "tempest/intrinsic/defns.h"
-#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/intrinsic/defns.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 
 namespace tempest::intrinsic {
   using namespace tempest::sema::graph;

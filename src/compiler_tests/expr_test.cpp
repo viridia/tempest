@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include "tempest/sema/graph/expr_literal.h"
-#include "tempest/sema/graph/expr_stmt.h"
+#include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
 
 using namespace tempest::sema::graph;
 using tempest::source::Location;

@@ -4,7 +4,7 @@
 #include "tempest/ast/literal.hpp"
 #include "tempest/ast/module.hpp"
 #include "tempest/ast/oper.hpp"
-#include "tempest/error/diagnostics.h"
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/parse/parser.hpp"
 #include "tempest/parse/nodelistbuilder.hpp"
 
@@ -237,6 +237,7 @@ namespace tempest::parse {
       case TOKEN_INTERFACE:
       case TOKEN_EXTEND:
       case TOKEN_OBJECT:
+      case TOKEN_TRAIT:
         return compositeTypeDef();
       case TOKEN_ENUM:
         return enumTypeDef();
@@ -272,6 +273,7 @@ namespace tempest::parse {
       case TOKEN_INTERFACE:   kind = Node::Kind::INTERFACE_DEFN; break;
       case TOKEN_EXTEND:      kind = Node::Kind::EXTEND_DEFN; break;
       case TOKEN_OBJECT:      kind = Node::Kind::OBJECT_DEFN; break;
+      case TOKEN_TRAIT:       kind = Node::Kind::TRAIT_DEFN; break;
       default:
         assert(false);
         break;

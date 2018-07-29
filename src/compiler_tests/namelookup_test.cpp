@@ -1,7 +1,7 @@
 #include "catch.hpp"
-#include "tempest/sema/graph/module.h"
-#include "tempest/sema/graph/defn.h"
-#include "tempest/sema/names/namelookup.h"
+#include "tempest/sema/graph/module.hpp"
+#include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/names/namelookup.hpp"
 #include <memory>
 
 using namespace tempest::sema::graph;

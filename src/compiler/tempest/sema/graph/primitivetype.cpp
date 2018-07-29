@@ -1,7 +1,7 @@
-#include "tempest/sema/graph/symboltable.h"
-#include "tempest/sema/graph/defn.h"
-// #include "tempest/sema/graph/expr.h"
-#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/sema/graph/symboltable.hpp"
+#include "tempest/sema/graph/defn.hpp"
+// #include "tempest/sema/graph/expr.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 
 namespace tempest::sema::graph {
 

@@ -1,4 +1,4 @@
-#include "tempest/sema/graph/symboltable.h"
+#include "tempest/sema/graph/symboltable.hpp"
 #include <assert.h>
 
 namespace tempest::sema::graph {

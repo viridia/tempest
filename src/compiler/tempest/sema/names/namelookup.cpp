@@ -1,8 +1,8 @@
-#include "tempest/sema/names/namelookup.h"
-#include "tempest/sema/graph/defn.h"
-#include "tempest/sema/graph/module.h"
-#include "tempest/sema/graph/package.h"
-#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/sema/names/namelookup.hpp"
+#include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/module.hpp"
+#include "tempest/sema/graph/package.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 
 #include <cassert>
 #include <llvm/Support/Casting.h>

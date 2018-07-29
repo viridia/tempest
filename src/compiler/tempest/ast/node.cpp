@@ -119,6 +119,7 @@ namespace tempest::ast {
       case Kind::INTERFACE_DEFN: return "INTERFACE_DEFN";
       case Kind::EXTEND_DEFN: return "EXTEND_DEFN";
       case Kind::OBJECT_DEFN: return "OBJECT_DEFN";
+      case Kind::TRAIT_DEFN: return "TRAIT_DEFN";
       case Kind::ENUM_DEFN: return "ENUM_DEFN";
       case Kind::VAR: return "VAR";
       case Kind::LET: return "LET";

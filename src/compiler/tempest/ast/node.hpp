@@ -1,8 +1,8 @@
 #ifndef TEMPEST_AST_NODE_HPP
 #define TEMPEST_AST_NODE_HPP 1
 
-#ifndef TEMPEST_SOURCE_LOCATION_H
-  #include "tempest/source/location.h"
+#ifndef TEMPEST_SOURCE_LOCATION_HPP
+  #include "tempest/source/location.hpp"
 #endif
 
 #ifndef LLVM_ADT_ARRAYREF_H
@@ -150,6 +150,7 @@ namespace tempest::ast {
       CLASS_DEFN,
       STRUCT_DEFN,
       INTERFACE_DEFN,
+      TRAIT_DEFN,
       EXTEND_DEFN,
       OBJECT_DEFN,
       ENUM_DEFN,

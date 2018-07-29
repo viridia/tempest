@@ -1,7 +1,7 @@
-#include "tempest/sema/graph/defn.h"
-#include "tempest/sema/graph/type.h"
-#include "tempest/sema/graph/typestore.h"
-#include "tempest/sema/graph/typeorder.h"
+#include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/type.hpp"
+#include "tempest/sema/graph/typestore.hpp"
+#include "tempest/sema/graph/typeorder.hpp"
 
 namespace tempest::sema::graph {
   UnionType* TypeStore::createUnionType(const TypeArray& members) {

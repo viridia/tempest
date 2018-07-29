@@ -1,7 +1,7 @@
-#include "tempest/gen/cgtypebuilder.h"
-#include "tempest/gen/linkagename.h"
-#include "tempest/intrinsic/defns.h"
-#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/gen/cgtypebuilder.hpp"
+#include "tempest/gen/linkagename.hpp"
+#include "tempest/intrinsic/defns.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 #include <llvm/IR/DerivedTypes.h>
 #include <assert.h>
 

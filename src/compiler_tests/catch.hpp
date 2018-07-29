@@ -3134,7 +3134,7 @@ return @ desc; \
 
 // start catch_reporter_bases.hpp
 
-// start catch_interfaces_reporter.h
+// start catch_interfaces_reporter.hpp
 
 // start catch_config.hpp
 
@@ -3818,7 +3818,7 @@ namespace Catch {
 
 } // end namespace Catch
 
-// end catch_interfaces_reporter.h
+// end catch_interfaces_reporter.hpp
 #include <algorithm>
 #include <cstring>
 #include <cfloat>

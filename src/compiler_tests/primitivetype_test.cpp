@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/sema/graph/primitivetype.hpp"
 #include <memory>
 
 using namespace tempest::sema::graph;

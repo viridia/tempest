@@ -1,11 +1,11 @@
-#include "tempest/error/diagnostics.h"
-#include "tempest/gen/codegen.h"
-#include "tempest/gen/cgfunctionbuilder.h"
-#include "tempest/gen/linkagename.h"
-#include "tempest/sema/graph/expr_literal.h"
-#include "tempest/sema/graph/expr_op.h"
-#include "tempest/sema/graph/expr_stmt.h"
-#include "tempest/sema/graph/primitivetype.h"
+#include "tempest/error/diagnostics.hpp"
+#include "tempest/gen/codegen.hpp"
+#include "tempest/gen/cgfunctionbuilder.hpp"
+#include "tempest/gen/linkagename.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_op.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 
 #include <llvm/IR/Constants.h>
 #include <llvm/Support/Casting.h>

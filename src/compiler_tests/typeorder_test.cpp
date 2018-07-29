@@ -1,8 +1,8 @@
 #include "catch.hpp"
-#include "tempest/sema/graph/primitivetype.h"
-#include "tempest/sema/graph/typestore.h"
-#include "tempest/sema/graph/typeorder.h"
-#include "tempest/gen/linkagename.h"
+#include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/typestore.hpp"
+#include "tempest/sema/graph/typeorder.hpp"
+#include "tempest/gen/linkagename.hpp"
 
 using namespace tempest::sema::graph;
 using tempest::source::Location;

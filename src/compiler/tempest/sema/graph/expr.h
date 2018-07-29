@@ -42,6 +42,7 @@ namespace tempest::sema::graph {
       ARRAY_LITERAL,
 
       // Unary Operators
+      NOT,
 
       // Binary Operators
       ADD,
@@ -87,8 +88,8 @@ namespace tempest::sema::graph {
     //   INTERFACE_DATA,               # Extract interface payload.
     // # EXPR_TYPE(BitCast)        // Reinterpret cast
 
-    // Misc operators
-    //   LOGICAL_AND, LOGICAL_OR,
+      // Misc operators
+      LOGICAL_AND, LOGICAL_OR,
     //   RANGE,
     //   PACK,
     //   AS_TYPE,

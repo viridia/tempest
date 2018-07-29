@@ -28,7 +28,8 @@ namespace tempest::gen {
     , _irModule(std::make_unique<llvm::Module>(name, context))
     , _diBuilder(*_irModule)
     , _diCompileUnit(nullptr)
-    , _diTypeBuilder(_diBuilder, nullptr)
+    , _types(context)
+    , _diTypeBuilder(_diBuilder, nullptr, _types)
     , _debug(false)
   {
     auto targetTriple = llvm::sys::getDefaultTargetTriple();
@@ -57,6 +58,7 @@ namespace tempest::gen {
         _diBuilder.createFile(fileName, dirName),
         "Tempest Compiler", 0, "", 0);
     _diTypeBuilder.setCompileUnit(_diCompileUnit);
+    _diTypeBuilder.setDataLayout(&_irModule->getDataLayout());
     _debug = true;
   }
 

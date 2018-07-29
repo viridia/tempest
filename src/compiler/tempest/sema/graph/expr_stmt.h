@@ -38,29 +38,30 @@ namespace tempest::sema::graph {
   /** An if-statement. */
   class IfStmt : public Expr {
   public:
-    IfStmt(Location location, Expr* test, Expr* thenBlock, Expr* elseBlock)
-      : Expr(Kind::IF, location)
-      , _test(test)
-      , _thenBlock(thenBlock)
-      , _elseBlock(elseBlock)
-    {}
-
     /** The test expression. */
-    Expr* test() const { return _test; }
+    Expr* test;
 
     /** The 'then' block. */
-    Expr* thenBlock() const { return _thenBlock; }
+    Expr* thenBlock;
 
     /** The 'else' block. */
-    Expr* elseBlock() const { return _elseBlock; }
+    Expr* elseBlock;
+
+    /** The resulting type of this if statement. */
+    Type* type;
+
+    IfStmt(Location location, Expr* test, Expr* thenBlock, Expr* elseBlock, Type* type = nullptr)
+      : Expr(Kind::IF, location)
+      , test(test)
+      , thenBlock(thenBlock)
+      , elseBlock(elseBlock)
+      , type(type)
+    {}
 
     /** Dynamic casting support. */
     static bool classof(const IfStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::IF; }
   private:
-    Expr* _test;
-    Expr* _thenBlock;
-    Expr* _elseBlock;
   };
 
   /** A while-statement. */

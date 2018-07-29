@@ -1,4 +1,5 @@
 #include "tempest/gen/cgdebugtypebuilder.h"
+#include "tempest/gen/cgtypebuilder.h"
 #include "tempest/gen/linkagename.h"
 #include "tempest/intrinsic/defns.h"
 #include "tempest/sema/graph/primitivetype.h"
@@ -10,10 +11,23 @@ namespace tempest::gen {
   using llvm::DIType;
   using llvm::DIFile;
   using llvm::DINode;
+  using llvm::DIScope;
+  using llvm::DICompositeType;
+  using llvm::DIDerivedType;
   using namespace tempest::sema::graph;
   using tempest::source::ProgramSource;
   using tempest::gen::getLinkageName;
   using tempest::intrinsic::IntrinsicDefns;
+
+  // DIFlags:
+  // Private = 1_u32
+  // Protected = 2_u32
+  // Public = 3_u32
+  // Virtual = 32_u32
+  // Artificial = 64_u32
+  // StaticMember = 4096_u32
+  // SingleInheritance = 65536_u32
+  // MultipleInheritance = 131072_u32
 
   llvm::DIType* CGDebugTypeBuilder::get(const Type* ty) {
     switch (ty->kind) {
@@ -105,25 +119,49 @@ namespace tempest::gen {
     return result;
   }
 
-  llvm::DICompositeType* CGDebugTypeBuilder::createClass(const UserDefinedType* cls) {
+  DICompositeType* CGDebugTypeBuilder::createClass(const UserDefinedType* cls) {
     auto td = cls->defn();
     llvm::SmallVector<llvm::Metadata*, 16> elts;
+
+    auto it = _typeDefns.find(td);
+    if (it != _typeDefns.end()) {
+      return llvm::cast<DICompositeType>(it->second);
+    }
 
     // Qualified name
     std::string linkageName;
     linkageName.reserve(64);
     getLinkageName(linkageName, td);
 
+    DIFile* diFile = getDIFile(td->location().source);
+    DIScope* diScope = _diCompileUnit;
+
+    auto irCls = llvm::cast<llvm::StructType>(_typeBuilder.get(cls));
+    auto structLayout = _dataLayout->getStructLayout(irCls);
+
     // Base class
     if (td->intrinsic() != IntrinsicType::NONE) {
       switch (td->intrinsic()) {
         case IntrinsicType::OBJECT_CLASS: {
           // ClassDescriptor pointer
-          elts.push_back(_builder.createPointerType(
-              _builder.createUnspecifiedType("__clsDesc"), 0));
+          elts.push_back(
+            _builder.createMemberType(diScope, "__clsDesc", diFile, 0,
+                _dataLayout->getPointerSizeInBits(),
+                _dataLayout->getPointerPrefAlignment(),
+                0,
+                DINode::DIFlags::FlagZero,
+                _builder.createPointerType(
+                  _builder.createUnspecifiedType("__clsDesc"), 0)));
+
           // GCInfo field - might be a forwarding pointer.
-          elts.push_back(_builder.createPointerType(
-              _builder.createUnspecifiedType("__gcInfo"), 0));
+          elts.push_back(
+            _builder.createMemberType(diScope, "__gc_info", diFile, 0,
+                _dataLayout->getPointerSizeInBits(),
+                _dataLayout->getPointerPrefAlignment(),
+                _dataLayout->getPointerSizeInBits(),
+                DINode::DIFlags::FlagZero,
+                _builder.createPointerType(
+                  _builder.createUnspecifiedType("__gc_info"), 0)));
           break;
         }
 
@@ -132,22 +170,36 @@ namespace tempest::gen {
       }
     } else if (cls->extends().empty()) {
       // Object base class.
-      elts.push_back(get(IntrinsicDefns::get()->objectClass->type()));
+      elts.push_back(
+        get(IntrinsicDefns::get()->objectClass->type())
+      );
     } else {
       auto base = cls->extends()[0];
       elts.push_back(get(base));
     }
     // Data members
+    int32_t memberIndex = 1; // Start from 1.
     for (auto member : td->members()) {
       if (member->kind == Defn::Kind::LET_DEF && !member->isStatic()) {
         auto vd = static_cast<ValueDefn*>(member);
-        elts.push_back(getMemberType(vd->type()));
+        auto memberType = _typeBuilder.getMemberType(vd->type());
+        elts.push_back(
+          _builder.createMemberType(
+            diScope, member->name(), diFile, member->location().startLine,
+            _dataLayout->getTypeSizeInBits(memberType),
+            _dataLayout->getPrefTypeAlignment(memberType),
+            structLayout->getElementOffsetInBits(memberIndex),
+            DINode::DIFlags::FlagZero, getMemberType(vd->type())));
       }
+      memberIndex += 1;
     }
-    DIFile* diFile = getDIFile(td->location().source);
-    return _builder.createClassType(
-        _diCompileUnit, td->name(), diFile, td->location().startLine,
-        16, 16, 0, DINode::DIFlags::FlagZero, nullptr, _builder.getOrCreateArray(elts));
+    DICompositeType* diCls = _builder.createClassType(
+        diScope, td->name(), diFile, td->location().startLine,
+        structLayout->getSizeInBits(),
+        structLayout->getAlignment(), 0,
+        DINode::DIFlags::FlagZero, nullptr, _builder.getOrCreateArray(elts));
+    _typeDefns[td] = diCls;
+    return diCls;
   }
 
   llvm::DIDerivedType* CGDebugTypeBuilder::createMember(const ValueDefn*) {

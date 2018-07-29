@@ -33,13 +33,13 @@ namespace tempest::gen {
   };
 
   /** An if-statement. */
-  class IfStmt : public Instr {
+  class IfInstr : public Instr {
   public:
     Instr* test;
     Instr* thenBlock;
     Instr* elseBlock;
 
-    IfStmt(Location location, Instr* test, Instr* thenBlock, Instr* elseBlock, Type* type = nullptr)
+    IfInstr(Location location, Instr* test, Instr* thenBlock, Instr* elseBlock, Type* type = nullptr)
       : Instr(Kind::IF, location, type)
       , test(test)
       , thenBlock(thenBlock)
@@ -47,24 +47,24 @@ namespace tempest::gen {
     {}
 
     /** Dynamic casting support. */
-    static bool classof(const IfStmt* e) { return true; }
+    static bool classof(const IfInstr* e) { return true; }
     static bool classof(const Instr* e) { return e->kind == Kind::IF; }
   };
 
   /** A while-statement. */
-  class WhileStmt : public Instr {
+  class WhileInstr : public Instr {
   public:
     Instr* test;
     Instr* body;
 
-    WhileStmt(Location location, Instr* test, Instr* body, Type* type = nullptr)
+    WhileInstr(Location location, Instr* test, Instr* body, Type* type = nullptr)
       : Instr(Kind::WHILE, location, type)
       , test(test)
       , body(body)
     {}
 
     /** Dynamic casting support. */
-    static bool classof(const WhileStmt* e) { return true; }
+    static bool classof(const WhileInstr* e) { return true; }
     static bool classof(const Instr* e) { return e->kind == Kind::WHILE; }
   };
 

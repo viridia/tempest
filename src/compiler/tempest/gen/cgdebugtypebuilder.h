@@ -17,6 +17,10 @@
   #include <llvm/IR/DIBuilder.h>
 #endif
 
+#ifndef LLVM_IR_DATALAYOUT_H
+  #include <llvm/IR/DataLayout.h>
+#endif
+
 #include <unordered_map>
 
 namespace tempest::gen {
@@ -27,16 +31,23 @@ namespace tempest::gen {
   using tempest::sema::graph::UserDefinedType;
   using tempest::sema::graph::ValueDefn;
 
+  class CGTypeBuilder;
+
   /** Maps Tempest type expressions to LLVM DebugInfo types. */
   class CGDebugTypeBuilder {
   public:
-    CGDebugTypeBuilder(llvm::DIBuilder& builder, llvm::DICompileUnit* diCompileUnit)
+    CGDebugTypeBuilder(
+        llvm::DIBuilder& builder,
+        llvm::DICompileUnit* diCompileUnit,
+        CGTypeBuilder& typeBuilder)
       : _builder(builder)
+      , _typeBuilder(typeBuilder)
       , _diCompileUnit(diCompileUnit)
     {}
 
     /** Set the compilation unit after construction. */
     void setCompileUnit(llvm::DICompileUnit* diCompileUnit) { _diCompileUnit = diCompileUnit; }
+    void setDataLayout(const llvm::DataLayout* dataLayout) { _dataLayout = dataLayout; }
 
     llvm::DIType* get(const Type*);
     llvm::DIType* getMemberType(const Type*);
@@ -47,15 +58,18 @@ namespace tempest::gen {
 
     /** Get a file from a program source. */
     llvm::DIFile* getDIFile(ProgramSource* src);
+
   private:
 
     typedef std::unordered_map<const Type*, llvm::DIType*> TypeMap;
     typedef std::unordered_map<const TypeDefn*, llvm::DIType*> TypeDefnMap;
 
     llvm::DIBuilder& _builder;
+    CGTypeBuilder& _typeBuilder;
     TypeMap _types;
     TypeDefnMap _typeDefns;
     llvm::DICompileUnit* _diCompileUnit;
+    const llvm::DataLayout* _dataLayout = nullptr;
   };
 }
 

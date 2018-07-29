@@ -7,6 +7,35 @@
 
 namespace tempest::sema::graph {
 
+  /** Unary operator. */
+  class UnaryOp : public Expr {
+  public:
+    Expr* arg;
+    Type* type;
+
+    UnaryOp(Kind kind, Location location, Expr* arg, Type* type = nullptr)
+      : Expr(kind, location)
+      , arg(arg)
+      , type(type)
+    {}
+    UnaryOp(Kind kind, Expr* arg, Type* type = nullptr)
+      : Expr(kind, Location())
+      , arg(arg)
+      , type(type)
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const UnaryOp* e) { return true; }
+    static bool classof(const Expr* e) {
+      switch (e->kind) {
+        case Kind::NOT:
+          return true;
+        default:
+          return false;
+      }
+    }
+  };
+
   /** Infix operator. */
   class InfixOp : public Expr {
   public:
@@ -20,7 +49,7 @@ namespace tempest::sema::graph {
           Expr* lhs,
           Expr* rhs,
           Type* type = nullptr)
-      : Expr(Kind::INTEGER_LITERAL, location)
+      : Expr(kind, location)
       , lhs(lhs)
       , rhs(rhs)
       , type(type)
@@ -34,7 +63,7 @@ namespace tempest::sema::graph {
 
     /** Dynamic casting support. */
     static bool classof(const InfixOp* e) { return true; }
-    static bool classof(const Expr* e) { 
+    static bool classof(const Expr* e) {
       return e->kind >= Kind::INFIX_START && e->kind <= Kind::INFIX_END;
     }
   };
@@ -52,7 +81,7 @@ namespace tempest::sema::graph {
           Expr* lhs,
           Expr* rhs,
           Type* type = nullptr)
-      : Expr(Kind::INTEGER_LITERAL, location)
+      : Expr(kind, location)
       , lhs(lhs)
       , rhs(rhs)
       , type(type)
@@ -66,7 +95,7 @@ namespace tempest::sema::graph {
 
     /** Dynamic casting support. */
     static bool classof(const InfixOp* e) { return true; }
-    static bool classof(const Expr* e) { 
+    static bool classof(const Expr* e) {
       return e->kind >= Kind::RELATIONAL_START && e->kind <= Kind::RELATIONAL_END;
     }
   };

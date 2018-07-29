@@ -16,6 +16,10 @@ namespace tempest::gen {
   using llvm::cast;
   using llvm::dyn_cast;
   using llvm::BasicBlock;
+  using llvm::DIFile;
+  using llvm::DINode;
+  using llvm::DIScope;
+  using llvm::DISubprogram;
   using llvm::Value;
 
   CGFunctionBuilder::CGFunctionBuilder(CodeGen& gen, CGModule* module)
@@ -47,7 +51,7 @@ namespace tempest::gen {
     // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ReturnTypePass), fdef);
     // DASSERT_OBJ(fdef->defnType() != Defn::Macro, fdef);
 
-    llvm::Type* funcType = _gen.types().get(func->type());
+    llvm::Type* funcType = _module->types().get(func->type());
 
     // // If it's a function from a different module...
     // if (fdef->module() != module_) {
@@ -119,16 +123,17 @@ namespace tempest::gen {
         linkageName.reserve(64);
         getLinkageName(linkageName, func);
         // TODO: get this from the module
-        llvm::DIFile* diFile = _module->getDIFile(func->location().source);
-        llvm::DISubprogram* sp = _module->diBuilder().createFunction(
-          _module->diCompileUnit(), func->name(), linkageName, diFile, func->location().startLine,
-          _module->diTypeBuilder().createFunctionType(func->type()),
-          false /* internal linkage */, true /* definition */, 0,
-          llvm::DINode::FlagPrototyped, false);
+        DIScope* enclosingScope = _module->diCompileUnit();
+        DIFile* diFile = _module->getDIFile(func->location().source);
+        DISubprogram* sp = diBuilder().createFunction(
+            enclosingScope, func->name(), linkageName, diFile, func->location().startLine,
+            _module->diTypeBuilder().createFunctionType(func->type()),
+            false /* internal linkage */, true /* definition */, 0,
+            DINode::FlagPrototyped, false);
         _irFunction->setSubprogram(sp);
-      //   //dbgContext_ = genLexicalBlock(fdef->location());
+        setScope(sp);
+        setDebugLocation(func->location());
       //   dbgInlineContext_ = DIScope();
-      //   setDebugLocation(fdef->location());
       }
 
       // BasicBlock * prologue = BasicBlock::Create(context_, "prologue", f);
@@ -245,7 +250,7 @@ namespace tempest::gen {
   //       genDISubprogramStart(fdef);
   //       genLocalRoots(fdef->localScopes());
 
-        BasicBlock * blkEntry = BasicBlock::Create(_gen.context, "entry", _irFunction);
+        BasicBlock * blkEntry = createBlock("entry");
         _builder.SetInsertPoint(blkEntry);
         visitExpr(func->body());
 
@@ -479,30 +484,124 @@ namespace tempest::gen {
     // size_t savedRootCount = rootStackSize();
     // pushRoots(in->scope());
 
-    // DIScope saveContext = dbgContext_;
-    // if (in->scope() != NULL && debug_) {
-    //   dbgContext_ = genLexicalBlock(in->location());
-    // }
+    // Establish a new lexical scope.
+    DIScope* savedScope = nullptr;
+    if (_module->isDebug() && blk->location.source) {
+      savedScope = setScope(diBuilder().createLexicalBlock(
+        _lexicalScope, _module->getDIFile(blk->location.source),
+        blk->location.startLine, blk->location.startCol));
+    }
 
+    // Generate code for each statement in the block.
     for (auto it = blk->stmts().begin(); it != blk->stmts().end(); ++it) {
       if (atTerminator()) {
         diag.warn(*it) << "Unreachable statement";
       }
-      // setDebugLocation((*it)->location());
+      setDebugLocation((*it)->location);
       if (!visitExpr(*it)) {
         //endLexicalBlock(savedScope);
         return NULL;
       }
     }
 
-    auto result = blk->result() ? visitExpr(blk->result()) : voidValue();
+    llvm::Value* result = nullptr;
+    if (blk->result()) {
+      setDebugLocation(blk->result()->location);
+      result = visitExpr(blk->result());
+    }
+
+    // Restore the lexical scope.
+    if (savedScope) {
+      setScope(savedScope);
+    }
 
     // if (!atTerminator()) {
     //   popRootStack(savedRootCount);
     // }
 
-    // dbgContext_ = saveContext;
-    return result;
+    return result ? result : voidValue();
+  }
+
+  Value* CGFunctionBuilder::visitIfStmt(IfStmt* in) {
+    // Create the set of basic blocks. We don't know yet
+    // if we need an else block or endif block.
+    BasicBlock * blkThen = createBlock("if.then");
+    BasicBlock * blkElse = NULL;
+    BasicBlock * blkThenLast = NULL;
+    BasicBlock * blkElseLast = NULL;
+    BasicBlock * blkDone = NULL;
+    // size_t savedRootCount = rootStackSize();
+    // pushRoots(in->scope());
+
+    if (in->elseBlock != NULL) {
+      blkElse = createBlock("else");
+      setDebugLocation(in->test->location);
+      genTestExpr(in->test, blkThen, blkElse);
+    } else {
+      blkDone = createBlock("endif");
+      genTestExpr(in->test, blkThen, blkDone);
+    }
+
+    // Generate the contents of the 'then' block.
+    moveToEnd(blkThen);
+    _builder.SetInsertPoint(blkThen);
+    setDebugLocation(in->thenBlock->location);
+    Value * thenVal = visitExpr(in->thenBlock);
+    Value * elseVal = NULL;
+
+    // Only generate a branch if we haven't returned or thrown.
+    if (!atTerminator()) {
+      blkThenLast = _builder.GetInsertBlock();
+      blkDone = ensureBlock("endif", blkDone);
+      _builder.CreateBr(blkDone);
+    }
+
+    // Generate the contents of the 'else' block
+    if (blkElse != NULL) {
+      moveToEnd(blkElse);
+      _builder.SetInsertPoint(blkElse);
+      setDebugLocation(in->elseBlock->location);
+      elseVal = visitExpr(in->elseBlock);
+
+      // Only generate a branch if we haven't returned or thrown
+      if (!atTerminator()) {
+        blkElseLast = _builder.GetInsertBlock();
+        blkDone = ensureBlock("endif", blkDone);
+        _builder.CreateBr(blkDone);
+      }
+    }
+
+    // Continue at the 'done' block if there was one.
+    if (blkDone != NULL) {
+      moveToEnd(blkDone);
+      _builder.SetInsertPoint(blkDone);
+      // popRootStack(savedRootCount);
+
+      // If the if-statement was in expression context, then return the value.
+      if (!isVoidType(in->type)) {
+        if (blkThenLast && blkElseLast) {
+          // If both branches returned a result, then combine them with a phi-node.
+          assert(thenVal != NULL);
+          assert(elseVal != NULL);
+          llvm::PHINode* phi = _builder.CreatePHI(thenVal->getType(), 2, "if");
+          phi->addIncoming(thenVal, blkThenLast);
+          phi->addIncoming(elseVal, blkElseLast);
+          return phi;
+        } else if (blkThenLast) {
+          assert(thenVal != NULL);
+          return thenVal;
+        } else if (blkElseLast) {
+          assert(elseVal != NULL);
+          return elseVal;
+        } else {
+          assert(false && "No value to return from if-statement");
+        }
+      }
+    } else {
+      assert(atTerminator());
+    }
+
+    return voidValue();
   }
 
   Value* CGFunctionBuilder::visitReturnStmt(ReturnStmt* in) {
@@ -552,14 +651,68 @@ namespace tempest::gen {
     return voidValue();
   }
 
-  Value* CGFunctionBuilder::visitIntegerLiteral(IntegerLiteral* value) {
-    return llvm::Constant::getIntegerValue(types().get(value->type()), value->value());
+  bool CGFunctionBuilder::genTestExpr(Expr* test, BasicBlock* blkTrue, BasicBlock* blkFalse) {
+    switch (test->kind) {
+      case Expr::Kind::LOGICAL_AND: {
+        auto op = static_cast<const InfixOp*>(test);
+        BasicBlock * blkSecond = BasicBlock::Create(_gen.context, "and", _irFunction, blkTrue);
+        genTestExpr(op->lhs, blkSecond, blkFalse);
+        _builder.SetInsertPoint(blkSecond);
+        genTestExpr(op->rhs, blkTrue, blkFalse);
+        return true;
+      }
+
+      case Expr::Kind::LOGICAL_OR: {
+        auto op = static_cast<const InfixOp*>(test);
+        BasicBlock * blkSecond = BasicBlock::Create(_gen.context, "or", _irFunction, blkFalse);
+        genTestExpr(op->lhs, blkTrue, blkSecond);
+        _builder.SetInsertPoint(blkSecond);
+        genTestExpr(op->rhs, blkTrue, blkFalse);
+        return true;
+      }
+
+      case Expr::Kind::NOT: {
+        // For logical negation, flip the true and false blocks.
+        auto op = static_cast<const UnaryOp*>(test);
+        return genTestExpr(op->arg, blkFalse, blkTrue);
+      }
+
+      default: {
+        llvm::Value* testVal = visitExpr(test);
+        if (testVal == NULL) return false;
+        _builder.CreateCondBr(testVal, blkTrue, blkFalse);
+        return true;
+      }
+    }
   }
 
-  CGTypeBuilder& CGFunctionBuilder::types() { return _gen.types(); }
+  void CGFunctionBuilder::moveToEnd(llvm::BasicBlock* blk) {
+    llvm::BasicBlock* lastBlk = _builder.GetInsertBlock();
+    if (lastBlk == NULL && _irFunction != NULL && !_irFunction->empty()) {
+      lastBlk = &_irFunction->back();
+    }
+    if (lastBlk != NULL) {
+      blk->moveAfter(lastBlk);
+    }
+  }
+
+  Value* CGFunctionBuilder::visitIntegerLiteral(IntegerLiteral* value) {
+    return llvm::Constant::getIntegerValue(_module->types().get(value->type()), value->value());
+  }
 
   Value* CGFunctionBuilder::voidValue() const {
     return llvm::UndefValue::get(llvm::Type::getVoidTy(_gen.context));
+  }
+
+  llvm::BasicBlock* CGFunctionBuilder::createBlock(const llvm::Twine& blkName) {
+    return BasicBlock::Create(_gen.context, blkName, _irFunction);
+  }
+
+  void CGFunctionBuilder::setDebugLocation(const Location& loc) {
+    if (loc.source) {
+      _builder.SetCurrentDebugLocation(
+          llvm::DebugLoc::get(loc.startLine, loc.endLine, _lexicalScope));
+    }
   }
 
   bool CGFunctionBuilder::atTerminator() const {

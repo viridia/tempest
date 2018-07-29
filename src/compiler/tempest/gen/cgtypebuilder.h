@@ -21,11 +21,11 @@ namespace tempest::gen {
   public:
     CGTypeBuilder(llvm::LLVMContext& context) : _context(context) {}
 
-    llvm::Type* get(const Type*, const llvm::ArrayRef<const Type*>& typeArgs = {});
-    llvm::Type* getMemberType(const Type*, const llvm::ArrayRef<const Type*>& typeArgs);
+    llvm::Type* get(const Type*);
+    llvm::Type* getMemberType(const Type*);
 
   private:
-    llvm::Type* createClass(const UserDefinedType*, const llvm::ArrayRef<const Type*>& typeArgs);
+    llvm::Type* createClass(const UserDefinedType*);
 
     typedef std::unordered_map<const Type*, llvm::Type*> TypeMap;
     typedef std::unordered_map<const TypeDefn*, llvm::Type*> TypeDefnMap;

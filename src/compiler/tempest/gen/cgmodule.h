@@ -9,6 +9,10 @@
   #include "tempest/sema/graph/module.h"
 #endif
 
+#ifndef TEMPEST_GEN_CGTYPEBUILDER_H
+  #include "tempest/gen/cgtypebuilder.h"
+#endif
+
 #ifndef TEMPEST_GEN_CGDEBUGTYPEBUILDER_H
   #include "tempest/gen/cgdebugtypebuilder.h"
 #endif
@@ -59,6 +63,9 @@ namespace tempest::gen {
     /** The DebugInfo builder. */
     llvm::DIBuilder& diBuilder() { return _diBuilder; }
 
+    /** The IR Type builder. */
+    CGTypeBuilder& types() { return _types; }
+
     /** The DebugInfo Type builder. */
     CGDebugTypeBuilder& diTypeBuilder() { return _diTypeBuilder; }
 
@@ -94,6 +101,7 @@ namespace tempest::gen {
     llvm::StringMap<CGStringLiteral*> _stringLiterals;
     std::vector<CGGlobal*> _globals;
     std::vector<CGFunction*> _functions;
+    CGTypeBuilder _types;
     CGDebugTypeBuilder _diTypeBuilder;
     bool _debug;
   };

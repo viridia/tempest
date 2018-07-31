@@ -79,7 +79,7 @@ namespace tempest::error {
   };
 
   // Static diagnostics instance.
-  static Diagnostics diag;
+  extern Diagnostics diag;
 
   /** Convenience class that increases indentation level within a scope. */
   class AutoIndent {

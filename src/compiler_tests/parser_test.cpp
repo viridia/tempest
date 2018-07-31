@@ -1,7 +1,5 @@
 #include "catch.hpp"
 #include "astmatcher.hpp"
-#include "tempest/ast/literal.hpp"
-#include "tempest/ast/oper.hpp"
 #include "tempest/parse/lexer.hpp"
 #include "tempest/parse/parser.hpp"
 #include <iostream>
@@ -22,14 +20,27 @@ public:
 Node* parseModule(llvm::BumpPtrAllocator& alloc, const char* srcText) {
   TestSource src(srcText);
   Parser parser(&src, alloc);
-  return parser.module();
+  Node* result = parser.module();
+  REQUIRE(parser.done());
+  return result;
+}
+
+/** Parse a member declaration. */
+Node* parseMemberDeclaration(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+  TestSource src(srcText);
+  Parser parser(&src, alloc);
+  Node* result = parser.memberDeclaration();
+  REQUIRE(parser.done());
+  return result;
 }
 
 /** Parse an expression. */
 Node* parseExpr(llvm::BumpPtrAllocator& alloc, const char* srcText) {
   TestSource src(srcText);
   Parser parser(&src, alloc);
-  return parser.expression();
+  Node* result = parser.expression();
+  REQUIRE(parser.done());
+  return result;
 }
 
 TEST_CASE("Parser", "[parse]") {
@@ -67,6 +78,156 @@ TEST_CASE("Parser", "[parse]") {
         "  (#STRUCT_DEFN X)\n"
         "  (#TRAIT_DEFN X)\n"
         "  (#INTERFACE_DEFN X))\n"
+      ));
+  }
+
+  SECTION("Class") {
+    llvm::BumpPtrAllocator alloc;
+
+    // Basic class declaration
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "class X {}\n"
+      ),
+      ASTEQ(
+        "(#CLASS_DEFN X)\n"
+      ));
+
+    // Member variables
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "class X {\n"
+        "  x: Point;\n"
+        "  private y: i32;\n"
+        "  final const z: [bool];\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#CLASS_DEFN X\n"
+        "  (#MEMBER_VAR x: Point)\n"
+        "  (#MEMBER_VAR\n"
+        "    #private y: i32)\n"
+        "  (#MEMBER_CONST\n"
+        "    #final z: (#ARRAY_TYPE bool)))\n"
+      ));
+
+    // Private block
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "class X {\n"
+        "  private {\n"
+        "   x: i32;\n"
+        "  }\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#CLASS_DEFN X\n"
+        "  (#MEMBER_VAR\n"
+        "    #private x: i32))\n"
+      ));
+
+    // Member function
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "class X {\n"
+        "  fn a() {}\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#CLASS_DEFN X\n"
+        "  (#FUNCTION a (#BLOCK)))\n"
+      ));
+  }
+
+  SECTION("Statement") {
+    llvm::BumpPtrAllocator alloc;
+
+    // Block with multiple statements
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "fn a() {\n"
+        "  if a { 1 } else { 2 }\n"
+        "  if b { 3 } else { 4 }\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#FUNCTION a (#BLOCK\n"
+        "  (#IF\n"
+        "    a\n"
+        "    (outcomes\n"
+        "      (#BLOCK\n"
+        "        result: (int 1))\n"
+        "      (#BLOCK\n"
+        "        result: (int 2))))\n"
+        "  result: (#IF\n"
+        "    b\n"
+        "    (outcomes\n"
+        "      (#BLOCK\n"
+        "        result: (int 3))\n"
+        "      (#BLOCK\n"
+        "        result: (int 4))))))\n"
+      ));
+
+    // Block with terminating semicolon - void result
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "fn a() {\n"
+        "  if a { 1 } else { 2 }\n"
+        "  if b { 3 } else { 4 };\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#FUNCTION a (#BLOCK\n"
+        "  (#IF\n"
+        "    a\n"
+        "    (outcomes\n"
+        "      (#BLOCK\n"
+        "        result: (int 1))\n"
+        "      (#BLOCK\n"
+        "        result: (int 2))))\n"
+        "  (#IF\n"
+        "    b\n"
+        "    (outcomes\n"
+        "      (#BLOCK\n"
+        "        result: (int 3))\n"
+        "      (#BLOCK\n"
+        "        result: (int 4))))))\n"
+      ));
+
+    // Block with simple statements - non-void return
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "fn a() {\n"
+        "  x = 1;\n"
+        "  y = 2\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#FUNCTION a (#BLOCK\n"
+        "  (#ASSIGN\n"
+        "    x\n"
+        "    (int 1))\n"
+        "  result: (#ASSIGN\n"
+        "    y\n"
+        "    (int 2))))\n"
+      ));
+
+    // Block with simple statements - void return
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "fn a() {\n"
+        "  x = 1;\n"
+        "  y = 2;\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#FUNCTION a (#BLOCK\n"
+        "  (#ASSIGN\n"
+        "    x\n"
+        "    (int 1))\n"
+        "  (#ASSIGN\n"
+        "    y\n"
+        "    (int 2))))\n"
       ));
   }
 

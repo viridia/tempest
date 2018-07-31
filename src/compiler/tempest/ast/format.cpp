@@ -18,9 +18,16 @@ namespace tempest::ast {
     void visit(const Node* node);
     void visitList(const NodeList& nodes);
     void visitNamedList(const NodeList& nodes, llvm::StringRef name);
+    void visitNamedNode(const Node* node, llvm::StringRef name);
+    void visitDefnFlags(const Defn* de);
+    void printFlag(llvm::StringRef name, bool enabled);
   };
 
   void Formatter::visit(const Node* node) {
+    if (node == nullptr) {
+      out << "<null>";
+      return;
+    }
     switch (node->kind) {
       case Node::Kind::ERROR:
         out << "#ERROR";
@@ -142,7 +149,8 @@ namespace tempest::ast {
 
       case Node::Kind::NEGATE:
       case Node::Kind::COMPLEMENT:
-      case Node::Kind::LOGICAL_NOT: {
+      case Node::Kind::LOGICAL_NOT:
+      case Node::Kind::ARRAY_TYPE: {
         auto op = static_cast<const UnaryOp*>(node);
         out << "(#" << Node::KindName(op->kind) << ' ';
         visit(op->arg);
@@ -187,7 +195,9 @@ namespace tempest::ast {
       case Node::Kind::ASSIGN_RSHIFT:
       case Node::Kind::ASSIGN_LSHIFT:
       case Node::Kind::LOGICAL_AND:
-      case Node::Kind::LOGICAL_OR: {
+      case Node::Kind::LOGICAL_OR:
+      case Node::Kind::TUPLE_TYPE:
+      case Node::Kind::UNION_TYPE: {
         auto op = static_cast<const Oper*>(node);
         out << "(#" << Node::KindName(op->kind);
         visitList(op->operands);
@@ -206,8 +216,8 @@ namespace tempest::ast {
       // case Node::Kind::EXPR_TYPE: return "EXPR_TYPE";
       // case Node::Kind::RETURN: return "RETURN";
       // case Node::Kind::THROW: return "THROW";
-      // case Node::Kind::TUPLE: return "TUPLE";
-      // case Node::Kind::UNION: return "UNION";
+
+
       // case Node::Kind::SPECIALIZE: return "SPECIALIZE";
       // case Node::Kind::CALL: return "CALL";
       // case Node::Kind::FLUENT_MEMBER: return "FLUENT_MEMBER";
@@ -217,13 +227,30 @@ namespace tempest::ast {
       // case Node::Kind::CALL_REQUIRED: return "CALL_REQUIRED";
       // case Node::Kind::CALL_REQUIRED_STATIC: return "CALL_REQUIRED_STATIC";
       // case Node::Kind::LIST: return "LIST";
+
+      case Node::Kind::BLOCK: {
+        auto blk = static_cast<const Block*>(node);
+        out << "(#" << Node::KindName(blk->kind);
+        visitList(blk->stmts);
+        visitNamedNode(blk->result, "result");
+        out << ')';
+        break;
+      }
+
       // case Node::Kind::BLOCK: return "BLOCK";
       // case Node::Kind::CONST: return "CONST";
       // case Node::Kind::VAR_DEFN: return "VAR_DEFN";
       // case Node::Kind::STATIC: return "STATIC";
       // case Node::Kind::ELSE: return "ELSE";
       // case Node::Kind::FINALLY: return "FINALLY";
-      // case Node::Kind::IF: return "IF";
+      case Node::Kind::IF: {
+        auto stmt = static_cast<const Control*>(node);
+        out << "(#" << Node::KindName(stmt->kind);
+        visitList(stmt->test);
+        visitNamedList(stmt->outcomes, "outcomes");
+        out << ')';
+        break;
+      }
       // case Node::Kind::WHILE: return "WHILE";
       // case Node::Kind::LOOP: return "LOOP";
       // case Node::Kind::FOR: return "FOR";
@@ -258,28 +285,49 @@ namespace tempest::ast {
       case Node::Kind::INTERFACE_DEFN:
       case Node::Kind::TRAIT_DEFN: {
         auto de = static_cast<const Defn*>(node);
-        out << "(#" << Node::KindName(de->kind) << ' ' << de->name;
-        indent += 2;
-        if (de->isPrivate()) {
-          out << '\n' << std::string(indent, ' ') << "#private";
-        }
-        if (de->isProtected()) {
-          out << '\n' << std::string(indent, ' ') << "#protected";
-        }
-        if (de->isStatic()) {
-          out << '\n' << std::string(indent, ' ') << "#static";
-        }
-        if (de->isFinal()) {
-          out << '\n' << std::string(indent, ' ') << "#final";
-        }
-        if (de->isAbstract()) {
-          out << '\n' << std::string(indent, ' ') << "#abstract";
-        }
-        indent -= 2;
+        out << "(#" << Node::KindName(de->kind);
+        visitDefnFlags(de);
+        out << ' ' << de->name;
         visitNamedList(de->attributes, "attributes");
         visitNamedList(de->typeParams, "typeParams");
         visitNamedList(de->requires, "requires");
         visitList(de->members);
+        out << ')';
+        break;
+      }
+
+      case Node::Kind::MEMBER_VAR:
+      case Node::Kind::MEMBER_CONST: {
+        auto de = static_cast<const ValueDefn*>(node);
+        out << "(#" << Node::KindName(de->kind);
+        visitDefnFlags(de);
+        out << ' ' << de->name;
+        if (de->type) {
+          out << ": ";
+          visit(de->type);
+        }
+        if (de->init) {
+          out << " = ";
+          visit(de->init);
+        }
+        out << ')';
+        break;
+      }
+
+      case Node::Kind::FUNCTION: {
+        auto de = static_cast<const Function*>(node);
+        out << "(#" << Node::KindName(de->kind);
+        visitDefnFlags(de);
+        out << ' ' << de->name;
+        visitNamedList(de->attributes, "params");
+        if (de->returnType) {
+          out << ": ";
+          visit(de->returnType);
+        }
+        if (de->body) {
+          out << " ";
+          visit(de->body);
+        }
         out << ')';
         break;
       }
@@ -340,6 +388,41 @@ namespace tempest::ast {
       }
     }
   }
+
+  void Formatter::visitNamedNode(const Node* node, llvm::StringRef name) {
+    if (node) {
+      if (pretty) {
+        indent += 2;
+        out << '\n' << std::string(indent, ' ') << name << ": ";
+        visit(node);
+        // out << ')';
+        indent -= 2;
+      } else {
+        out << "(" << name;
+        visit(node);
+        out << ')';
+      }
+    }
+  }
+
+  void Formatter::visitDefnFlags(const Defn* de) {
+    printFlag("private", de->isPrivate());
+    printFlag("protected", de->isProtected());
+    printFlag("static", de->isStatic());
+    printFlag("final", de->isFinal());
+    printFlag("abstract", de->isAbstract());
+  }
+
+  void Formatter::printFlag(llvm::StringRef name, bool enabled) {
+    if (enabled) {
+      if (pretty) {
+        out << '\n' << std::string(indent + 2, ' ') << "#" << name;
+      } else {
+        out << " #" << name;
+      }
+    }
+  }
+
 
   void format(::std::ostream& out, const Node* node, bool pretty) {
     Formatter fmt(out, pretty);

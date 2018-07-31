@@ -46,6 +46,7 @@ namespace tempest::parse {
   }
 
   void Parser::next() {
+    _prevToken = _token;
     _token = _lexer.next();
   }
 
@@ -134,11 +135,12 @@ namespace tempest::parse {
       relativePath += 1;
     }
 
-    auto path = dottedIdent();
-    if (!path) {
-      diag.error(location()) << "Module name expected.";
+    if (_token != TOKEN_ID) {
+      expected("module name");
       return nullptr;
     }
+    auto path = dottedIdent();
+    assert(path != nullptr);
 
     if (!match(TOKEN_SEMI)) {
       diag.error(location()) << "Semicolon expected.";
@@ -149,7 +151,6 @@ namespace tempest::parse {
     result->members = members.build();
     return result;
   }
-
 
   // Declaration
 
@@ -188,6 +189,20 @@ namespace tempest::parse {
       }
     }
 
+    Defn* d = memberDeclaration();
+    if (d != nullptr) {
+      d->setPrivate(isPrivate);
+      d->setProtected(isProtected);
+      decls.append(d);
+      return true;
+    }
+
+    diag.error(location()) << "declaration expected.";
+    return false;
+  }
+
+  Defn* Parser::memberDeclaration() {
+    Defn* result = nullptr;
     bool isAbstract = false;
     bool isFinal = false;
     bool isStatic = false;
@@ -212,45 +227,36 @@ namespace tempest::parse {
       }
     }
 
-    Defn* d = memberDef();
-    if (d != nullptr) {
-      d->setPrivate(isPrivate);
-      d->setProtected(isProtected);
-      d->setAbstract(isAbstract);
-      d->setFinal(isFinal);
-      d->setStatic(isStatic);
-      decls.append(d);
-      return true;
-    }
-
-    diag.error(location()) << "declaration expected.";
-    return false;
-  }
-
-  Defn* Parser::memberDef() {
     switch (_token) {
       case TOKEN_CONST:
-      case TOKEN_LET:
-        return varOrLetDefn();
+      case TOKEN_ID:
+        result = fieldDef();
+        break;
       case TOKEN_CLASS:
       case TOKEN_STRUCT:
       case TOKEN_INTERFACE:
       case TOKEN_EXTEND:
       case TOKEN_OBJECT:
       case TOKEN_TRAIT:
-        return compositeTypeDef();
+        result = compositeTypeDef();
+        break;
       case TOKEN_ENUM:
-        return enumTypeDef();
+        result = enumTypeDef();
+        break;
       case TOKEN_FN:
       case TOKEN_UNDEF:
       case TOKEN_OVERRIDE:
-        return methodDef();
+        result = methodDef();
         break;
       default:
         diag.error(location()) << "Declaration expected.";
-        break;
+        return nullptr;
     }
-    assert(false);
+
+    result->setAbstract(isAbstract);
+    result->setFinal(isFinal);
+    result->setStatic(isStatic);
+    return result;
   }
 
   #if 0
@@ -867,17 +873,17 @@ namespace tempest::parse {
 
   // Variable
 
-  Defn* Parser::varOrLetDefn() {
+  Defn* Parser::fieldDef() {
     Node::Kind kind;
     if (match(TOKEN_CONST)) {
-      kind = Node::Kind::CONST;
-    } else if (match(TOKEN_LET)) {
-      kind = Node::Kind::LET;
+      kind = Node::Kind::MEMBER_CONST;
+    } else if (_token == TOKEN_ID) {
+      kind = Node::Kind::MEMBER_VAR;
     } else {
       assert(false);
     }
 
-    ast::ValueDefn* var = varDeclList(kind);
+    ast::ValueDefn* var = varDecl(kind);
 
     // Initializer
     if (match(TOKEN_ASSIGN)) {
@@ -904,24 +910,24 @@ namespace tempest::parse {
     }
 
     // Handle multiple variables, i.e. var x, y = ...
-    if (match(TOKEN_COMMA)) {
-      NodeListBuilder varList(_alloc);
-      varList.append(var);
+    // if (match(TOKEN_COMMA)) {
+    //   NodeListBuilder varList(_alloc);
+    //   varList.append(var);
 
-      for (;;) {
-        ast::ValueDefn* nextVar = varDecl(kind);
-        if (nextVar == nullptr) {
-          return nullptr;
-        }
-        varList.append(nextVar);
-        if (!match(TOKEN_COMMA)) {
-          break;
-        }
-      }
+    //   for (;;) {
+    //     ast::ValueDefn* nextVar = varDecl(kind);
+    //     if (nextVar == nullptr) {
+    //       return nullptr;
+    //     }
+    //     varList.append(nextVar);
+    //     if (!match(TOKEN_COMMA)) {
+    //       break;
+    //     }
+    //   }
 
-      var = new (_alloc) ast::ValueDefn(Node::Kind::VAR_LIST, loc, "");
-      var->members = varList.build();
-    }
+    //   var = new (_alloc) ast::ValueDefn(Node::Kind::VAR_LIST, loc, "");
+    //   var->members = varList.build();
+    // }
 
     return var;
   }
@@ -1074,7 +1080,7 @@ namespace tempest::parse {
           break;
         }
       }
-      return new ast::Oper(Node::Kind::UNION, builder.location(), builder.build());
+      return new ast::Oper(Node::Kind::UNION_TYPE, builder.location(), builder.build());
     }
     return t;
   }
@@ -1106,6 +1112,18 @@ namespace tempest::parse {
         next();
         return functionType();
       }
+      case TOKEN_LBRACKET: {
+        Location loc = location();
+        next();
+        auto t = typeExpression();
+        if (t == nullptr) {
+          return nullptr;
+        }
+        if (!match(TOKEN_RBRACKET)) {
+          expected("']'");
+        }
+        return new (_alloc) ast::UnaryOp(Node::Kind::ARRAY_TYPE, loc | t->location, t);
+      }
       case TOKEN_LPAREN: {
         Location loc = location();
         next();
@@ -1134,7 +1152,7 @@ namespace tempest::parse {
         if (members.size() == 1 && !trailingComma) {
           return members[0];
         }
-        return new (_alloc) ast::Oper(Node::Kind::TUPLE, loc, members.build());
+        return new (_alloc) ast::Oper(Node::Kind::TUPLE_TYPE, loc, members.build());
       }
       case TOKEN_ID: return specializedTypeName();
       case TOKEN_VOID: return builtinType(ast::BuiltinType::VOID);
@@ -1249,39 +1267,44 @@ namespace tempest::parse {
 
   // Statements
 
-  // Statements that don't require a terminating semicolon.
-  static const std::unordered_set<TokenType> BLOCK_ENDING_STMTS = {
-    TOKEN_IF, TOKEN_WHILE, TOKEN_LOOP, TOKEN_FOR, TOKEN_SWITCH, TOKEN_MATCH, TOKEN_TRY,
-    TOKEN_LET, TOKEN_CONST, TOKEN_FN, TOKEN_CLASS, TOKEN_STRUCT, TOKEN_INTERFACE, TOKEN_ENUM,
-    TOKEN_EXTEND
-  };
-
   Node* Parser::block() {
     Location loc = location();
     if (match(TOKEN_LBRACE)) {
       NodeListBuilder stmts(_alloc);
-      for (;;) {
-        if (match(TOKEN_RBRACE)) {
-          break;
-        }
-        TokenType stType = _token;
-        if (match(TOKEN_SEMI)) {
-          continue;
-        }
-        auto st = stmt();
-        if (st == nullptr) {
-          return nullptr;
-        }
-
-        // Semicolon is only required *between* statements, and only for some statement types.
-        if (!match(TOKEN_SEMI)) {
-          if (_token != TOKEN_RBRACE && BLOCK_ENDING_STMTS.find(stType) == BLOCK_ENDING_STMTS.end()) {
+      Node* result = nullptr;
+      if (!match(TOKEN_RBRACE)) {
+        for (;;) {
+          result = stmt();
+          if (result == nullptr) {
+            return nullptr; // Error, quit
+          }
+          // At this point the previous token should have been a right brace, or the
+          // statement is waiting for a semicolon.
+          TokenType stmtEnd = _prevToken;
+          // If we see a semicolon, then 'result' is *NOT* the return result of the block.
+          if (match(TOKEN_SEMI)) {
+            stmts.append(result);
+            result = nullptr;
+            if (match(TOKEN_RBRACE)) {
+              break;
+            }
+          } else if (match(TOKEN_RBRACE)) {
+            // If we see the end of the block, then 'result' *IS* the result of the block and
+            // we're done.
+            break;
+          } else if (stmtEnd != TOKEN_RBRACE) {
+            // Otherwise if we saw neither a semicolon or a block and, and the previous statement
+            // did not end in a right brace, then we're missing a semicolon.
             diag.error(location()) << "Semicolon expected after statement.";
+          } else {
+            stmts.append(result);
+            result = nullptr;
           }
         }
-        stmts.append(st);
       }
-      return new (_alloc) ast::Oper(Node::Kind::BLOCK, loc, stmts.build());
+      // 'result' will be non-null if the last statement in the block was not followed by
+      // a semicolon.
+      return new (_alloc) ast::Block(loc, stmts.build(), result);
     }
     assert(false && "Missing opening brace.");
     return nullptr;
@@ -1322,7 +1345,7 @@ namespace tempest::parse {
 
       case TOKEN_LET:
       case TOKEN_CONST:
-        return varOrLetDefn();
+        return fieldDef();
 
       case TOKEN_FN:
       case TOKEN_CLASS:
@@ -1435,75 +1458,79 @@ namespace tempest::parse {
 
     NodeListBuilder builder(_alloc);
 
-    if (_token == TOKEN_SEMI) {
-      builder.append(&Node::ABSENT);
-    } else {
-      ast::ValueDefn* var = varDeclList(Node::Kind::LET);
+    // if (_token == TOKEN_SEMI) {
+    //   builder.append(&Node::ABSENT);
+    // } else {
+    ast::ValueDefn* var = varDeclList(Node::Kind::LOCAL_LET);
 
-      builder.append(var);
+    builder.append(var);
 
-      // It's a for-in statement
-      if (match(TOKEN_IN)) {
-        // Iterator expression
-        auto iter = expression();
-        if (iter == nullptr) {
-          return nullptr;
-        }
-        builder.append(iter);
-
-        // Loop body
-        auto body = requiredBlock();
-        if (body == nullptr) {
-          return nullptr;
-        }
-        builder.append(body);
-        return new (_alloc) ast::Control(Node::Kind::FOR_IN, loc, nullptr, builder.build());
-      } else  if (match(TOKEN_ASSIGN)) {
-        // Initializer
-        auto init = exprList();
-        if (init != nullptr) {
-          var->init = init;
-        }
-      }
-    }
-
-    if (!match(TOKEN_SEMI)) {
-      expected("';'");
+    // It's a for-in statement
+    if (!match(TOKEN_IN)) {
+      expected("'in'");
       return nullptr;
     }
 
-    if (_token == TOKEN_SEMI) {
-      builder.append(&Node::ABSENT);
-    } else {
-      auto test = exprList();
-      if (test == nullptr) {
-        return nullptr;
-      }
-      builder.append(test);
-    }
-
-    if (!match(TOKEN_SEMI)) {
-      expected("';'");
+    // Iterator expression
+    auto iter = expression();
+    if (iter == nullptr) {
       return nullptr;
     }
+    builder.append(iter);
 
-    if (_token == TOKEN_SEMI) {
-      builder.append(&Node::ABSENT);
-    } else {
-      auto step = assignStmt();
-      if (step == nullptr) {
-        return nullptr;
-      }
-      builder.append(step);
-    }
-
+    // Loop body
     auto body = requiredBlock();
     if (body == nullptr) {
       return nullptr;
     }
-
     builder.append(body);
-    return new (_alloc) ast::Control(Node::Kind::FOR, loc, nullptr, builder.build());
+    return new (_alloc) ast::Control(Node::Kind::FOR_IN, loc, nullptr, builder.build());
+      // } else  if (match(TOKEN_ASSIGN)) {
+      //   // Initializer
+      //   auto init = exprList();
+      //   if (init != nullptr) {
+      //     var->init = init;
+      //   }
+      // }
+    // }
+
+    // if (!match(TOKEN_SEMI)) {
+    //   expected("';'");
+    //   return nullptr;
+    // }
+
+    // if (_token == TOKEN_SEMI) {
+    //   builder.append(&Node::ABSENT);
+    // } else {
+    //   auto test = exprList();
+    //   if (test == nullptr) {
+    //     return nullptr;
+    //   }
+    //   builder.append(test);
+    // }
+
+    // if (!match(TOKEN_SEMI)) {
+    //   expected("';'");
+    //   return nullptr;
+    // }
+
+    // if (_token == TOKEN_SEMI) {
+    //   builder.append(&Node::ABSENT);
+    // } else {
+    //   auto step = assignStmt();
+    //   if (step == nullptr) {
+    //     return nullptr;
+    //   }
+    //   builder.append(step);
+    // }
+
+    // auto body = requiredBlock();
+    // if (body == nullptr) {
+    //   return nullptr;
+    // }
+
+    // builder.append(body);
+    // return new (_alloc) ast::Control(Node::Kind::FOR, loc, nullptr, builder.build());
   }
 
   Node* Parser::switchStmt() {
@@ -1743,7 +1770,7 @@ namespace tempest::parse {
           break;
         }
       }
-      return new (_alloc) ast::Oper(Node::Kind::TUPLE, builder.location(), builder.build());
+      return new (_alloc) ast::Oper(Node::Kind::TUPLE_TYPE, builder.location(), builder.build());
     }
     return expr;
   }
@@ -2052,7 +2079,7 @@ namespace tempest::parse {
         if (builder.size() == 1 && !trailingComma) {
           return builder[0];
         }
-        return new (_alloc) ast::Oper(Node::Kind::TUPLE, loc, builder.build());
+        return new (_alloc) ast::Oper(Node::Kind::TUPLE_TYPE, loc, builder.build());
       }
       case TOKEN_TRUE: return node(Node::Kind::BOOLEAN_TRUE);
       case TOKEN_FALSE: return node(Node::Kind::BOOLEAN_FALSE);

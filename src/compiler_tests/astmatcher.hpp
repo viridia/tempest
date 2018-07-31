@@ -17,7 +17,8 @@ public:
     tempest::ast::format(strm, node, true);
     if (strm.str() != _expected) {
       std::cerr << "Actual value:\n";
-      llvm::StringRef actual(strm.str());
+      std::string s(strm.str());
+      llvm::StringRef actual(s);
       llvm::SmallVector<llvm::StringRef, 16> lines;
       actual.split(lines, '\n');
       for (auto l: lines) {

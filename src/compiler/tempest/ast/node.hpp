@@ -103,8 +103,9 @@ namespace tempest::ast {
       THROW,
 
       /* N-ary operators */
-      TUPLE,
-      UNION,
+      TUPLE_TYPE,
+      UNION_TYPE,
+      ARRAY_TYPE,
       SPECIALIZE,
       CALL,
       FLUENT_MEMBER,
@@ -117,7 +118,8 @@ namespace tempest::ast {
 
       /* Misc statements */
       BLOCK,      // A statement block
-      VAR_DEFN,   // A single variable definition (ident, type, init)
+      LOCAL_LET,  // A single variable definition (ident, type, init)
+      LOCAL_CONST,// A single variable definition (ident, type, init)
       ELSE,       // default for match or switch
       FINALLY,    // finally block for try
 
@@ -154,9 +156,9 @@ namespace tempest::ast {
       EXTEND_DEFN,
       OBJECT_DEFN,
       ENUM_DEFN,
-      VAR,
-      LET,
-      VAR_LIST,   // A list of variable definitions
+      MEMBER_VAR,
+      MEMBER_CONST,
+      // VAR_LIST,   // A list of variable definitions
       ENUM_VALUE,
       PARAMETER,
       TYPE_PARAMETER,

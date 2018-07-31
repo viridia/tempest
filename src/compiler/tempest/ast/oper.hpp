@@ -40,6 +40,19 @@ namespace tempest::ast {
     {}
   };
 
+  /** Block statement. */
+  class Block : public Node {
+  public:
+    NodeList stmts;
+    Node* result;
+
+    Block(const Location& location, NodeList stmts, Node* result)
+      : Node(Kind::BLOCK, location)
+      , stmts(stmts)
+      , result(result)
+    {}
+  };
+
   /** An operator that has a test expression and multiple branches. */
   class Control : public Node {
   public:

@@ -94,8 +94,12 @@ namespace tempest::parse {
     Parser(ProgramSource* source, llvm::BumpPtrAllocator& alloc);
     Parser(const Parser&) = delete;
 
+    bool done() {
+      return _token == TokenType::TOKEN_END;
+    }
+
     ast::Module* module();
-    ast::Defn* memberDef();
+    ast::Defn* memberDeclaration();
     ast::Node* expression();
     ast::Node* typeExpression();
   private:
@@ -103,6 +107,7 @@ namespace tempest::parse {
     llvm::BumpPtrAllocator& _alloc;
     Lexer _lexer;
     TokenType _token;
+    TokenType _prevToken;
     bool _recovering;
 
     ast::Node* importStmt(ast::Node::Kind kind);
@@ -125,7 +130,7 @@ namespace tempest::parse {
     ast::Node* requireCall(ast::Node::Kind kind, ast::Node* fn);
     bool paramList(NodeListBuilder& params);
 
-    ast::Defn* varOrLetDefn();
+    ast::Defn* fieldDef();
     ast::ValueDefn* varDeclList(ast::Node::Kind kind);
     ast::ValueDefn* varDecl(ast::Node::Kind kind);
 

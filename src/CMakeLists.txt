@@ -55,6 +55,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
       -fno-rtti
       -fPIC
   )
+# Flags to enable coverage data
+#      -fprofile-instr-generate
+#      -fcoverage-mapping
+#  set(CMAKE_EXE_LINKER_FLAGS -fprofile-instr-generate)
 #  set(CMAKE_EXE_LINKER_FLAGS -lstdc++)
 endif()
 

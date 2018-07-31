@@ -152,7 +152,6 @@ namespace tempest::ast {
     NodeList params;
     const Node* body;
     bool constructor;
-    bool requirement;
     bool native;
     const Node* selfType;
 
@@ -161,7 +160,6 @@ namespace tempest::ast {
       , returnType(nullptr)
       , body(nullptr)
       , constructor(false)
-      , requirement(false)
       , native(false)
       , selfType(nullptr)
     {}

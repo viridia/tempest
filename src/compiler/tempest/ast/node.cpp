@@ -81,8 +81,9 @@ namespace tempest::ast {
       case Kind::EXPR_TYPE: return "EXPR_TYPE";
       case Kind::RETURN: return "RETURN";
       case Kind::THROW: return "THROW";
-      case Kind::TUPLE: return "TUPLE";
-      case Kind::UNION: return "UNION";
+      case Kind::TUPLE_TYPE: return "TUPLE_TYPE";
+      case Kind::UNION_TYPE: return "UNION_TYPE";
+      case Kind::ARRAY_TYPE: return "ARRAY_TYPE";
       case Kind::SPECIALIZE: return "SPECIALIZE";
       case Kind::CALL: return "CALL";
       case Kind::FLUENT_MEMBER: return "FLUENT_MEMBER";
@@ -93,7 +94,9 @@ namespace tempest::ast {
       case Kind::CALL_REQUIRED_STATIC: return "CALL_REQUIRED_STATIC";
       case Kind::LIST: return "LIST";
       case Kind::BLOCK: return "BLOCK";
-      case Kind::VAR_DEFN: return "VAR_DEFN";
+      case Kind::LOCAL_CONST: return "LOCAL_CONST";
+      case Kind::LOCAL_LET: return "LOCAL_VAR";
+      // case Kind::VAR_DEFN: return "VAR_DEFN";
       case Kind::ELSE: return "ELSE";
       case Kind::FINALLY: return "FINALLY";
       case Kind::IF: return "IF";
@@ -121,9 +124,11 @@ namespace tempest::ast {
       case Kind::OBJECT_DEFN: return "OBJECT_DEFN";
       case Kind::TRAIT_DEFN: return "TRAIT_DEFN";
       case Kind::ENUM_DEFN: return "ENUM_DEFN";
-      case Kind::VAR: return "VAR";
-      case Kind::LET: return "LET";
-      case Kind::VAR_LIST: return "VAR_LIST";
+      case Kind::MEMBER_VAR: return "MEMBER_VAR";
+      case Kind::MEMBER_CONST: return "MEMBER_CONST";
+      // case Kind::VAR: return "VAR";
+      // case Kind::LET: return "LET";
+      // case Kind::VAR_LIST: return "VAR_LIST";
       case Kind::ENUM_VALUE: return "ENUM_VALUE";
       case Kind::PARAMETER: return "PARAMETER";
       case Kind::TYPE_PARAMETER: return "TYPE_PARAMETER";

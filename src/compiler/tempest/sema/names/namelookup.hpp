@@ -1,13 +1,5 @@
-// ============================================================================
-// sema/names/namelookup.hpp".
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_NAMES_MEMBERLOOKUP_HPP
 #define TEMPEST_SEMA_NAMES_MEMBERLOOKUP_HPP 1
-
-#ifndef TEMPEST_CONFIG_HPP
-  #include "config.h"
-#endif
 
 #ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
   #include "tempest/sema/graph/member.hpp"

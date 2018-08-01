@@ -5,6 +5,10 @@
   #include "tempest/sema/graph/type.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_DEFN_HPP
+  #include "tempest/sema/graph/defn.hpp"
+#endif
+
 #ifndef LLVM_SUPPORT_ALLOCATOR_H
   #include <llvm/Support/Allocator.h>
 #endif
@@ -13,6 +17,7 @@
   #include <llvm/ADT/ArrayRef.h>
 #endif
 
+#include <unordered_map>
 #include <unordered_set>
 
 namespace tempest::sema::graph {

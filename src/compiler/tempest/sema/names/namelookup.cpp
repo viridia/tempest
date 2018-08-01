@@ -9,7 +9,7 @@
 
 namespace tempest::sema::names {
   using tempest::sema::graph::Module;
-  using tempest::sema::graph::Package;
+  // using tempest::sema::graph::Package;
   using tempest::sema::graph::PrimitiveType;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::TypeParameter;
@@ -45,9 +45,9 @@ namespace tempest::sema::names {
 
     std::vector<Member*> members;
     switch (stem->kind) {
-      case Member::Kind::PACKAGE:
-        static_cast<Package*>(stem)->memberScope()->lookupName(name, members);
-        break;
+      // case Member::Kind::PACKAGE:
+      //   static_cast<Package*>(stem)->memberScope()->lookupName(name, members);
+      //   break;
       case Member::Kind::MODULE:
         static_cast<Module*>(stem)->memberScope()->lookupName(name, members);
         break;
@@ -127,9 +127,9 @@ namespace tempest::sema::names {
   void NameLookup::forAllNames(Member* stem, const NameCallback& nameFn) {
     std::vector<Member*> members;
     switch (stem->kind) {
-      case Member::Kind::PACKAGE:
-        static_cast<Package*>(stem)->memberScope()->forAllNames(nameFn);
-        break;
+      // case Member::Kind::PACKAGE:
+      //   static_cast<Package*>(stem)->memberScope()->forAllNames(nameFn);
+      //   break;
       case Member::Kind::MODULE:
         static_cast<Module*>(stem)->memberScope()->forAllNames(nameFn);
         break;

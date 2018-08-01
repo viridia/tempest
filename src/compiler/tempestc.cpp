@@ -1,5 +1,10 @@
-#include "tempest/sema/graph/type.hpp"
+#include "tempest/compiler/compiler.hpp"
+#include "llvm/Support/CommandLine.h"
 
-int main() {
-  return 0;
+using tempest::compiler::Compiler;
+
+int main(int argc, char **argv) {
+  llvm::cl::ParseCommandLineOptions(argc, argv);
+  Compiler compiler;
+  return compiler.run();
 }

@@ -12,7 +12,7 @@ TEST_CASE("NameLookup", "[names]") {
   Location loc;
 
   SECTION("Module") {
-    Module m(NULL, "TestModule");
+    Module m("TestModule");
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     m.memberScope()->addMember(&v);
     NameLookupResult result;

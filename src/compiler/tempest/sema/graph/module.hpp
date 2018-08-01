@@ -1,12 +1,12 @@
-// ============================================================================
-// sema/graph/module.h: Semantic graph nodes for modules.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_MODULE_HPP
 #define TEMPEST_SEMA_GRAPH_MODULE_HPP 1
 
 #ifndef TEMPEST_SEMA_GRAPH_DEFN_HPP
   #include "tempest/sema/graph/defn.hpp"
+#endif
+
+#ifndef TEMPEST_SOURCE_PROGRAMSOURCE_HPP
+  #include "tempest/source/programsource.hpp"
 #endif
 
 #ifndef LLVM_SUPPORT_ALLOCATOR_H
@@ -19,18 +19,24 @@ namespace tempest::sema::graph {
   class Module : public Member {
   public:
     Module(
-        const source::ProgramSource* source,
-        const llvm::StringRef& name,
-        Member* definedIn = NULL)
+        std::unique_ptr<source::ProgramSource> source,
+        const llvm::StringRef& name)
       : Member(Kind::MODULE, name)
-      , _source(source)
-      , _definedIn(definedIn)
+      , _source(std::move(source))
+      , _memberScope(std::make_unique<SymbolTable>())
+      , _importScope(std::make_unique<SymbolTable>())
+    {}
+
+    // Constructor for testing, program source is null.
+    Module(const llvm::StringRef& name)
+      : Member(Kind::MODULE, name)
       , _memberScope(std::make_unique<SymbolTable>())
       , _importScope(std::make_unique<SymbolTable>())
     {}
 
     /** Source file of this module. */
-    const source::ProgramSource* source() { return _source; }
+    source::ProgramSource* source() { return _source.get(); }
+    const source::ProgramSource* source() const { return _source.get(); }
 
     /** Members of this module. */
     MemberList& members() { return _members; }
@@ -42,37 +48,24 @@ namespace tempest::sema::graph {
     /** Symbol scope for this module's imports. */
     SymbolTable* importScope() const { return _importScope.get(); }
 
-    /** Package in which this module was defined. */
-    Member* definedIn() const { return _definedIn; }
-
     /** Allocator used for AST nodes. */
     llvm::BumpPtrAllocator& astAlloc() { return _astAlloc; }
 
     /** Allocator used for semantic graph. */
     llvm::BumpPtrAllocator& semaAlloc() { return _semaAlloc; }
 
-    /** The absolute path to this module on disk. May be empty if the package was loaded from
-        a library. */
-    const llvm::StringRef path() const { return _path; }
-
-    void format(std::ostream& out) const {}
-
     /** Dynamic casting support. */
     static bool classof(const Module* m) { return true; }
     static bool classof(const Member* m) { return m->kind == Kind::MODULE; }
 
   private:
-    const source::ProgramSource* _source;
-    Member* _definedIn;
+    std::unique_ptr<source::ProgramSource> _source;
     MemberList _members;
     MemberList _imports;
     std::unique_ptr<SymbolTable> _memberScope;
     std::unique_ptr<SymbolTable> _importScope;
-    std::string _path;
     llvm::BumpPtrAllocator _astAlloc;
     llvm::BumpPtrAllocator _semaAlloc;
-    // References to Specialized functions
-    // References to Type Descriptors
     // std::unordered_set<SpecializedDefn*> _syntheticFunctions;
   };
 }

@@ -39,7 +39,6 @@ namespace tempest::sema::graph {
       FUNCTION_PARAM,
 
       MODULE,
-      PACKAGE,
 
       // Internal types
       SPECIALIZED,   // A combination of generic member and type arguments for it
@@ -67,9 +66,6 @@ namespace tempest::sema::graph {
 
     /** Scope in which this module was defined. */
     virtual Member* definedIn() const { return nullptr; }
-
-    /** Produce a string representation of this member (for unit tests). */
-    // virtual void format(std::ostream& out) const = 0;
 
     /** Dynamic casting support. */
     static bool classof(const Member* m) { return true; }

@@ -1980,29 +1980,6 @@ namespace tempest::parse {
       p[0] = ast.FluentMember(location = self.location(p, 1, 3))
       p[0].setBase(p[1])
       p[0].setName(p[3])
-
-    def p_primary(self, p):
-      '''primary : tuple_expr
-                | array_lit
-  .               | specialize
-                | type_fn
-  .               | member_ref
-                | fluent_member_ref
-  .               | dotid
-  .               | id
-  .               | self
-  .               | super
-  .               | true
-  .               | false
-  .               | null
-  .               | string_lit
-  .               | char_lit
-  .               | dec_int
-  .               | hex_int
-  .               | float
-  .               | primitive_type'''
-      p[0] = p[1]
-      assert isinstance(p[0], ast.Node), type(p[0])
   #endif
 
   Node* Parser::unary() {
@@ -2083,7 +2060,7 @@ namespace tempest::parse {
       }
       case TOKEN_TRUE: return node(Node::Kind::BOOLEAN_TRUE);
       case TOKEN_FALSE: return node(Node::Kind::BOOLEAN_FALSE);
-      case TOKEN_NULL: return node(Node::Kind::NULL_LITERAL);
+      // case TOKEN_NULL: return node(Node::Kind::NULL_LITERAL);
       case TOKEN_STRING_LIT: return stringLit();
       case TOKEN_CHAR_LIT: return charLit();
       case TOKEN_DEC_INT_LIT:

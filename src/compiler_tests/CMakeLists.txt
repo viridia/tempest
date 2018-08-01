@@ -12,5 +12,10 @@ llvm_map_components_to_libnames(llvm_libs core support scalaropts x86info x86cod
 add_executable(compiler_tests ${sources} ${headers})
 target_link_libraries(compiler_tests ${llvm_libs} tec)
 
+file(
+  COPY ${CMAKE_CURRENT_SOURCE_DIR}/compilation
+  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+  FILES_MATCHING PATTERN "*.te")
+
 enable_testing ()
 add_test (NAME "Compiler" COMMAND compiler_tests)

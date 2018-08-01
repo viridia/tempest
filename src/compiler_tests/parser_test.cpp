@@ -283,4 +283,33 @@ TEST_CASE("Parser", "[parse]") {
         "    (int 3)))\n"
       ));
   }
+
+  SECTION("Terminals") {
+    llvm::BumpPtrAllocator alloc;
+    CHECK_THAT(parseExpr(alloc, "true"), ASTEQ("true\n"));
+    CHECK_THAT(parseExpr(alloc, "false"), ASTEQ("false\n"));
+    CHECK_THAT(parseExpr(alloc, "self"), ASTEQ("#SELF\n"));
+    CHECK_THAT(parseExpr(alloc, "super"), ASTEQ("#SUPER\n"));
+    CHECK_THAT(parseExpr(alloc, "X"), ASTEQ("X\n"));
+    CHECK_THAT(parseExpr(alloc, "'X'"), ASTEQ("'X'\n"));
+
+  #if 0
+    def p_primary(self, p):
+      '''primary : tuple_expr
+                | array_lit
+  .               | specialize
+                | type_fn
+  .               | member_ref
+                | fluent_member_ref
+  .               | dotid
+  .               | null
+  .               | string_lit
+  .               | dec_int
+  .               | hex_int
+  .               | float
+  .               | primitive_type'''
+      p[0] = p[1]
+      assert isinstance(p[0], ast.Node), type(p[0])
+  #endif
+  }
 }

@@ -167,6 +167,7 @@ namespace tempest::parse {
     ast::Node* localDefn();
 
     ast::Node* dottedIdent();
+    llvm::StringRef dottedIdentStr();
     ast::Node* id();
     ast::Node* stringLit();
     ast::Node* charLit();

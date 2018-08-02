@@ -57,8 +57,8 @@ namespace tempest::ast {
 
       case Node::Kind::MEMBER: {
         auto m = static_cast<const MemberRef*>(node);
-        out << m->name << '.';
         visit(m->base);
+        out << '.' << m->name;
         break;
       }
 
@@ -345,7 +345,7 @@ namespace tempest::ast {
       case Node::Kind::EXPORT: {
         auto imp = static_cast<const Import*>(node);
         out << "(#" << Node::KindName(imp->kind) << " " << imp->relative << " ";
-        format(out, imp->path, false); // Turn off pretty
+        out << '"' << imp->path << '"';
         visitList(imp->members);
         out << ')';
         break;

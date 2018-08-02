@@ -16,7 +16,7 @@ namespace tempest::import {
     //     std::unique_ptr<source::ProgramSource>& source,
     //     const llvm::StringRef& name)
 
-  Module* FileSystemImporter::load(StringRef qualName) {
+  Module* FileSystemImporter::load(StringRef qualName, bool& isPackage) {
     // Transform dots into path separators to get the relative path.
     SmallString<128> relpath;
     for (StringRef::const_iterator ch = qualName.begin(); ch != qualName.end(); ++ch) {
@@ -30,18 +30,20 @@ namespace tempest::import {
     // Transform dots into path separators.
     SmallString<128> filepath(_path);
     path::append(filepath, Twine(relpath));
-    path::replace_extension(filepath, TEMPEST_SOURCE_FILE_EXTENSION);
+    SmallString<128> filepathWithExtension(filepath);
+    path::replace_extension(filepathWithExtension, TEMPEST_SOURCE_FILE_EXTENSION);
 
     // Check for source file
-    if (fs::exists(filepath)) {
+    if (fs::exists(filepathWithExtension)) {
+      isPackage = false;
       // We want to make sure that the file that we are looking for has the exact same
       // case, even on a case-insensitive filesystem. The only easy way to do this is
       // to get all the filanems in the directory and then string compare to see if the
       // match is exact.
 
       // We need the dirname and the filename
-      StringRef filename = path::filename(filepath);
-      SmallString<128> dirname = path::parent_path(filename);
+      StringRef filename = path::filename(filepathWithExtension);
+      SmallString<128> dirname = path::parent_path(filepathWithExtension);
 
       // See if the directory contents are already cached.
       auto it = _dirs.find(dirname);
@@ -67,7 +69,7 @@ namespace tempest::import {
         return nullptr;
       }
 
-      auto source = std::make_unique<source::FileSource>(filepath, relpath);
+      auto source = std::make_unique<source::FileSource>(filepathWithExtension, relpath);
       auto module = new Module(std::move(source), qualName);
       // if (ShowImports) {
       //   diag.debug() << "Import: Found source module '" << qualName << "' at " << filepath;
@@ -83,7 +85,11 @@ namespace tempest::import {
       //   // module = NULL;
       //   // return nullptr;
       // }
+    } else if (fs::is_directory(filepath)) {
+      // If the original path, with no extension, is a directory, then treat it as a package.
+      isPackage = true;
     }
+
     return nullptr;
   }
 }

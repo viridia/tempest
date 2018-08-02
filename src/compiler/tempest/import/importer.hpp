@@ -17,7 +17,7 @@ namespace tempest::import {
   /** Represents a location where modules can be found. */
   class Importer {
   public:
-    virtual Module* load(StringRef qualifiedName) = 0;
+    virtual Module* load(StringRef qualifiedName, bool& isPackage) = 0;
     virtual ~Importer() {}
   };
 }

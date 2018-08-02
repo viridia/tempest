@@ -17,6 +17,9 @@ namespace tempest::sema::pass {
 
     void run();
 
+    /** Process a single module. */
+    void process(Module* mod);
+
   private:
     bool moreSources() const {
       return _sourcesProcessed < _cu.sourceModules().size();
@@ -25,8 +28,6 @@ namespace tempest::sema::pass {
     bool moreImportSources() const {
       return _importSourcesProcessed < _cu.importSourceModules().size();
     }
-
-    void process(Module* mod);
 
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;

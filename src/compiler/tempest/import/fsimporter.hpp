@@ -26,7 +26,7 @@ namespace tempest::import {
   public:
     FileSystemImporter(StringRef path) : _path(path) {}
 
-    Module* load(StringRef qualifiedName);
+    Module* load(StringRef qualifiedName, bool& isPackage);
 
   private:
     llvm::SmallString<128> _path;

@@ -64,9 +64,20 @@ namespace tempest::import {
 
     // Search each element on the import path list.
     for (PathList::iterator it = _importers.begin(); it != _importers.end(); ++it) {
-      mod = (*it)->load(qname);
+      bool isPackage;
+      mod = (*it)->load(qname, isPackage);
       if (mod) {
         break;
+      } else if (isPackage) {
+        // Look for the default module in the package.
+        llvm::SmallString<128> indexName(qname);
+        indexName.append(".index");
+        mod = (*it)->load(qname, isPackage);
+        if (mod) {
+          // Index module can be loaded via either packagename or packagename.index
+          _modules[indexName] = mod;
+          break;
+        }
       }
     }
 

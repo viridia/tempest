@@ -27,17 +27,17 @@ namespace tempest::ast {
   class Import : public Node {
   public:
     NodeList members; // List of imported members.
-    const Node* path; // Module path expression.
+    llvm::StringRef path; // Module path expression.
     int32_t relative; // If non-zero, indicates how many leading dots were on the path.
 
-    Import(const Location& location, const Node* path, int32_t relative)
+    Import(const Location& location, llvm::StringRef path, int32_t relative)
       : Node(Kind::IMPORT, location)
       , path(path)
       , relative(relative)
     {}
 
     // For export statements
-    Import(Kind kind, const Location& location, const Node* path, int32_t relative)
+    Import(Kind kind, const Location& location, llvm::StringRef path, int32_t relative)
       : Node(kind, location)
       , path(path)
       , relative(relative)

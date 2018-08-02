@@ -39,8 +39,8 @@ namespace tempest::sema::graph {
     const source::ProgramSource* source() const { return _source.get(); }
 
     /** Members of this module. */
-    MemberList& members() { return _members; }
-    const MemberList& members() const { return _members; }
+    std::vector<Defn*>& members() { return _members; }
+    const std::vector<Defn*>& members() const { return _members; }
 
     /** Symbol scope for this module's members. */
     SymbolTable* memberScope() const { return _memberScope.get(); }
@@ -60,7 +60,7 @@ namespace tempest::sema::graph {
 
   private:
     std::unique_ptr<source::ProgramSource> _source;
-    MemberList _members;
+    std::vector<Defn*> _members;
     MemberList _imports;
     std::unique_ptr<SymbolTable> _memberScope;
     std::unique_ptr<SymbolTable> _importScope;

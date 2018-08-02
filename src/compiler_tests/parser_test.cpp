@@ -56,12 +56,12 @@ TEST_CASE("Parser", "[parse]") {
       ),
       ASTEQ(
         "(#MODULE\n"
-        "  (#IMPORT 0 c.b\n"
+        "  (#IMPORT 0 \"b.c\"\n"
         "    A)\n"
-        "  (#IMPORT 1 c\n"
+        "  (#IMPORT 1 \"c\"\n"
         "    A\n"
         "    B)\n"
-        "  (#EXPORT 0 f.e.d\n"
+        "  (#EXPORT 0 \"d.e.f\"\n"
         "    C))\n"
       ));
 

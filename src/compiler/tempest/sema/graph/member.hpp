@@ -79,6 +79,9 @@ namespace tempest::sema::graph {
   /** List of members. */
   typedef std::vector<Member*> MemberList;
   typedef llvm::ArrayRef<Member*> MemberArray;
+
+  /** Function to pretty-print a Defn graph. */
+  void format(::std::ostream& out, const Member* m, bool pretty);
 }
 
 #endif

@@ -7,6 +7,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/parse/parser.hpp"
 #include "tempest/parse/nodelistbuilder.hpp"
+#include "llvm/ADT/SmallString.h"
 
 #include <cassert>
 
@@ -95,6 +96,7 @@ namespace tempest::parse {
   // Import
 
   Node* Parser::importStmt(ast::Node::Kind kind) {
+    auto loc = location();
     if (!match(TOKEN_LBRACE)) {
       expected("{");
       return nullptr;
@@ -139,15 +141,14 @@ namespace tempest::parse {
       expected("module name");
       return nullptr;
     }
-    auto path = dottedIdent();
-    assert(path != nullptr);
+    auto path = dottedIdentStr();
 
     if (!match(TOKEN_SEMI)) {
       diag.error(location()) << "Semicolon expected.";
       return nullptr;
     }
 
-    auto result = new (_alloc) ast::Import(kind, path->location, path, relativePath);
+    auto result = new (_alloc) ast::Import(kind, loc, path, relativePath);
     result->members = members.build();
     return result;
   }
@@ -2278,6 +2279,23 @@ namespace tempest::parse {
     return result;
   }
 
+  llvm::StringRef Parser::dottedIdentStr() {
+    llvm::SmallString<128> result;
+    assert(_token == TOKEN_ID);
+    result.append(tokenValue());
+    next();
+    while (match(TOKEN_DOT)) {
+      result.push_back('.');
+      if (_token == TOKEN_ID) {
+        result.append(tokenValue());
+        next();
+      } else {
+        expected("identifier");
+      }
+    }
+    return copyOf(result);
+  }
+
   Node* Parser::id() {
     assert(_token == TOKEN_ID);
     auto node = new (_alloc) ast::Ident(location(), copyOf(tokenValue()));
@@ -2441,5 +2459,4 @@ namespace tempest::parse {
     assert(_entries.size() == 1);
     return true;
   }
-
 }

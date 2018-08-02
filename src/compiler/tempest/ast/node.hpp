@@ -15,8 +15,9 @@
 
 namespace tempest::ast {
   using tempest::source::Location;
+  using tempest::source::Locatable;
 
-  class Node {
+  class Node : public Locatable {
   public:
     enum class Kind {
       /* Sentinel values */
@@ -176,6 +177,8 @@ namespace tempest::ast {
     /** Construct an AST node. */
     Node(Kind kind, const Location& location) : kind(kind), location(location) {}
     Node(const Node&) = delete;
+
+    const Location& getLocation() const { return location; }
 
     static inline bool isError(const Node* node) {
       return node == nullptr || node->kind == Kind::ERROR;

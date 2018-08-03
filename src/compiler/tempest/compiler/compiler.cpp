@@ -1,7 +1,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/compiler/compiler.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
-#include "tempest/sema/pass/resolveimports.hpp"
+#include "tempest/sema/pass/loadimports.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -31,7 +31,7 @@ namespace tempest::compiler {
       return 1;
     }
     if (diag.errorCount() == 0) {
-      ResolveImportsPass pass(_cu);
+      LoadImportsPass pass(_cu);
       pass.run();
     }
     if (diag.errorCount() == 0) {

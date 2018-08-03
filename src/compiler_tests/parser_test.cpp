@@ -117,13 +117,16 @@ TEST_CASE("Parser", "[parse]") {
         "class X {\n"
         "  private {\n"
         "   x: i32;\n"
+        "   y = 3;\n"
         "  }\n"
         "}\n"
       ),
       ASTEQ(
         "(#CLASS_DEFN X\n"
         "  (#MEMBER_VAR\n"
-        "    #private x: i32))\n"
+        "    #private x: i32)\n"
+        "  (#MEMBER_VAR\n"
+        "    #private y = (int 3)))\n"
       ));
 
     // Member function

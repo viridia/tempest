@@ -1,5 +1,5 @@
-#ifndef TEMPEST_SEMA_PASS_RESOLVEIMPORTS_HPP
-#define TEMPEST_SEMA_PASS_RESOLVEIMPORTS_HPP 1
+#ifndef TEMPEST_SEMA_PASS_LOADIMPORTS_HPP
+#define TEMPEST_SEMA_PASS_LOADIMPORTS_HPP 1
 
 #ifndef TEMPEST_COMPILER_COMPILATIONUNIT_HPP
   #include "tempest/compiler/compilationunit.hpp"
@@ -11,9 +11,9 @@ namespace tempest::sema::pass {
 
   /** Pass which constructs the semantic graph, and loads in additional import modules
       if they are reachable. */
-  class ResolveImportsPass {
+  class LoadImportsPass {
   public:
-    ResolveImportsPass(CompilationUnit& cu) : _cu(cu) {}
+    LoadImportsPass(CompilationUnit& cu) : _cu(cu) {}
 
     void run();
 

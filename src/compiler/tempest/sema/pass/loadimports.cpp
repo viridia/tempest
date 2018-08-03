@@ -1,7 +1,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/ast/module.hpp"
 #include "tempest/error/diagnostics.hpp"
-#include "tempest/sema/pass/resolveimports.hpp"
+#include "tempest/sema/pass/loadimports.hpp"
 #include "llvm/ADT/SmallString.h"
 
 namespace tempest::sema::pass {
@@ -9,7 +9,7 @@ namespace tempest::sema::pass {
   using llvm::StringRef;
   using tempest::error::diag;
 
-  void ResolveImportsPass::run() {
+  void LoadImportsPass::run() {
     // diag.info() << "Resolve imports pass";
     while (moreSources() || moreImportSources()) {
       while (moreSources()) {
@@ -21,7 +21,7 @@ namespace tempest::sema::pass {
     }
   }
 
-  void ResolveImportsPass::process(Module* mod) {
+  void LoadImportsPass::process(Module* mod) {
     // diag.info() << "Resolving imports: " << mod->name();
     auto modAst = static_cast<const ast::Module*>(mod->ast());
     // TODO: Make sure we don't load a given module twice.

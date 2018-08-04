@@ -1,14 +1,14 @@
 #include "catch.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/defn.hpp"
-#include "tempest/sema/names/namelookup.hpp"
+#include "tempest/sema/names/membernamelookup.hpp"
 #include <memory>
 
 using namespace tempest::sema::graph;
 using namespace tempest::sema::names;
 using namespace tempest::source;
 
-TEST_CASE("NameLookup", "[names]") {
+TEST_CASE("MemberNameLookup", "[names]") {
   Location loc;
 
   SECTION("Module") {
@@ -16,7 +16,7 @@ TEST_CASE("NameLookup", "[names]") {
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     m.memberScope()->addMember(&v);
     NameLookupResult result;
-    NameLookup lookup;
+    MemberNameLookup lookup;
 
     lookup.lookup("x", &m, false, result);
     REQUIRE(result.size() == 1);
@@ -41,7 +41,7 @@ TEST_CASE("NameLookup", "[names]") {
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     td.memberScope()->addMember(&v);
     NameLookupResult result;
-    NameLookup lookup;
+    MemberNameLookup lookup;
 
     lookup.lookup("x", &td, false, result);
     REQUIRE(result.size() == 1);
@@ -82,7 +82,7 @@ TEST_CASE("NameLookup", "[names]") {
     baseTypeDef.memberScope()->addMember(&v);
 
     NameLookupResult result;
-    NameLookup lookup;
+    MemberNameLookup lookup;
 
     lookup.lookup("x", &td, false, result);
     REQUIRE(result.size() == 1);

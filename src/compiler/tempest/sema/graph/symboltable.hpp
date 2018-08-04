@@ -26,19 +26,27 @@ namespace tempest::sema::graph {
   /** Lambda expression type for name callbacks. */
   typedef std::function<void (const llvm::StringRef&)> NameCallback;
 
+  typedef llvm::SmallVectorImpl<Member*> NameLookupResultRef;
+  typedef llvm::SmallVector<Member*, 8> NameLookupResult;
+
   /** A symbol table. */
   class SymbolTable {
   public:
-    virtual ~SymbolTable() {}
-
     /** Add a member to this scope. Note that many scope implementations don't allow this. */
-    virtual void addMember(Member* m);
+    void addMember(Member* m);
+
+    /** Add a member to this scope with a different name. Use for import aliases. */
+    void addMember(const llvm::StringRef& name, Member* m);
 
     /** Lookup a name, and produce a list of results for that name. */
-    virtual void lookupName(const llvm::StringRef& name, MemberList &result) const;
+    void lookupName(const llvm::StringRef& name, NameLookupResultRef &result) const;
+
+    /** True if the given name is already defined, and include the location of the first
+        definition. */
+    bool exists(const llvm::StringRef& name, source::Location &location) const;
 
     /** Call the specified functor for all names defined in this scope. */
-    virtual void forAllNames(const NameCallback& nameFn) const;
+    void forAllNames(const NameCallback& nameFn) const;
 
   private:
     typedef llvm::StringMap<std::vector<Member*>> EntryMap;

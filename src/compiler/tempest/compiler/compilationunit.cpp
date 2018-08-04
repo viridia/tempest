@@ -14,6 +14,7 @@ namespace tempest::compiler {
     } else {
       auto source = std::make_unique<source::FileSource>(filepath, filepath);
       mod = new Module(std::move(source), moduleName);
+      mod->setGroup(sema::graph::ModuleGroup::SOURCE);
       _importMgr.addModule(mod);
       _sourceModules.push_back(mod);
       Parser parser(mod->source(), mod->astAlloc());

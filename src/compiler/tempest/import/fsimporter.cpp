@@ -71,6 +71,7 @@ namespace tempest::import {
 
       auto source = std::make_unique<source::FileSource>(filepathWithExtension, relpath);
       auto module = new Module(std::move(source), qualName);
+      module->setGroup(sema::graph::ModuleGroup::IMPORT_SOURCE);
       // if (ShowImports) {
       //   diag.debug() << "Import: Found source module '" << qualName << "' at " << filepath;
       // }

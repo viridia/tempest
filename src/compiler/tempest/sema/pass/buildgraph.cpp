@@ -28,14 +28,13 @@ namespace tempest::sema::pass {
   void BuildGraphPass::createMembers(
       const ast::NodeList& memberAsts,
       Member* parent,
-      std::vector<Defn*>& memberList,
+      DefnList& memberList,
       SymbolTable* memberScope)
   {
     memberList.reserve(memberAsts.size());
     for (const ast::Node* node : memberAsts) {
       auto ast = static_cast<const ast::Defn*>(node);
       Defn* d = createDefn(node, parent);
-      d->setAst(ast);
       d->setVisibility(astVisibility(ast));
       d->setAbstract(ast->isAbstract());
       d->setFinal(ast->isFinal());
@@ -98,6 +97,7 @@ namespace tempest::sema::pass {
           tk = Type::Kind::TRAIT;
         }
         UserDefinedType* cls = new (*_alloc) UserDefinedType(tk);
+        td->setAst(ast);
         td->setType(cls);
         cls->setDefn(td);
 
@@ -111,6 +111,7 @@ namespace tempest::sema::pass {
         TypeDefn* td = new TypeDefn(ast->location, ast->name, parent);
 
         UserDefinedType* cls = new (*_alloc) UserDefinedType(Type::Kind::ENUM);
+        td->setAst(ast);
         td->setType(cls);
         cls->setDefn(td);
 
@@ -122,6 +123,7 @@ namespace tempest::sema::pass {
         FunctionDefn* f = new FunctionDefn(ast->location, ast->name, parent);
         createParamList(ast->params, f, f->params(), f->paramScope());
         createTypeParamList(ast->typeParams, f, f->typeParams(), f->typeParamScope());
+        f->setAst(ast);
         return f;
       }
       default:

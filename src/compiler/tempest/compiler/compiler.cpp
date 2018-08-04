@@ -2,6 +2,7 @@
 #include "tempest/compiler/compiler.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/loadimports.hpp"
+#include "tempest/sema/pass/nameresolution.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -36,6 +37,10 @@ namespace tempest::compiler {
     }
     if (diag.errorCount() == 0) {
       BuildGraphPass pass(_cu);
+      pass.run();
+    }
+    if (diag.errorCount() == 0) {
+      NameResolutionPass pass(_cu);
       pass.run();
     }
     return diag.errorCount() == 0 ? 0 : 1;

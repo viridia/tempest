@@ -2,7 +2,6 @@
 #include "tempest/ast/module.hpp"
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/pass/loadimports.hpp"
-#include "llvm/ADT/SmallString.h"
 
 namespace tempest::sema::pass {
   using tempest::error::diag;
@@ -32,26 +31,13 @@ namespace tempest::sema::pass {
       auto imp = static_cast<const ast::Import*>(node);
       Module* importMod;
       if (imp->relative == 0) {
-         importMod = _cu.importMgr().loadModule(imp->path);
-      } else {
-        llvm::SmallString<128> impPath;
-        llvm::SmallVector<StringRef, 8> pathComponents;
-        mod->name().split(pathComponents, '.', false);
-        if (size_t(imp->relative) > pathComponents.size()) {
-          diag.error(imp) << "Invalid relative path";
-          continue;
-        }
-
-        // Join the path components from the current module with the relative path.
-        for (size_t i = 0; i < pathComponents.size() - imp->relative; i += 1) {
-          impPath.append(pathComponents[i]);
-          impPath.push_back('.');
-        }
-        impPath.append(imp->path);
         importMod = _cu.importMgr().loadModule(imp->path);
+      } else {
+        importMod = _cu.importMgr().loadModuleRelative(
+            imp->location, mod->name(), imp->relative, imp->path);
       }
       if (importMod) {
-        if (!importMod->ast()) {
+        if (importMod->group() == sema::graph::ModuleGroup::IMPORT_SOURCE) {
           _cu.importSourceModules().push_back(importMod);
         }
       } else {

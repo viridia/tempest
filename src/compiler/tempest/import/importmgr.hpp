@@ -16,6 +16,7 @@
 namespace tempest::import {
   using llvm::StringRef;
   using tempest::sema::graph::Module;
+  using tempest::source::Location;
 
   /** Keeps track of which modules have been imported and where they are. */
   class ImportMgr {
@@ -32,6 +33,12 @@ namespace tempest::import {
     /** Given a fully-qualified name to a symbol, load the module containing
         that symbol and return it. */
     Module* loadModule(StringRef qualifiedName);
+
+    /** Load a module relative to another module. 'qname' is the relative path without the
+        leading dots. 'baseName' is the name we're importing relative to. 'parentLevels' is
+        the number of leading dots in the relative path. */
+    Module* loadModuleRelative(
+        const Location& loc, StringRef baseName, size_t parentLevels, StringRef qname);
 
     /** Get the module from the module cache using this exact name. */
     Module* getCachedModule(StringRef moduleName);

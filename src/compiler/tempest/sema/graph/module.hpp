@@ -15,6 +15,14 @@
 
 namespace tempest::sema::graph {
 
+  /** Indicates where this modules was loaded from, which determines how it will be processed. */
+  enum class ModuleGroup {
+    UNSET = 0,
+    SOURCE,           // It's a source file to be compiled.
+    IMPORT_SOURCE,    // It's a source file that was imported, needs to be analyzed.
+    IMPORT_COMPILED,  // It's an imported module that has already been compiled.
+  };
+
   /** Semantic graph node for a module. */
   class Module : public Member {
   public:
@@ -24,29 +32,31 @@ namespace tempest::sema::graph {
       : Member(Kind::MODULE, name)
       , _source(std::move(source))
       , _memberScope(std::make_unique<SymbolTable>())
-      , _importScope(std::make_unique<SymbolTable>())
     {}
 
     // Constructor for testing, program source is null.
     Module(const llvm::StringRef& name)
       : Member(Kind::MODULE, name)
       , _memberScope(std::make_unique<SymbolTable>())
-      , _importScope(std::make_unique<SymbolTable>())
     {}
 
     /** Source file of this module. */
     source::ProgramSource* source() { return _source.get(); }
     const source::ProgramSource* source() const { return _source.get(); }
 
+    /** Which processing group this module is in. */
+    ModuleGroup group() const { return _group; }
+    void setGroup(ModuleGroup group) { _group = group; }
+
     /** Members of this module. */
-    std::vector<Defn*>& members() { return _members; }
-    const std::vector<Defn*>& members() const { return _members; }
+    DefnList& members() { return _members; }
+    const DefnArray members() const { return _members; }
 
     /** Symbol scope for this module's members. */
     SymbolTable* memberScope() const { return _memberScope.get(); }
 
-    /** Symbol scope for this module's imports. */
-    SymbolTable* importScope() const { return _importScope.get(); }
+    /** Symbol scope for the symbols exported by this module. */
+    SymbolTable* exportScope() const { return _exportScope.get(); }
 
     /** Allocator used for AST nodes. */
     llvm::BumpPtrAllocator& astAlloc() { return _astAlloc; }
@@ -60,10 +70,11 @@ namespace tempest::sema::graph {
 
   private:
     std::unique_ptr<source::ProgramSource> _source;
-    std::vector<Defn*> _members;
+    ModuleGroup _group = ModuleGroup::UNSET;
+    DefnList _members;
     MemberList _imports;
     std::unique_ptr<SymbolTable> _memberScope;
-    std::unique_ptr<SymbolTable> _importScope;
+    std::unique_ptr<SymbolTable> _exportScope;
     llvm::BumpPtrAllocator _astAlloc;
     llvm::BumpPtrAllocator _semaAlloc;
     // std::unordered_set<SpecializedDefn*> _syntheticFunctions;

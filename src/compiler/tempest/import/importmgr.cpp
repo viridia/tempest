@@ -10,6 +10,7 @@ namespace tempest::import {
   using namespace llvm;
   using namespace llvm::sys;
   using tempest::error::diag;
+  using tempest::source::Location;
 
   // static cl::opt<bool>
   // ShowImports("show-imports", cl::desc("Display imports"));
@@ -38,7 +39,7 @@ namespace tempest::import {
     }
   }
 
-  Module * ImportMgr::getCachedModule(StringRef qname) {
+  Module* ImportMgr::getCachedModule(StringRef qname) {
     // First, attempt to search the modules already loaded.
     ModuleMap::iterator it = _modules.find(qname);
     if (it != _modules.end()) {
@@ -48,7 +49,7 @@ namespace tempest::import {
     return nullptr;
   }
 
-  Module * ImportMgr::loadModule(StringRef qname) {
+  Module* ImportMgr::loadModule(StringRef qname) {
     // First, attempt to search the modules already loaded.
     ModuleMap::iterator it = _modules.find(qname);
     if (it != _modules.end()) {
@@ -96,6 +97,26 @@ namespace tempest::import {
     // }
     return mod;
   }
+
+  Module* ImportMgr::loadModuleRelative(
+      const Location& loc, StringRef baseName, size_t parentLevels, StringRef qname) {
+    llvm::SmallString<128> absName;
+    llvm::SmallVector<StringRef, 8> pathComponents;
+    baseName.split(pathComponents, '.', false);
+    if (parentLevels > pathComponents.size()) {
+      diag.error(loc) << "Invalid relative path: " << std::string(parentLevels, '.') << qname;
+      return nullptr;
+    }
+
+    // Join the path components from the current module with the relative path.
+    for (size_t i = 0; i < pathComponents.size() - parentLevels; i += 1) {
+      absName.append(pathComponents[i]);
+      absName.push_back('.');
+    }
+    absName.append(qname);
+    return loadModule(absName);
+  }
+
 
   void ImportMgr::addModule(Module * mod) {
     assert(_modules.find(mod->name()) == _modules.end());

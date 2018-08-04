@@ -72,7 +72,6 @@ namespace tempest::sema::graph {
 
   protected:
     const std::string _name;
-    // Member* _definedIn;
     const ast::Node* _ast;
   };
 

@@ -13,8 +13,8 @@ namespace tempest::sema::graph {
 
     Formatter(::std::ostream& out, bool pretty) : out(out), pretty(pretty) {}
     void visit(const Member* node);
-    void visitList(const std::vector<Defn*>& nodes);
-    void visitNamedList(const std::vector<Defn*>& nodes, llvm::StringRef name);
+    void visitList(const DefnArray nodes);
+    void visitNamedList(const DefnArray nodes, llvm::StringRef name);
     // void visitNamedNode(const Node* node, llvm::StringRef name);
     // void visitDefnFlags(const Defn* de);
     // void printFlag(llvm::StringRef name, bool enabled);
@@ -120,7 +120,7 @@ namespace tempest::sema::graph {
     }
   }
 
-  void Formatter::visitList(const std::vector<Defn*>& nodes) {
+  void Formatter::visitList(const DefnArray nodes) {
     if (pretty) {
       indent += 2;
       for (auto arg : nodes) {
@@ -136,7 +136,7 @@ namespace tempest::sema::graph {
     }
   }
 
-  void Formatter::visitNamedList(const std::vector<Defn*>& nodes, llvm::StringRef name) {
+  void Formatter::visitNamedList(const DefnArray nodes, llvm::StringRef name) {
     if (nodes.size() > 0) {
       if (pretty) {
         indent += 2;

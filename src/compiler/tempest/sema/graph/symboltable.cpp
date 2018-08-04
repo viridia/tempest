@@ -1,4 +1,6 @@
 #include "tempest/sema/graph/symboltable.hpp"
+#include "tempest/sema/graph/defn.hpp"
+#include "llvm/Support/Casting.h"
 #include <assert.h>
 
 namespace tempest::sema::graph {
@@ -7,11 +9,26 @@ namespace tempest::sema::graph {
     _entries[m->name()].push_back(m);
   }
 
-  void SymbolTable::lookupName(const llvm::StringRef& name, std::vector<Member*>& result) const {
+  void SymbolTable::addMember(const llvm::StringRef& name, Member* m) {
+    assert(m->kind >= Member::Kind::TYPE && m->kind < Member::Kind::COUNT);
+    _entries[name].push_back(m);
+  }
+
+  void SymbolTable::lookupName(const llvm::StringRef& name, NameLookupResultRef& result) const {
     EntryMap::const_iterator it = _entries.find(name);
     if (it != _entries.end()) {
       result.insert(result.end(), it->second.begin(), it->second.end());
     }
+  }
+
+  bool SymbolTable::exists(const llvm::StringRef& name, source::Location &location) const {
+    EntryMap::const_iterator it = _entries.find(name);
+    if (it != _entries.end()) {
+      auto defn = llvm::dyn_cast<Defn>(it->second.front());
+      location = defn ? defn->location() : source::Location();
+      return true;
+    }
+    return false;
   }
 
   void SymbolTable::forAllNames(const NameCallback& nameFn) const {

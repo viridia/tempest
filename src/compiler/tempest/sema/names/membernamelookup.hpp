@@ -1,5 +1,5 @@
-#ifndef TEMPEST_SEMA_NAMES_MEMBERLOOKUP_HPP
-#define TEMPEST_SEMA_NAMES_MEMBERLOOKUP_HPP 1
+#ifndef TEMPEST_SEMA_NAMES_MEMBERNAMELOOKUP_HPP
+#define TEMPEST_SEMA_NAMES_MEMBERNAMELOOKUP_HPP 1
 
 #ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
   #include "tempest/sema/graph/member.hpp"
@@ -33,14 +33,12 @@ namespace tempest::sema::names {
   using tempest::sema::graph::Member;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::NameCallback;
+  using tempest::sema::graph::NameLookupResultRef;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
 
-  typedef llvm::SmallPtrSetImpl<Member*> NameLookupResultRef;
-  typedef llvm::SmallPtrSet<Member*, 8> NameLookupResult;
-
   /** Name resolver specialized for resolving types. */
-  class NameLookup {
+  class MemberNameLookup {
   public:
     /** Given a list of members to look in, find members with the specified name. */
     void lookup(

@@ -136,6 +136,9 @@ namespace tempest::sema::graph {
   //  docComment: DocComment = 7;   # Doc comments
   };
 
+  typedef std::vector<Defn*> DefnList;
+  typedef llvm::ArrayRef<Defn*> DefnArray;
+
   /** A definition that may or may not have template parameters. */
   class GenericDefn : public Defn {
   public:
@@ -211,8 +214,8 @@ namespace tempest::sema::graph {
     void setType(Type* type) { _type = type; }
 
     /** List of all members of this type. */
-    std::vector<Defn*>& members() { return _members; }
-    const std::vector<Defn*>& members() const { return _members; }
+    DefnList& members() { return _members; }
+    const DefnArray members() const { return _members; }
 
     /** Scope containing all of the members of this type. */
     SymbolTable* memberScope() const { return _memberScope.get(); }
@@ -229,7 +232,7 @@ namespace tempest::sema::graph {
 
   private:
     Type* _type;
-    std::vector<Defn*> _members;
+    DefnList _members;
     std::unique_ptr<SymbolTable> _memberScope;
     IntrinsicType _intrinsic = IntrinsicType::NONE;
 
@@ -504,8 +507,8 @@ namespace tempest::sema::graph {
     void setBody(Expr* body) { _body = body; }
 
     /** List of all local variables and definitions. */
-    std::vector<Defn*>& localDefns() { return _localDefns; }
-    const std::vector<Defn*>& localDefns() const { return _localDefns; }
+    DefnList& localDefns() { return _localDefns; }
+    const DefnArray localDefns() const { return _localDefns; }
 
     /** True if this function is a constructor. */
     bool isConstructor() const { return _constructor; }
@@ -537,7 +540,7 @@ namespace tempest::sema::graph {
     FunctionType* _type;
     std::vector<ParameterDefn*> _params;
     std::unique_ptr<SymbolTable> _paramScope;
-    std::vector<Defn*> _localDefns;
+    DefnList _localDefns;
     // intrinsic::IntrinsicFunction* _intrinsic;
     Type* _selfType;
     Expr* _body;

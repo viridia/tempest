@@ -3,12 +3,12 @@
 #include <memory>
 
 using tempest::sema::graph::SymbolTable;
-using tempest::sema::graph::MemberList;
+using tempest::sema::graph::NameLookupResult;
 using tempest::sema::graph::Member;
 
 TEST_CASE("Symbol tables", "[symbol]") {
   SymbolTable sym;
-  MemberList res;
+  NameLookupResult res;
   auto x = std::make_unique<Member>(Member::Kind::LET_DEF, "x");
   auto y = std::make_unique<Member>(Member::Kind::LET_DEF, "y");
 

@@ -1,23 +1,24 @@
-#include "tempest/sema/names/namelookup.hpp"
+#include "tempest/sema/names/membernamelookup.hpp"
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/module.hpp"
-#include "tempest/sema/graph/package.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/symboltable.hpp"
 
 #include <cassert>
 #include <llvm/Support/Casting.h>
 
 namespace tempest::sema::names {
   using tempest::sema::graph::Module;
-  // using tempest::sema::graph::Package;
   using tempest::sema::graph::PrimitiveType;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::TypeParameter;
   using tempest::sema::graph::UserDefinedType;
+  using tempest::sema::graph::NameLookupResult;
+  using tempest::sema::graph::NameLookupResultRef;
   using llvm::dyn_cast;
   using llvm::isa;
 
-  void NameLookup::lookup(
+  void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const llvm::ArrayRef<Member*>& stem,
       bool fromStatic,
@@ -27,7 +28,7 @@ namespace tempest::sema::names {
     }
   }
 
-  void NameLookup::lookup(
+  void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const llvm::ArrayRef<Type*>& stem,
       bool fromStatic,
@@ -37,17 +38,14 @@ namespace tempest::sema::names {
     }
   }
 
-  void NameLookup::lookup(
+  void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       Member* stem,
       bool fromStatic,
       NameLookupResultRef& result) {
 
-    std::vector<Member*> members;
+    NameLookupResult members;
     switch (stem->kind) {
-      // case Member::Kind::PACKAGE:
-      //   static_cast<Package*>(stem)->memberScope()->lookupName(name, members);
-      //   break;
       case Member::Kind::MODULE:
         static_cast<Module*>(stem)->memberScope()->lookupName(name, members);
         break;
@@ -82,11 +80,11 @@ namespace tempest::sema::names {
     }
 
     for (auto m : members) {
-      result.insert(m);
+      result.push_back(m);
     }
   }
 
-  void NameLookup::lookup(
+  void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       Type* stem,
       bool fromStatic,
@@ -100,16 +98,16 @@ namespace tempest::sema::names {
     }
   }
 
-  void NameLookup::lookupInherited(
+  void MemberNameLookup::lookupInherited(
       const llvm::StringRef& name,
       UserDefinedType* udt,
       bool fromStatic,
       NameLookupResultRef& result) {
-    std::vector<Member*> members;
+    NameLookupResult members;
     udt->defn()->memberScope()->lookupName(name, members);
     if (members.size() > 0) {
       for (auto m : members) {
-        result.insert(m);
+        result.push_back(m);
       }
       return;
     }
@@ -118,18 +116,15 @@ namespace tempest::sema::names {
     }
   }
 
-  void NameLookup::forAllNames(const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn) {
+  void MemberNameLookup::forAllNames(const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn) {
     for (auto m : stem) {
       forAllNames(m, nameFn);
     }
   }
 
-  void NameLookup::forAllNames(Member* stem, const NameCallback& nameFn) {
+  void MemberNameLookup::forAllNames(Member* stem, const NameCallback& nameFn) {
     std::vector<Member*> members;
     switch (stem->kind) {
-      // case Member::Kind::PACKAGE:
-      //   static_cast<Package*>(stem)->memberScope()->forAllNames(nameFn);
-      //   break;
       case Member::Kind::MODULE:
         static_cast<Module*>(stem)->memberScope()->forAllNames(nameFn);
         break;
@@ -168,7 +163,7 @@ namespace tempest::sema::names {
     }
   }
 
-  void NameLookup::forAllNames(Type* stem, const NameCallback& nameFn) {
+  void MemberNameLookup::forAllNames(Type* stem, const NameCallback& nameFn) {
     if (auto comp = dyn_cast<UserDefinedType>(stem)) {
       forAllNames(comp->defn(), nameFn);
     } else if (auto pr = dyn_cast<PrimitiveType>(stem)) {

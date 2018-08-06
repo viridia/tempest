@@ -80,7 +80,8 @@ namespace tempest::ast {
 
   class TypeDefn : public Defn {
   public:
-    NodeList bases;
+    NodeList extends;
+    NodeList implements;
     NodeList friends;
 
     TypeDefn(Kind kind, const Location& location, const StringRef& name)

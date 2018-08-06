@@ -40,6 +40,11 @@ namespace tempest::parse {
 
   class NodeListBuilder;
 
+  enum DeclarationScope {
+    DECL_GLOBAL,
+    DECL_MEMBER,
+  };
+
   /** Stack used for operator precedence parsing. */
   class OperatorStack {
   public:
@@ -99,7 +104,7 @@ namespace tempest::parse {
     }
 
     ast::Module* module();
-    ast::Defn* memberDeclaration();
+    ast::Defn* declaration(DeclarationScope scope);
     ast::Node* expression();
     ast::Node* typeExpression();
   private:
@@ -111,7 +116,7 @@ namespace tempest::parse {
     bool _recovering;
 
     ast::Node* importStmt(ast::Node::Kind kind);
-    bool declaration(NodeListBuilder& decls, bool isProtected = false, bool isPrivate = false);
+    bool memberDeclaration(NodeListBuilder& decls);
     ast::Node* attribute();
     // llvm::StringRef methodName();
     ast::Defn* compositeTypeDef();
@@ -138,6 +143,7 @@ namespace tempest::parse {
     ast::Node* typeTerm(bool allowPartial = false);
     ast::Node* typePrimary(bool allowPartial = false);
     ast::Node* functionType();
+    ast::Node* baseTypeName();
     ast::Node* specializedTypeName();
     ast::Node* builtinType(ast::BuiltinType::Type t);
 

@@ -111,7 +111,7 @@ namespace tempest::sema::names {
       }
       return;
     }
-    for (auto ext : udt->extends()) {
+    for (auto ext : udt->defn()->extends()) {
       lookup(name, ext, fromStatic, result);
     }
   }
@@ -132,7 +132,7 @@ namespace tempest::sema::names {
         auto td = static_cast<TypeDefn*>(stem);
         if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
           udt->defn()->memberScope()->forAllNames(nameFn);
-          for (auto ext : udt->extends()) {
+          for (auto ext : udt->defn()->extends()) {
             forAllNames(ext, nameFn);
           }
         } else {

@@ -22,16 +22,18 @@ public:
   {}
 };
 
-/** Parse a module definition and apply buildgraph pass. */
-std::unique_ptr<Module> parseModule(const char* srcText) {
-  auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
-  Parser parser(mod->source(), mod->astAlloc());
-  auto result = parser.module();
-  mod->setAst(result);
-  CompilationUnit cu;
-  BuildGraphPass pass(cu);
-  pass.process(mod.get());
-  return mod;
+namespace {
+  /** Parse a module definition and apply buildgraph pass. */
+  std::unique_ptr<Module> parseModule(const char* srcText) {
+    auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
+    Parser parser(mod->source(), mod->astAlloc());
+    auto result = parser.module();
+    mod->setAst(result);
+    CompilationUnit cu;
+    BuildGraphPass pass(cu);
+    pass.process(mod.get());
+    return mod;
+  }
 }
 
 TEST_CASE("BuildGraph", "[sema]") {

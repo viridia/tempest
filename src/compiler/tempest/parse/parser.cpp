@@ -66,25 +66,42 @@ namespace tempest::parse {
     NodeListBuilder members(_alloc);
 
     ast::Module* mod = new (_alloc) ast::Module(location());
-    for (;;) {
-      Node* imp = nullptr;
-      if (match(TOKEN_IMPORT)) {
-        imp = importStmt(ast::Node::Kind::IMPORT);
-      } else if (match(TOKEN_EXPORT)) {
-        imp = importStmt(ast::Node::Kind::EXPORT);
-      } else {
-        break;
-      }
-      if (imp) {
-        imports.append(imp);
-      } else {
-        skipOverDefn();
-      }
-    }
-
+    bool declDefined = false;
     while (_token != TOKEN_END) {
-      if (!declaration(members)) {
-        return nullptr;
+      if (match(TOKEN_IMPORT)) {
+        if (declDefined) {
+          diag.error(location()) << "Import statement must come before the first declaration.";
+        }
+        auto imp = importStmt(ast::Node::Kind::IMPORT);
+        if (imp) {
+          imports.append(imp);
+        } else {
+          skipOverDefn();
+        }
+      } else if (match(TOKEN_EXPORT)) {
+        if (_token == TOKEN_LBRACE) {
+          if (declDefined) {
+            diag.error(location()) << "Export statement must come before the first declaration.";
+          }
+          auto imp = importStmt(ast::Node::Kind::EXPORT);
+          if (imp) {
+            imports.append(imp);
+          } else {
+            skipOverDefn();
+          }
+        } else {
+          Defn* d = declaration(DECL_GLOBAL);
+          if (d) {
+            members.append(d);
+            declDefined = true;
+          }
+        }
+      } else {
+        Defn* d = declaration(DECL_GLOBAL);
+        if (d) {
+          members.append(d);
+          declDefined = true;
+        }
       }
     }
 
@@ -155,34 +172,39 @@ namespace tempest::parse {
 
   // Declaration
 
-  bool Parser::declaration(NodeListBuilder& decls, bool isProtected, bool isPrivate) {
+  bool Parser::memberDeclaration(NodeListBuilder& decls) {
     NodeListBuilder attributes(_alloc);
     while (auto attr = attribute()) {
       attributes.append(attr);
     }
 
-    bool explicitVisibility = false;
-    if (match(TOKEN_PRIVATE)) {
-      if (isPrivate || isProtected) {
-        diag.error(location()) << "Visibility already specified.";
-      }
-      isPrivate = explicitVisibility = true;
-    } else if (match(TOKEN_PROTECTED)) {
-      if (isPrivate || isProtected) {
-        diag.error(location()) << "Visibility already specified.";
-      }
-      isProtected = explicitVisibility = true;
-    }
-
-    if (explicitVisibility) {
-      Location loc = location();
+    Defn* d;
+    bool isPrivate = false;
+    bool isProtected = false;
+    if (_token == TOKEN_PRIVATE || _token == TOKEN_PROTECTED) {
+      isPrivate = match(TOKEN_PRIVATE);
+      isProtected = match(TOKEN_PROTECTED);
       if (match(TOKEN_LBRACE)) {
+        // It's a block of definitions with common visibility.
+        if (attributes.size() > 0) {
+          diag.error(location()) << "Visibility block may not have attributes.";
+        }
         while (!match(TOKEN_RBRACE)) {
           if (_token == TOKEN_END) {
-            diag.error(loc) << "Visibility block not closed.";
+            diag.error(location()) << "Visibility block not closed.";
             return false;
           }
-          if (!declaration(decls, isProtected, isPrivate)) {
+          NodeListBuilder attributes2(_alloc);
+          while (auto attr = attribute()) {
+            attributes2.append(attr);
+          }
+          d = declaration(DECL_MEMBER);
+          if (d) {
+            d->attributes = attributes2.build();
+            d->setPrivate(isPrivate);
+            d->setProtected(isProtected);
+            decls.append(d);
+          } else {
             return false;
           }
         }
@@ -190,19 +212,19 @@ namespace tempest::parse {
       }
     }
 
-    Defn* d = memberDeclaration();
+    d = declaration(DECL_MEMBER);
     if (d != nullptr) {
+      d->attributes = attributes.build();
       d->setPrivate(isPrivate);
       d->setProtected(isProtected);
       decls.append(d);
       return true;
     }
-
     diag.error(location()) << "declaration expected.";
     return false;
   }
 
-  Defn* Parser::memberDeclaration() {
+  Defn* Parser::declaration(DeclarationScope scope) {
     Defn* result = nullptr;
     bool isAbstract = false;
     bool isFinal = false;
@@ -230,8 +252,21 @@ namespace tempest::parse {
 
     switch (_token) {
       case TOKEN_CONST:
-      case TOKEN_ID:
         result = fieldDef();
+        break;
+      case TOKEN_LET:
+        if (scope == DECL_MEMBER) {
+          diag.error(location()) << "'let' keyword not needed for member declaration.";
+        } else {
+          result = fieldDef();
+        }
+        break;
+      case TOKEN_ID:
+        if (scope == DECL_GLOBAL) {
+          diag.error(location()) << "Declaration expected.";
+        } else {
+          result = fieldDef();
+        }
         break;
       case TOKEN_CLASS:
       case TOKEN_STRUCT:
@@ -259,16 +294,6 @@ namespace tempest::parse {
     result->setStatic(isStatic);
     return result;
   }
-
-  #if 0
-    def p_local_def(self, p):
-      '''local_def : composite_type_def
-                  | enum_type_def
-                  | method_def
-                  | prop_def
-                  | var_def'''
-      p[0] = p[1]
-  #endif
 
   // Composite types
 
@@ -303,20 +328,36 @@ namespace tempest::parse {
     d->typeParams = templateParams.build();
 
     // Supertype list
-    if (match(TOKEN_COLON)) {
-      NodeListBuilder baseTypes(_alloc);
+    if (match(TOKEN_EXTENDS)) {
+      NodeListBuilder extends(_alloc);
       for (;;) {
-        auto base = typeExpression();
+        auto base = baseTypeName();
         if (base == nullptr) {
           skipUntil({TOKEN_LBRACE});
           return d;
         }
-        baseTypes.append(base);
+        extends.append(base);
         if (!match(TOKEN_COMMA)) {
           break;
         }
       }
-      d->bases = baseTypes.build();
+      d->extends = extends.build();
+    }
+
+    if (match(TOKEN_IMPLEMENTS)) {
+      NodeListBuilder implements(_alloc);
+      for (;;) {
+        auto base = baseTypeName();
+        if (base == nullptr) {
+          skipUntil({TOKEN_LBRACE});
+          return d;
+        }
+        implements.append(base);
+        if (!match(TOKEN_COMMA)) {
+          break;
+        }
+      }
+      d->implements = implements.build();
     }
 
     // Type constraints
@@ -361,7 +402,7 @@ namespace tempest::parse {
         expected("';'");
       }
       friends.append(friendDecl);
-    } else if (!declaration(members)) {
+    } else if (!memberDeclaration(members)) {
       return false;
     }
     return true;
@@ -388,20 +429,20 @@ namespace tempest::parse {
     ast::TypeDefn* d = new (_alloc) ast::TypeDefn(Node::Kind::ENUM_DEFN, loc, name);
 
     // Supertype list
-    if (match(TOKEN_COLON)) {
-      NodeListBuilder baseTypes(_alloc);
+    if (match(TOKEN_EXTENDS)) {
+      NodeListBuilder extends(_alloc);
       for (;;) {
-        auto base = typeExpression();
+        auto base = baseTypeName();
         if (base == nullptr) {
           skipUntil({TOKEN_LBRACE});
           return d;
         }
-        baseTypes.append(base);
+        extends.append(base);
         if (!match(TOKEN_COMMA)) {
           break;
         }
       }
-      d->bases = baseTypes.build();
+      d->extends = extends.build();
     }
 
     // Body
@@ -878,6 +919,8 @@ namespace tempest::parse {
     Node::Kind kind;
     if (match(TOKEN_CONST)) {
       kind = Node::Kind::MEMBER_CONST;
+    } else if (match(TOKEN_LET)) {
+      kind = Node::Kind::MEMBER_VAR;
     } else if (_token == TOKEN_ID) {
       kind = Node::Kind::MEMBER_VAR;
     } else {
@@ -1068,7 +1111,7 @@ namespace tempest::parse {
 
   Node* Parser::typeUnion() {
     auto t = typeTerm();
-    if (match(TOKEN_OR)) {
+    if (match(TOKEN_VBAR)) {
       NodeListBuilder builder(_alloc);
       builder.append(t);
       while (_token != TOKEN_END) {
@@ -1077,7 +1120,7 @@ namespace tempest::parse {
           return nullptr;
         }
         builder.append(t);
-        if (!match(TOKEN_OR)) {
+        if (!match(TOKEN_VBAR)) {
           break;
         }
       }
@@ -1216,6 +1259,15 @@ namespace tempest::parse {
       fnType->op = returnType;
     }
     return fnType;
+  }
+
+  Node* Parser::baseTypeName() {
+    if (_token == TOKEN_ID) {
+      return specializedTypeName();
+    } else {
+      expected("base type name");
+      return nullptr;
+    }
   }
 
   Node* Parser::specializedTypeName() {

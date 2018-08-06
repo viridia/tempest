@@ -2,6 +2,7 @@
 #include "tempest/sema/graph/type.hpp"
 #include "tempest/sema/graph/typestore.hpp"
 #include "tempest/sema/graph/typeorder.hpp"
+#include "llvm/Support/Casting.h"
 
 namespace tempest::sema::graph {
   UnionType* TypeStore::createUnionType(const TypeArray& members) {
@@ -85,6 +86,9 @@ namespace tempest::sema::graph {
     }
 
     auto spec = new (_alloc) SpecializedDefn(base, typeArgs);
+    if (auto typeDefn = llvm::dyn_cast<TypeDefn>(base)) {
+      spec->setType(new (_alloc) SpecializedType(spec));
+    }
     _specs[key] = spec;
     return spec;
   }

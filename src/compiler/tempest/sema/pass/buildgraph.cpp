@@ -101,8 +101,20 @@ namespace tempest::sema::pass {
         td->setType(cls);
         cls->setDefn(td);
 
-        createMembers(ast->members, td, td->members(), td->memberScope());
         createTypeParamList(ast->typeParams, td, td->typeParams(), td->typeParamScope());
+        createMembers(ast->members, td, td->members(), td->memberScope());
+
+        // Make sure there are no name collisions between type params and member names.
+        if (!td->typeParams().empty()) {
+          for (auto member : td->members()) {
+            NameLookupResult lookupResult;
+            td->typeParamScope()->lookupName(member->name(), lookupResult);
+            if (!lookupResult.empty()) {
+              diag.error(member) << "Member name '"
+                  << member->name() << "' shadows type parameter with the same name.";
+            }
+          }
+        }
   //       decl.setRequiredMethodScope(StandardScope(decl, 'constraint'))
         return td;
       }

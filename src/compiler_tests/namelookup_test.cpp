@@ -76,7 +76,7 @@ TEST_CASE("MemberNameLookup", "[names]") {
     baseCls.setDefn(&baseTypeDef);
     baseTypeDef.setType(&baseCls);
 
-    testCls.setExtends({ &baseCls });
+    td.extends().push_back(&baseTypeDef);
 
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     baseTypeDef.memberScope()->addMember(&v);

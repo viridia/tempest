@@ -9,6 +9,25 @@ namespace tempest::sema::graph {
   class IntegerType;
   class FloatType;
 
+  /** Boolean literal. */
+  class BooleanLiteral : public Expr {
+  public:
+    BooleanLiteral(Location location, bool value)
+      : Expr(Kind::BOOLEAN_LITERAL, location)
+      , _value(value)
+    {}
+
+    /** The value of the boolean literal. */
+    bool value() { return _value; }
+
+    /** Dynamic casting support. */
+    static bool classof(const BooleanLiteral* e) { return true; }
+    static bool classof(const Expr* e) { return e->kind == Kind::BOOLEAN_LITERAL; }
+
+  private:
+    bool _value;
+  };
+
   /** Integer literal. */
   class IntegerLiteral : public Expr {
   public:

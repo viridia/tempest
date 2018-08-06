@@ -1,6 +1,6 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/module.hpp"
-#include "tempest/sema/graph/type.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/error/diagnostics.hpp"
 
 namespace tempest::sema::graph {
@@ -13,6 +13,7 @@ namespace tempest::sema::graph {
 
     Formatter(::std::ostream& out, bool pretty) : out(out), pretty(pretty) {}
     void visit(const Member* node);
+    void visit(const Type* t);
     void visitList(const DefnArray nodes);
     void visitNamedList(const DefnArray nodes, llvm::StringRef name);
     // void visitNamedNode(const Node* node, llvm::StringRef name);
@@ -120,6 +121,148 @@ namespace tempest::sema::graph {
     }
   }
 
+  void Formatter::visit(const Type* t) {
+    if (t == nullptr) {
+      out << "<null>";
+      return;
+    }
+    switch (t->kind) {
+      case Type::Kind::INVALID:
+        out << "<error>";
+        break;
+
+      case Type::Kind::NEVER:
+        out << "<never>";
+        break;
+
+      case Type::Kind::IGNORED:
+        out << "<ignored>";
+        break;
+
+      case Type::Kind::VOID:
+        out << "void";
+        break;
+
+      case Type::Kind::BOOLEAN:
+        out << "bool";
+        break;
+
+      case Type::Kind::INTEGER: {
+        auto intType = static_cast<const IntegerType*>(t);
+        out << intType->defn()->name();
+        break;
+      }
+
+      case Type::Kind::FLOAT: {
+        auto floatType = static_cast<const FloatType*>(t);
+        out << floatType->defn()->name();
+        break;
+      }
+
+      case Type::Kind::CLASS: {
+        auto udt = static_cast<const UserDefinedType*>(t);
+        out << "class " << udt->defn()->name();
+        break;
+      }
+
+      case Type::Kind::STRUCT: {
+        auto udt = static_cast<const UserDefinedType*>(t);
+        out << "struct " << udt->defn()->name();
+        break;
+      }
+
+      case Type::Kind::INTERFACE: {
+        auto udt = static_cast<const UserDefinedType*>(t);
+        out << "interface " << udt->defn()->name();
+        break;
+      }
+
+      case Type::Kind::TRAIT: {
+        auto udt = static_cast<const UserDefinedType*>(t);
+        out << "trait " << udt->defn()->name();
+        break;
+      }
+
+      case Type::Kind::EXTENSION: {
+        auto udt = static_cast<const UserDefinedType*>(t);
+        out << "extend " << udt->defn()->name();
+        break;
+      }
+
+      case Type::Kind::ENUM: {
+        auto udt = static_cast<const UserDefinedType*>(t);
+        out << "enum " << udt->defn()->name();
+        break;
+      }
+
+      // ALIAS,          // An alias for another type
+
+      case Type::Kind::TYPE_VAR: {
+        auto tv = static_cast<const TypeVar*>(t);
+        out << "enum " << tv->param->name();
+        break;
+      }
+
+      case Type::Kind::UNION: {
+        auto ut = static_cast<const UnionType*>(t);
+        llvm::StringRef sep = "";
+        for (auto member : ut->members) {
+          out << sep;
+          sep = " | ";
+          visit(member);
+        }
+        break;
+      }
+
+      case Type::Kind::TUPLE: {
+        auto ut = static_cast<const TupleType*>(t);
+        llvm::StringRef sep = "(";
+        for (auto member : ut->members) {
+          out << sep;
+          sep = ", ";
+          visit(member);
+        }
+        out << ")";
+        break;
+      }
+
+      case Type::Kind::FUNCTION: {
+        auto ft = static_cast<const FunctionType*>(t);
+        llvm::StringRef sep = "fn (";
+        for (auto member : ft->paramTypes) {
+          out << sep;
+          sep = ", ";
+          visit(member);
+        }
+        out << ")";
+        if (ft->returnType) {
+          out << " -> ";
+          visit(ft->returnType);
+        }
+        break;
+      }
+
+      case Type::Kind::CONST: {
+        auto ct = static_cast<const ConstType*>(t);
+        out << "const ";
+        visit(ct->base());
+        break;
+      }
+
+      case Type::Kind::SPECIALIZED: {
+        auto st = static_cast<const SpecializedType*>(t);
+        visit(st->spec);
+        break;
+      }
+
+      // SINGLETON,      // A type consisting of a single value
+
+      default:
+        diag.error() << "Format not implemented: " << int(t->kind);
+        assert(false && "Format not implemented.");
+    }
+  }
+
   void Formatter::visitList(const DefnArray nodes) {
     if (pretty) {
       indent += 2;
@@ -158,5 +301,10 @@ namespace tempest::sema::graph {
     if (pretty) {
       out << '\n';
     }
+  }
+
+  void format(::std::ostream& out, const Type* t) {
+    Formatter fmt(out, false);
+    fmt.visit(t);
   }
 }

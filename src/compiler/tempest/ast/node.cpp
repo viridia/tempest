@@ -50,6 +50,7 @@ namespace tempest::ast {
       case Kind::LSHIFT: return "LSHIFT";
       case Kind::EQUAL: return "EQUAL";
       case Kind::REF_EQUAL: return "REF_EQUAL";
+      case Kind::REF_NOT_EQUAL: return "REF_NOT_EQUAL";
       case Kind::NOT_EQUAL: return "NOT_EQUAL";
       case Kind::LESS_THAN: return "LESS_THAN";
       case Kind::GREATER_THAN: return "GREATER_THAN";

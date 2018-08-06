@@ -33,8 +33,7 @@ namespace tempest::sema::graph {
       // BUILTIN_ATTR,
 
       // Literals
-      TRUE_LITERAL,
-      FALSE_LITERAL,
+      BOOLEAN_LITERAL,
       INTEGER_LITERAL,
       FLOAT_LITERAL,
       DOUBLE_LITERAL,
@@ -52,6 +51,7 @@ namespace tempest::sema::graph {
       REMAINDER,
       LSHIFT,
       RSHIFT,
+      BIT_AND, BIT_OR, BIT_XOR,
 
       // Relational operators
       EQ,
@@ -60,6 +60,8 @@ namespace tempest::sema::graph {
       LE,
       GT,
       GE,
+      REF_NE,
+      REF_EQ,
 
       // Assignment operators
       ASSIGN,

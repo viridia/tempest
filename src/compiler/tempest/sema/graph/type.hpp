@@ -19,6 +19,7 @@
 
 namespace tempest::sema::graph {
 
+  class Expr;
   class SpecializedDefn;
   class TypeDefn;
   class TypeParameter;
@@ -45,7 +46,7 @@ namespace tempest::sema::graph {
       CONST,          // Const type modifier
       SPECIALIZED,    // Specialization of a generic user-defined type
       WITH_ARGS,      // A type specialization, i.e X[A]
-      VALUE_PARAM,    // A type parameter bound to an immutable value
+      SINGLETON,      // A type consisting of a single value
 
       // Types used internally during compilation
   //     TYPE_EXPR,  // A type represented as an expression
@@ -79,6 +80,9 @@ namespace tempest::sema::graph {
     static Type NO_RETURN;
   };
 
+  /** Function to print a type. */
+  void format(::std::ostream& out, const Type* t);
+
   /** Array of types. */
   typedef llvm::ArrayRef<Type*> TypeArray;
 
@@ -99,26 +103,12 @@ namespace tempest::sema::graph {
     TypeDefn* defn() const { return _defn; }
     void setDefn(TypeDefn* defn) { _defn = defn; }
 
-    /** Return the array of types that this type extends. */
-    TypeArray extends() const { return _extends; }
-    void setExtends(TypeArray types) {
-      _extends.assign(types.begin(), types.end());
-    }
-
-    /** Return the array of types that this type implements. */
-    TypeArray implements() const { return _implements; }
-    void setImplements(TypeArray types) {
-      _implements.assign(types.begin(), types.end());
-    }
-
     /** Dynamic casting support. */
     static bool classof(const UserDefinedType* t) { return true; }
     static bool classof(const Type* t) { return t->kind >= Kind::CLASS && t->kind <= Kind::ALIAS; }
 
   private:
     TypeDefn* _defn;
-    llvm::SmallVector<Type*, 4> _extends;
-    llvm::SmallVector<Type*, 4> _implements;
   };
 
   /** Union type. */
@@ -247,6 +237,21 @@ namespace tempest::sema::graph {
     /** Dynamic casting support. */
     static bool classof(const TypeWithArgs* t) { return true; }
     static bool classof(const Type* t) { return t->kind == Kind::WITH_ARGS; }
+  };
+
+  /** A type that represents a single value. */
+  class SingletonType : public Type {
+  public:
+    /** Value of this singleton; must be a constant. */
+    const Expr* value;
+
+    SingletonType(const Expr* value)
+      : Type(Kind::SINGLETON)
+      , value(value) {}
+
+    /** Dynamic casting support. */
+    static bool classof(const SingletonType* t) { return true; }
+    static bool classof(const Type* t) { return t->kind == Kind::SINGLETON; }
   };
 }
 

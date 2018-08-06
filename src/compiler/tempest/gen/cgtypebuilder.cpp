@@ -120,12 +120,13 @@ namespace tempest::gen {
         default:
           assert(false && "Invalid class intrinsic");
       }
-    } else if (cls->extends().empty()) {
+    } else if (td->extends().empty()) {
       // Object base class.
       elts.push_back(get(IntrinsicDefns::get()->objectClass->type()));
     } else {
-      auto base = cls->extends()[0];
-      elts.push_back(get(base));
+      auto base = td->extends()[0];
+      auto baseType = llvm::cast<TypeDefn>(base)->type();
+      elts.push_back(get(baseType));
     }
     // Data members
     for (auto member : td->members()) {

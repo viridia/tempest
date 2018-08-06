@@ -16,31 +16,33 @@ public:
   {}
 };
 
-/** Parse a module definition. */
-Node* parseModule(llvm::BumpPtrAllocator& alloc, const char* srcText) {
-  TestSource src(srcText);
-  Parser parser(&src, alloc);
-  Node* result = parser.module();
-  REQUIRE(parser.done());
-  return result;
-}
+namespace {
+  /** Parse a module definition. */
+  Node* parseModule(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+    TestSource src(srcText);
+    Parser parser(&src, alloc);
+    Node* result = parser.module();
+    REQUIRE(parser.done());
+    return result;
+  }
 
-/** Parse a member declaration. */
-Node* parseMemberDeclaration(llvm::BumpPtrAllocator& alloc, const char* srcText) {
-  TestSource src(srcText);
-  Parser parser(&src, alloc);
-  Node* result = parser.memberDeclaration();
-  REQUIRE(parser.done());
-  return result;
-}
+  /** Parse a member declaration. */
+  Node* parseMemberDeclaration(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+    TestSource src(srcText);
+    Parser parser(&src, alloc);
+    Node* result = parser.declaration(DECL_GLOBAL);
+    REQUIRE(parser.done());
+    return result;
+  }
 
-/** Parse an expression. */
-Node* parseExpr(llvm::BumpPtrAllocator& alloc, const char* srcText) {
-  TestSource src(srcText);
-  Parser parser(&src, alloc);
-  Node* result = parser.expression();
-  REQUIRE(parser.done());
-  return result;
+  /** Parse an expression. */
+  Node* parseExpr(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+    TestSource src(srcText);
+    Parser parser(&src, alloc);
+    Node* result = parser.expression();
+    REQUIRE(parser.done());
+    return result;
+  }
 }
 
 TEST_CASE("Parser", "[parse]") {

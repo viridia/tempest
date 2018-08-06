@@ -52,14 +52,9 @@ namespace tempest::sema::graph {
     Member(Kind kind, const llvm::StringRef& name)
       : kind(kind)
       , _name(name.begin(), name.end())
-      , _ast(nullptr)
     {}
 
     virtual ~Member() {}
-
-    /** Abstract syntax tree for this member. */
-    const ast::Node* ast() const { return _ast; }
-    void setAst(const ast::Node* ast) { _ast = ast; }
 
     /** The name of this member. */
     llvm::StringRef name() const { return _name; }
@@ -72,7 +67,6 @@ namespace tempest::sema::graph {
 
   protected:
     const std::string _name;
-    const ast::Node* _ast;
   };
 
   /** List of members. */

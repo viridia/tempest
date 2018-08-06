@@ -27,19 +27,33 @@ namespace tempest::sema::names {
   }
 
   void TypeDefnScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+    auto resultSize = result.size();
     typeDefn->memberScope()->lookupName(name, result);
+    if (result.size() > resultSize) {
+      // If we found a member with that name, return
+      return;
+    }
     if (auto udt = dyn_cast<UserDefinedType>(typeDefn->type())) {
       switch (udt->kind) {
         case Type::Kind::CLASS:
         case Type::Kind::STRUCT:
         case Type::Kind::INTERFACE:
         case Type::Kind::TRAIT:
-        case Type::Kind::EXTENSION:
+        case Type::Kind::EXTENSION: {
+          auto resultSize = result.size();
+          typeDefn->typeParamScope()->lookupName(name, result);
+          if (result.size() > resultSize) {
+            // If we found a type parameter with that name, return it.
+            return;
+          }
           assert(false && "Implement");
           break;
-        case Type::Kind::ENUM:
-          assert(false && "Implement");
+        }
+
+        case Type::Kind::ENUM: {
           break;
+        }
+
         default:
           break;
       }

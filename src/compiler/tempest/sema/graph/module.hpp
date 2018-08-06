@@ -13,6 +13,10 @@
   #include <llvm/Support/Allocator.h>
 #endif
 
+namespace tempest::ast {
+  class Module;
+}
+
 namespace tempest::sema::graph {
 
   /** Indicates where this modules was loaded from, which determines how it will be processed. */
@@ -48,6 +52,10 @@ namespace tempest::sema::graph {
     ModuleGroup group() const { return _group; }
     void setGroup(ModuleGroup group) { _group = group; }
 
+    /** AST for this module. */
+    const ast::Module* ast() const { return _ast; }
+    void setAst(const ast::Module* ast) { _ast = ast; }
+
     /** Members of this module. */
     DefnList& members() { return _members; }
     const DefnArray members() const { return _members; }
@@ -71,6 +79,7 @@ namespace tempest::sema::graph {
   private:
     std::unique_ptr<source::ProgramSource> _source;
     ModuleGroup _group = ModuleGroup::UNSET;
+    const ast::Module* _ast = nullptr;
     DefnList _members;
     MemberList _imports;
     std::unique_ptr<SymbolTable> _memberScope;

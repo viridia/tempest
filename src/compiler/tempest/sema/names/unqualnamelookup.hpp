@@ -40,10 +40,13 @@ namespace tempest::sema::names {
   using tempest::sema::graph::NameLookupResultRef;
   using tempest::source::Location;
 
+  /** Abstract scope for looking up unqualified names. */
   struct LookupScope {
     LookupScope* prev;
 
     LookupScope(LookupScope* prev) : prev(prev) {}
+    LookupScope() = delete;
+    LookupScope(const LookupScope&) = delete;
     virtual void lookup(const llvm::StringRef& name, NameLookupResultRef& result) = 0;
     virtual void forEach(const NameCallback& nameFn) = 0;
   };
@@ -71,26 +74,6 @@ namespace tempest::sema::names {
     LocalScope(LookupScope* prev, TypeDefn* defn) : LookupScope(prev) {}
     void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
-  };
-
-  /** Name resolver specialized for resolving types. */
-  class UnqualifiedNameLookup {
-  public:
-    /** Set the scope representing the current enclosing definition. */
-    Member* setDefnScope(Member* newScope) {
-      auto result = _defnScope;
-      _defnScope = newScope;
-      return result;
-    }
-
-    // /** Iterate through all names. */
-    // void forAllNames(const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn);
-    // void forAllNames(Member* stem, const NameCallback& nameFn);
-    // void forAllNames(Type* stem, const NameCallback& nameFn);
-
-  private:
-    // Scope representing the current definition.
-    Member* _defnScope;
   };
 }
 

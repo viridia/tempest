@@ -5,6 +5,14 @@
   #include "tempest/sema/graph/symboltable.hpp"
 #endif
 
+namespace tempest::ast {
+  class Function;
+  class Parameter;
+  class TypeDefn;
+  class TypeParameter;
+  class ValueDefn;
+}
+
 namespace tempest::sema::graph {
   using tempest::source::Locatable;
 
@@ -13,6 +21,7 @@ namespace tempest::sema::graph {
   class TypeVar;
   class TypeParameter;
   class FunctionType;
+  class SpecializedType;
   typedef llvm::ArrayRef<Type*> TypeArray;
 
   enum Visibility {
@@ -209,6 +218,10 @@ namespace tempest::sema::graph {
 
     ~TypeDefn();
 
+    /** Abstract syntax tree for this member. */
+    const ast::TypeDefn* ast() const { return _ast; }
+    void setAst(const ast::TypeDefn* ast) { _ast = ast; }
+
     /** The type defined by this type definition. */
     Type* type() const { return _type; }
     void setType(Type* type) { _type = type; }
@@ -220,11 +233,21 @@ namespace tempest::sema::graph {
     /** Scope containing all of the members of this type. */
     SymbolTable* memberScope() const { return _memberScope.get(); }
 
+    /** List of definitions this one extends. These can be specializations. */
+    MemberList& extends() { return _extends; }
+    const MemberArray extends() const { return _extends; }
+
+    /** List of definitions this one implements. These can be specializations. */
+    MemberList& implements() { return _implements; }
+    const MemberArray implements() const { return _implements; }
+
     /** If this type is an intrinsic type, here is the information for it. */
     IntrinsicType intrinsic() const { return _intrinsic; }
     void setIntrinsic(IntrinsicType i) { _intrinsic = i; }
 
-    // void format(std::ostream& out) const;
+    /** Flag indicating whether extends/inherits has been resolved yet. */
+    bool baseTypesResolved() const { return _baseTypesResolved; }
+    void setBaseTypesResolved(bool value) { _baseTypesResolved = value; }
 
     /** Dynamic casting support. */
     static bool classof(const TypeDefn* m) { return true; }
@@ -232,9 +255,14 @@ namespace tempest::sema::graph {
 
   private:
     Type* _type;
+    const ast::TypeDefn* _ast = nullptr;
     DefnList _members;
+    MemberList _extends;
+    MemberList _implements;
     std::unique_ptr<SymbolTable> _memberScope;
     IntrinsicType _intrinsic = IntrinsicType::NONE;
+    bool _baseTypesResolved = false;
+
 
   //   # List of friend declarations for thibs class
   //   friends: list[Member] = 3;
@@ -270,6 +298,10 @@ namespace tempest::sema::graph {
       , _index(index)
       , _variadic(false)
     {}
+
+    /** AST for this parameter definition. */
+    const ast::TypeParameter* ast() const { return _ast; }
+    void setAst(const ast::TypeParameter* ast) { _ast = ast; }
 
     /** If this type parameter represents a constant value rather than a type, then this is
         the type of that constant value. Otherwise, this is nullptr. */
@@ -323,6 +355,7 @@ namespace tempest::sema::graph {
     static bool classof(const Member* m) { return m->kind == Kind::TYPE_PARAM; }
 
   private:
+    const ast::TypeParameter* _ast = nullptr;
     Type* _valueType;
     TypeVar* _typeVar;
     Type* _defaultType;
@@ -365,6 +398,10 @@ namespace tempest::sema::graph {
     bool isDefined() const { return _defined; }
     void setDefined(bool defined) { _defined = defined; }
 
+    /** Abstract syntax tree for this member. */
+    const ast::ValueDefn* ast() const { return _ast; }
+    void setAst(const ast::ValueDefn* ast) { _ast = ast; }
+
     // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
@@ -380,6 +417,7 @@ namespace tempest::sema::graph {
   private:
     Type* _type;
     Expr* _init;
+    const ast::ValueDefn* _ast = nullptr;
     int32_t _fieldIndex;
     bool _defined;
   };
@@ -423,6 +461,10 @@ namespace tempest::sema::graph {
       , _expansion(false)
     {}
 
+    /** AST for this parameter definition. */
+    const ast::Parameter* ast() const { return _ast; }
+    void setAst(const ast::Parameter* ast) { _ast = ast; }
+
     /** Type of this param within the body of the function, which may be different than the
         declared type of the parameter. Example: variadic parameters become arrays. */
     Type* internalType() const { return _internalType; }
@@ -455,6 +497,7 @@ namespace tempest::sema::graph {
     static bool classof(const Member* m) { return m->kind == Kind::FUNCTION_PARAM; }
 
   private:
+    const ast::Parameter* _ast = nullptr;
     Type* _internalType;
     bool _keywordOnly;
     bool _selfParam;
@@ -490,6 +533,10 @@ namespace tempest::sema::graph {
     /** Type of this function. */
     FunctionType* type() const { return _type; }
     void setType(FunctionType* type) { _type = type; }
+
+    /** AST for this function. */
+    const ast::Function* ast() const { return _ast; }
+    void setAst(const ast::Function* ast) { _ast = ast; }
 
     /** List of function parameters. */
     std::vector<ParameterDefn*>& params() { return _params; }
@@ -538,6 +585,7 @@ namespace tempest::sema::graph {
 
   private:
     FunctionType* _type;
+    const ast::Function* _ast;
     std::vector<ParameterDefn*> _params;
     std::unique_ptr<SymbolTable> _paramScope;
     DefnList _localDefns;
@@ -567,6 +615,10 @@ namespace tempest::sema::graph {
     /** The generic type that this is a specialiation of. */
     GenericDefn* base() const { return _base; }
 
+    /** If this generic definition is a type then here's the corresponding type object. */
+    SpecializedType* type() const { return _type; }
+    void setType(SpecializedType* type) { _type = type; }
+
     /** The array of type arguments for this type. */
     const llvm::ArrayRef<Type*> typeArgs() const { return _typeArgs; }
 
@@ -576,6 +628,7 @@ namespace tempest::sema::graph {
 
   private:
     GenericDefn* _base;
+    SpecializedType* _type = nullptr;
     llvm::SmallVector<Type*, 4> _typeArgs;
   };
 }

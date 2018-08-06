@@ -22,6 +22,7 @@ namespace tempest::ast {
 
 namespace tempest::sema::graph {
   class Defn;
+  class Expr;
 }
 
 namespace tempest::sema::names {
@@ -44,19 +45,7 @@ namespace tempest::sema::pass {
     /** Process a single module. */
     void process(Module* mod);
 
-  private:
-    CompilationUnit& _cu;
-    size_t _sourcesProcessed = 0;
-    size_t _importSourcesProcessed = 0;
-    llvm::BumpPtrAllocator* _alloc = nullptr;
-
-    bool moreSources() const {
-      return _sourcesProcessed < _cu.sourceModules().size();
-    }
-
-    bool moreImportSources() const {
-      return _importSourcesProcessed < _cu.importSourceModules().size();
-    }
+    // Module
 
     void resolveImports(Module* mod);
 
@@ -69,8 +58,30 @@ namespace tempest::sema::pass {
 
     // Exprs
 
+    Expr* visitExpr(LookupScope* scope, const ast::Node* in);
+
     // Types
+
     Type* resolveType(LookupScope* scope, const ast::Node* ast);
+
+    // Utility
+
+    bool resolveDefnName(LookupScope* scope, const ast::Node* node, NameLookupResultRef& result);
+    bool resolveMemberName(
+        const source::Location& loc,
+        Member* scope,
+        const llvm::StringRef& name,
+        NameLookupResultRef& result);
+
+  private:
+    CompilationUnit& _cu;
+    size_t _sourcesProcessed = 0;
+    size_t _importSourcesProcessed = 0;
+    llvm::BumpPtrAllocator* _alloc = nullptr;
+
+    void eagerResolveBaseTypes(TypeDefn* td);
+    void resolveBaseTypes(LookupScope* scope, TypeDefn* td);
+
   };
 }
 

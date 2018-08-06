@@ -88,7 +88,8 @@ TEST_CASE("LinkageName", "[gen]") {
     TypeDefn clsDefn(Location(), "A");
     clsDefn.typeParams().push_back(&tpS);
     clsDefn.typeParams().push_back(&tpT);
-    SpecializedDefn specDefn(&clsDefn, { &IntegerType::I16, &IntegerType::I32 });
+    SpecializedDefn specDefn(
+        &clsDefn, { &IntegerType::I16, &IntegerType::I32 }, clsDefn.typeParams());
     getLinkageName(name, &specDefn);
     REQUIRE(name == "A[i16,i32]");
   }

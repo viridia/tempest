@@ -604,16 +604,18 @@ namespace tempest::sema::graph {
   class SpecializedDefn : public Member {
   public:
     SpecializedDefn(
-        GenericDefn* base,
-        const llvm::ArrayRef<Type*>& typeArgs)
-      : Member(Kind::SPECIALIZED, base->name())
-      , _base(base)
+        Member* generic,
+        const llvm::ArrayRef<Type*>& typeArgs,
+        const llvm::ArrayRef<TypeParameter*>& typeParams)
+      : Member(Kind::SPECIALIZED, generic->name())
+      , _generic(generic)
       , _typeArgs(typeArgs.begin(), typeArgs.end())
+      , _typeParams(typeParams)
     {
     }
 
     /** The generic type that this is a specialiation of. */
-    GenericDefn* base() const { return _base; }
+    Member* generic() const { return _generic; }
 
     /** If this generic definition is a type then here's the corresponding type object. */
     SpecializedType* type() const { return _type; }
@@ -622,14 +624,18 @@ namespace tempest::sema::graph {
     /** The array of type arguments for this type. */
     const llvm::ArrayRef<Type*> typeArgs() const { return _typeArgs; }
 
+    /** The array of type parameters that the args are mapped to. */
+    const llvm::ArrayRef<TypeParameter*> typeParams() const { return _typeParams; }
+
     /** Dynamic casting support. */
     static bool classof(const SpecializedDefn* m) { return true; }
     static bool classof(const Member* m) { return m->kind == Kind::SPECIALIZED; }
 
   private:
-    GenericDefn* _base;
+    Member* _generic;
     SpecializedType* _type = nullptr;
-    llvm::SmallVector<Type*, 4> _typeArgs;
+    llvm::SmallVector<Type*, 2> _typeArgs;
+    llvm::ArrayRef<TypeParameter*> _typeParams;
   };
 }
 

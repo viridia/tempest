@@ -10,10 +10,11 @@ namespace tempest::sema::graph {
     ::std::ostream& out;
     int32_t indent = 0;
     bool pretty = false;
+    bool showContent = true;
 
     Formatter(::std::ostream& out, bool pretty) : out(out), pretty(pretty) {}
     void visit(const Member* node);
-    void visit(const Type* t);
+    void visitType(const Type* t);
     void visitList(const DefnArray nodes);
     void visitNamedList(const DefnArray nodes, llvm::StringRef name);
     // void visitNamedNode(const Node* node, llvm::StringRef name);
@@ -47,12 +48,14 @@ namespace tempest::sema::graph {
             break;
         }
         out << ' ' << td->name();
-        out << " {";
-        visitList(td->members());
-        if (pretty) {
-          out << '\n' << std::string(indent, ' ');
+        if (showContent) {
+          out << " {";
+          visitList(td->members());
+          if (pretty) {
+            out << '\n' << std::string(indent, ' ');
+          }
+          out << "}";
         }
-        out << "}";
         break;
       }
 
@@ -108,7 +111,21 @@ namespace tempest::sema::graph {
       }
 
       case Member::Kind::SPECIALIZED: {
-        assert(false && "Implement");
+        diag.info() << "Member::Kind::SPECIALIZED " << m->name();
+        auto spec = static_cast<const SpecializedDefn*>(m);
+        // TODO: We really need a separate function for type signatures.
+        bool saveShowContent = showContent;
+        showContent = false;
+        visit(spec->generic());
+        saveShowContent = true;
+        out << "[";
+        llvm::StringRef sep = "";
+        for (auto member : spec->typeArgs()) {
+          out << sep;
+          sep = ", ";
+          visitType(member);
+        }
+        out << "]";
         break;
       }
 
@@ -121,7 +138,7 @@ namespace tempest::sema::graph {
     }
   }
 
-  void Formatter::visit(const Type* t) {
+  void Formatter::visitType(const Type* t) {
     if (t == nullptr) {
       out << "<null>";
       return;
@@ -209,7 +226,7 @@ namespace tempest::sema::graph {
         for (auto member : ut->members) {
           out << sep;
           sep = " | ";
-          visit(member);
+          visitType(member);
         }
         break;
       }
@@ -220,7 +237,7 @@ namespace tempest::sema::graph {
         for (auto member : ut->members) {
           out << sep;
           sep = ", ";
-          visit(member);
+          visitType(member);
         }
         out << ")";
         break;
@@ -232,12 +249,12 @@ namespace tempest::sema::graph {
         for (auto member : ft->paramTypes) {
           out << sep;
           sep = ", ";
-          visit(member);
+          visitType(member);
         }
         out << ")";
         if (ft->returnType) {
           out << " -> ";
-          visit(ft->returnType);
+          visitType(ft->returnType);
         }
         break;
       }
@@ -245,7 +262,7 @@ namespace tempest::sema::graph {
       case Type::Kind::CONST: {
         auto ct = static_cast<const ConstType*>(t);
         out << "const ";
-        visit(ct->base());
+        visitType(ct->base());
         break;
       }
 
@@ -305,6 +322,6 @@ namespace tempest::sema::graph {
 
   void format(::std::ostream& out, const Type* t) {
     Formatter fmt(out, false);
-    fmt.visit(t);
+    fmt.visitType(t);
   }
 }

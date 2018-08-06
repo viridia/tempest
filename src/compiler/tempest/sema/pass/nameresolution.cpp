@@ -25,7 +25,7 @@ namespace tempest::sema::pass {
     // Given a (possibly specialized) type definition, return what kind of type it is.
     Type::Kind typeKindOf(Member* m) {
       if (auto sp = dyn_cast<SpecializedDefn>(m)) {
-        m = sp->base();
+        m = sp->generic();
       }
 
       if (auto td = dyn_cast_or_null<TypeDefn>(m)) {
@@ -520,9 +520,8 @@ namespace tempest::sema::pass {
             types.push_back(static_cast<TypeParameter*>(member)->typeVar());
           } else if (member->kind == Member::Kind::SPECIALIZED) {
             auto spec = static_cast<SpecializedDefn*>(member);
-            if (spec->base()->kind == Member::Kind::TYPE) {
-              // We need to crack open the specialized type and look inside.
-              assert(false && "Implement");
+            if (spec->generic()->kind == Member::Kind::TYPE) {
+              return simplifyTypeSpecialization(spec);
             } else {
               diag.error(node) << "Expecting a type name.";
               return &Type::ERROR;
@@ -565,6 +564,15 @@ namespace tempest::sema::pass {
         flatUnion(node);
         // TODO: Do we need to ensure uniqueness here?
         return _cu.types().createUnionType(unionMembers);
+      }
+
+      case ast::Node::Kind::TUPLE_TYPE: {
+        llvm::SmallVector<Type*, 8> tupleMembers;
+        auto tupleOp = static_cast<const ast::Oper*>(node);
+        for (auto oper : tupleOp->operands) {
+          tupleMembers.push_back(resolveType(scope, oper));
+        }
+        return _cu.types().createTupleType(tupleMembers);
       }
 
       case ast::Node::Kind::BUILTIN_TYPE: {
@@ -684,10 +692,20 @@ namespace tempest::sema::pass {
         // Valid base types.
         if (auto udt = dyn_cast<UserDefinedType>(base)) {
           // Class, struct, etc. In other words, a potential generic type.
-          auto baseDefn = udt->defn();
-          (void)baseDefn;
-          // What needs to happen is we need to specialize the baseDefn.
-          assert(false && "Implement");
+          if (auto gd = dyn_cast<GenericDefn>(udt->defn())) {
+            if (typeArgs.size() != gd->typeParams().size()) {
+              diag.error(node) << "Generic definition requires " << gd->typeParams().size() <<
+                  " type arguments, " << typeArgs.size() << " were provided.";
+              return false;
+            }
+
+            auto sd = _cu.types().specialize(gd, typeArgs);
+            result.push_back(sd);
+            return true;
+          } else {
+            diag.error(node) << "Can't specialize a non-generic type.";
+            return false;
+          }
         } else if (base->kind == Type::Kind::SPECIALIZED) {
           diag.error(node) << "Can't specialize already-specialized type.";
           return false;
@@ -735,26 +753,29 @@ namespace tempest::sema::pass {
       // return new (*_alloc) Mem
       assert(false && "Implement");
     } else if (auto specDefn = dyn_cast<SpecializedDefn>(scope)) {
-      if (specDefn->base()->kind == Member::Kind::SPECIALIZED) {
+      if (specDefn->generic()->kind == Member::Kind::SPECIALIZED) {
         diag.error(loc) << "Generic definition is already specialized.";
         return false;
-      } else if (specDefn->base()->kind == Member::Kind::FUNCTION) {
+      } else if (specDefn->generic()->kind == Member::Kind::FUNCTION) {
         diag.error(loc) << "Can't access a member of a function.";
         return false;
-      } else if (!isa<GenericDefn>(specDefn->base())) {
+      } else if (!isa<GenericDefn>(specDefn->generic())) {
         diag.error(loc) << "Definition is not generic.";
         return false;
       }
 
       // Recursively call this function on the non-specialized generic base definition.
       NameLookupResult specLookup;
-      resolveMemberName(loc, specDefn->base(), name, specLookup);
-      auto baseTypeDef = cast<TypeDefn>(specDefn->base());
-      // Need to do an inheritance lookup here, or anything else in the td scope.
-      // Then, if we found anything, specialize each one. Note that these may be incomplete
-      // specializations at this point/
-      (void) baseTypeDef;
-      assert(false && "Implement");
+      resolveMemberName(loc, specDefn->generic(), name, specLookup);
+      for (auto member : specLookup) {
+        auto specMember = new (*_alloc) SpecializedDefn(
+            member, specDefn->typeArgs(), specDefn->typeParams());
+        if (isa<TypeDefn>(member)) {
+          specMember->setType(new (*_alloc) SpecializedType(specMember));
+        }
+        result.push_back(specMember);
+      }
+      return true;
     } else {
       assert(false && "Bad defn kind");
     }
@@ -886,5 +907,23 @@ namespace tempest::sema::pass {
     if (td->type()->kind == Type::Kind::CLASS && td->extends().empty()) {
       td->extends().push_back(intrinsic::IntrinsicDefns::get()->objectClass.get());
     }
+  }
+
+  Type* NameResolutionPass::simplifyTypeSpecialization(SpecializedDefn* specDefn) {
+    if (auto td = dyn_cast<TypeDefn>(specDefn->generic())) {
+      if (auto pt = dyn_cast<PrimitiveType>(td->type())) {
+        // Primitive types have no type params.
+        return pt;
+      } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
+        // If it's not a generic type, then strip off all the specialization stuff.
+        if (udt->defn()->allTypeParams().size() == 0) {
+          return udt;
+        }
+      }
+      // TODO: We could simplify unions and other derived types if feeling ambitious.
+    }
+
+    // Otherwise, just return the specialized type.
+    return specDefn->type();
   }
 }

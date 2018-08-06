@@ -26,12 +26,10 @@ namespace tempest::gen {
 
       case Member::Kind::SPECIALIZED: {
         auto sd = static_cast<const SpecializedDefn*>(m);
-        auto base = sd->base();
-        getDefnLinkageName(out, sd->base(), typeArgs);
-        // assert(base->typeParams().size() == sd->typeArgs().size());
+        getDefnLinkageName(out, sd->generic(), typeArgs);
         out.push_back('[');
         char sep = 0;
-        for (auto param : base->typeParams()) {
+        for (auto param : sd->typeParams()) {
           if (sep) {
             out.push_back(sep);
           }

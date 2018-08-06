@@ -19,6 +19,7 @@ namespace tempest::ast {
 
 namespace tempest::sema::graph {
   class Defn;
+  class GenericDefn;
 }
 
 namespace tempest::sema::pass {
@@ -64,8 +65,7 @@ namespace tempest::sema::pass {
         SymbolTable* paramScope);
     void createTypeParamList(
         const ast::NodeList& paramAsts,
-        Member* parent,
-        std::vector<TypeParameter*>& paramList,
+        GenericDefn* parent,
         SymbolTable* paramScope);
     Visibility astVisibility(const ast::Defn* d);
   };

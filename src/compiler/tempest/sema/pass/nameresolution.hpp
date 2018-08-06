@@ -81,7 +81,7 @@ namespace tempest::sema::pass {
 
     void eagerResolveBaseTypes(TypeDefn* td);
     void resolveBaseTypes(LookupScope* scope, TypeDefn* td);
-
+    Type* simplifyTypeSpecialization(SpecializedDefn* specDefn);
   };
 }
 

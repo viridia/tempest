@@ -27,12 +27,11 @@ public:
 
 namespace {
   /** Parse a module definition and apply buildgraph & nameresolution pass. */
-  std::unique_ptr<Module> compile(const char* srcText) {
+  std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
     auto result = parser.module();
     mod->setAst(result);
-    CompilationUnit cu;
     BuildGraphPass bgPass(cu);
     bgPass.process(mod.get());
     NameResolutionPass nrPass(cu);
@@ -43,9 +42,10 @@ namespace {
 
 TEST_CASE("NameResolution", "[sema]") {
   const Location L;
+  CompilationUnit cu;
 
   SECTION("Resolve primitive type") {
-    auto mod = compile("let X: i32;");
+    auto mod = compile(cu, "let X: i32;");
     auto vdef = cast<ValueDefn>(mod->members().back());
     REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
     REQUIRE(vdef->type() != nullptr);
@@ -54,7 +54,7 @@ TEST_CASE("NameResolution", "[sema]") {
   }
 
   SECTION("Resolve union type") {
-    auto mod = compile("let X: i32 | f32 | bool;");
+    auto mod = compile(cu, "let X: i32 | f32 | bool;");
     auto vdef = cast<ValueDefn>(mod->members().back());
     REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
     REQUIRE(vdef->type() != nullptr);
@@ -63,8 +63,18 @@ TEST_CASE("NameResolution", "[sema]") {
     REQUIRE_THAT(vdef->type(), TypeEQ("bool | i32 | f32"));
   }
 
+  SECTION("Resolve tuple type") {
+    auto mod = compile(cu, "let X: (i32, f32, bool);");
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::TUPLE);
+    REQUIRE(cast<TupleType>(vdef->type())->members.size() == 3);
+    REQUIRE_THAT(vdef->type(), TypeEQ("(i32, f32, bool)"));
+  }
+
   SECTION("Resolve class type") {
-    auto mod = compile(
+    auto mod = compile(cu,
       "class A {}\n"
       "let X: A;"
     );
@@ -76,7 +86,7 @@ TEST_CASE("NameResolution", "[sema]") {
   }
 
   SECTION("Resolve class member explicitly") {
-    auto mod = compile(
+    auto mod = compile(cu,
       "class A {\n"
       "  class B {}\n"
       "}\n"
@@ -90,7 +100,7 @@ TEST_CASE("NameResolution", "[sema]") {
   }
 
   SECTION("Resolve class member from within class") {
-    auto mod = compile(
+    auto mod = compile(cu,
       "class A {\n"
       "  class B {}\n"
       "  const X: B;\n"
@@ -105,7 +115,7 @@ TEST_CASE("NameResolution", "[sema]") {
   }
 
   SECTION("Resolve inherited class member") {
-    auto mod = compile(
+    auto mod = compile(cu,
       "class A {\n"
       "  class B {}\n"
       "}\n"
@@ -117,6 +127,21 @@ TEST_CASE("NameResolution", "[sema]") {
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
+  }
+
+  SECTION("Resolve inherited specialized class member") {
+    auto mod = compile(cu,
+      "class A[T] {\n"
+      "  class B {}\n"
+      "}\n"
+      "class C extends A[i32] {}\n"
+      "let X: C.B;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::SPECIALIZED);
+    REQUIRE_THAT(vdef->type(), TypeEQ("class B[i32]"));
   }
 
   // Enum type

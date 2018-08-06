@@ -85,7 +85,7 @@ namespace tempest::sema::graph {
       return it->second;
     }
 
-    auto spec = new (_alloc) SpecializedDefn(base, typeArgs);
+    auto spec = new (_alloc) SpecializedDefn(base, typeArgs, base->allTypeParams());
     if (auto typeDefn = llvm::dyn_cast<TypeDefn>(base)) {
       spec->setType(new (_alloc) SpecializedType(spec));
     }

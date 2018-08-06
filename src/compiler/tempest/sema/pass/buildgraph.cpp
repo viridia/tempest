@@ -2,12 +2,24 @@
 #include "tempest/ast/module.hpp"
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
+#include "llvm/Support/Casting.h"
 #include <assert.h>
 
 namespace tempest::sema::pass {
   using llvm::StringRef;
   using tempest::error::diag;
   using namespace tempest::sema::graph;
+
+  namespace {
+    GenericDefn* enclosingGeneric(GenericDefn* m) {
+      for (auto parent = m->definedIn(); parent != nullptr; parent = parent->definedIn()) {
+        if (auto gd = llvm::dyn_cast<GenericDefn>(parent)) {
+          return gd;
+        }
+      }
+      return nullptr;
+    }
+  }
 
   void BuildGraphPass::run() {
     while (moreSources()) {
@@ -101,7 +113,7 @@ namespace tempest::sema::pass {
         td->setType(cls);
         cls->setDefn(td);
 
-        createTypeParamList(ast->typeParams, td, td->typeParams(), td->typeParamScope());
+        createTypeParamList(ast->typeParams, td, td->typeParamScope());
         createMembers(ast->members, td, td->members(), td->memberScope());
 
         // Make sure there are no name collisions between type params and member names.
@@ -134,7 +146,7 @@ namespace tempest::sema::pass {
         const ast::Function* ast = static_cast<const ast::Function*>(node);
         FunctionDefn* f = new FunctionDefn(ast->location, ast->name, parent);
         createParamList(ast->params, f, f->params(), f->paramScope());
-        createTypeParamList(ast->typeParams, f, f->typeParams(), f->typeParamScope());
+        createTypeParamList(ast->typeParams, f, f->typeParamScope());
         f->setAst(ast);
         return f;
       }
@@ -169,21 +181,27 @@ namespace tempest::sema::pass {
 
   void BuildGraphPass::createTypeParamList(
       const ast::NodeList& paramAsts,
-      Member* parent,
-      std::vector<TypeParameter*>& paramList,
+      GenericDefn* genericDefn,
       SymbolTable* paramScope) {
 
-    paramList.reserve(paramAsts.size());
+    GenericDefn* parentGeneric = enclosingGeneric(genericDefn);
+    if (parentGeneric) {
+      genericDefn->allTypeParams().insert(
+        genericDefn->allTypeParams().end(),
+        parentGeneric->allTypeParams().begin(),
+        parentGeneric->allTypeParams().end());
+    }
+
     for (const ast::Node* node : paramAsts) {
       assert(node->kind == ast::Node::Kind::TYPE_PARAMETER);
       const ast::TypeParameter* ast = static_cast<const ast::TypeParameter*>(node);
-      TypeParameter* param = new TypeParameter(
-          ast->location, ast->name, parent);
+      TypeParameter* param = new TypeParameter(ast->location, ast->name, genericDefn);
       param->setAst(ast);
       param->setVariadic(ast->variadic);
       param->setTypeVar(new (*_alloc) TypeVar(param));
-      paramList.push_back(param);
       paramScope->addMember(param);
+      genericDefn->typeParams().push_back(param);
+      genericDefn->allTypeParams().push_back(param);
     }
   }
 

@@ -131,8 +131,8 @@ namespace tempest::sema::graph {
     if (lhs->kind == Member::Kind::SPECIALIZED) {
       auto specLhs = static_cast<const SpecializedDefn*>(lhs);
       auto specRhs = static_cast<const SpecializedDefn*>(rhs);
-      if (specLhs->base() != specRhs->base()) {
-        return memberOrder(specLhs->base(), specRhs->base());
+      if (specLhs->generic() != specRhs->generic()) {
+        return memberOrder(specLhs->generic(), specRhs->generic());
       }
       assert(specLhs->typeArgs().size() == specRhs->typeArgs().size());
       for (size_t i = 0; i < specLhs->typeArgs().size(); ++i) {

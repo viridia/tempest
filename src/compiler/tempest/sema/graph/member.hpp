@@ -41,7 +41,7 @@ namespace tempest::sema::graph {
       MODULE,
 
       // Internal types
-      SPECIALIZED,   // A combination of generic member and type arguments for it
+      SPECIALIZED,    // A combination of generic member and type arguments for it
       TUPLE_MEMBER,
 
       COUNT,

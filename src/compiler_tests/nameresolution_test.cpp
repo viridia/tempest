@@ -63,6 +63,16 @@ TEST_CASE("NameResolution", "[sema]") {
     REQUIRE_THAT(vdef->type(), TypeEQ("bool | i32 | f32"));
   }
 
+  SECTION("Resolve union of singletons") {
+    auto mod = compile(cu, "let X: 1 | 2 | 3;");
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::UNION);
+    REQUIRE(cast<UnionType>(vdef->type())->members.size() == 3);
+    REQUIRE_THAT(vdef->type(), TypeEQ("1 | 2 | 3"));
+  }
+
   SECTION("Resolve tuple type") {
     auto mod = compile(cu, "let X: (i32, f32, bool);");
     auto vdef = cast<ValueDefn>(mod->members().back());
@@ -143,6 +153,18 @@ TEST_CASE("NameResolution", "[sema]") {
     REQUIRE(vdef->type()->kind == Type::Kind::SPECIALIZED);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B[i32]"));
   }
+
+  // SECTION("Resolve alias type") {
+  //   auto mod = compile(cu,
+  //     "type A = i32 | void;\n"
+  //     "let X: A;"
+  //   );
+  //   auto vdef = cast<ValueDefn>(mod->members().back());
+  //   REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+  //   REQUIRE(vdef->type() != nullptr);
+  //   REQUIRE(vdef->type()->kind == Type::Kind::ALIAS);
+  //   REQUIRE_THAT(vdef->type(), TypeEQ("class A"));
+  // }
 
   // Enum type
   //

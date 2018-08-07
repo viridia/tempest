@@ -81,11 +81,10 @@ namespace tempest::sema::graph {
   /** An integer type. */
   class IntegerType : public PrimitiveType {
   public:
-    IntegerType(llvm::StringRef name, int32_t bits, bool isUnsigned, bool isPositive)
+    IntegerType(llvm::StringRef name, int32_t bits, bool isUnsigned)
       : PrimitiveType(Kind::INTEGER, name)
       , _bits(bits)
       , _unsigned(isUnsigned)
-      , _positive(isPositive)
     {}
 
     /** Number of bits in this integer type. */
@@ -93,12 +92,6 @@ namespace tempest::sema::graph {
 
     /** If true, this is an unsigned integer type. */
     bool isUnsigned() const { return _unsigned; }
-
-    /** Used in type inference: if true, it means that this is the type of an integer constant
-        whose signed/unsigned state is not known. For example, the number 127 could be either
-        a 8-bit signed number or an 8-bit unsigned number. We represent it as a 7-bit positive
-        number until the exact type can be inferred. */
-    bool isPositive() const { return _positive; }
 
     /** Dynamic casting support. */
     static bool classof(const IntegerType* t) { return true; }
@@ -114,19 +107,12 @@ namespace tempest::sema::graph {
     static IntegerType U32;
     static IntegerType U64;
 
-    // Types used for integer constants whose size has not been determined.
-    static IntegerType P8;
-    static IntegerType P16;
-    static IntegerType P32;
-    static IntegerType P64;
-
-    // void createConstant(support::Arena& arena, const StringRef& name, int32_t value);
-    // void createConstants(support::Arena& arena);
+    // For integer constants that don't have a known size.
+    static IntegerType UNSIZED_INT;
 
   private:
     int32_t _bits;
     bool _unsigned;
-    bool _positive;
   };
 
   /** A floating-point type. */

@@ -12,25 +12,22 @@ namespace tempest::sema::graph {
   BooleanType BooleanType::BOOL;
 
   /** Character. */
-  IntegerType IntegerType::CHAR("char", 32, true, false);
+  IntegerType IntegerType::CHAR("char", 32, true);
 
   /** Signed integers. */
-  IntegerType IntegerType::I8("i8", 8, false, false);
-  IntegerType IntegerType::I16("i16", 16, false, false);
-  IntegerType IntegerType::I32("i32", 32, false, false);
-  IntegerType IntegerType::I64("i64", 64, false, false);
+  IntegerType IntegerType::I8("i8", 8, false);
+  IntegerType IntegerType::I16("i16", 16, false);
+  IntegerType IntegerType::I32("i32", 32, false);
+  IntegerType IntegerType::I64("i64", 64, false);
 
   /** Unsigned integers. */
-  IntegerType IntegerType::U8("u8", 8, true, false);
-  IntegerType IntegerType::U16("u16", 16, true, false);
-  IntegerType IntegerType::U32("u32", 32, true, false);
-  IntegerType IntegerType::U64("u64", 64, true, false);
+  IntegerType IntegerType::U8("u8", 8, true);
+  IntegerType IntegerType::U16("u16", 16, true);
+  IntegerType IntegerType::U32("u32", 32, true);
+  IntegerType IntegerType::U64("u64", 64, true);
 
   /** Positive signed integers. */
-  IntegerType IntegerType::P8("literal i8", 8, false, true);
-  IntegerType IntegerType::P16("literal i16", 16, false, true);
-  IntegerType IntegerType::P32("literal i32", 32, false, true);
-  IntegerType IntegerType::P64("literal i64", 64, false, true);
+  IntegerType IntegerType::UNSIZED_INT("unsized int", 0, false);
 
   /** Float types. */
   FloatType FloatType::F32("f32", 32);

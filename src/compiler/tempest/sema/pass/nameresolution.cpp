@@ -1,5 +1,6 @@
 #include "tempest/ast/defn.hpp"
 #include "tempest/ast/ident.hpp"
+#include "tempest/ast/literal.hpp"
 #include "tempest/ast/module.hpp"
 #include "tempest/ast/oper.hpp"
 #include "tempest/error/diagnostics.hpp"
@@ -12,6 +13,7 @@
 #include "tempest/sema/names/closestname.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/ConvertUTF.h"
 #include <assert.h>
 
 namespace tempest::sema::pass {
@@ -240,13 +242,80 @@ namespace tempest::sema::pass {
       // BUILTIN_TYPE,
       // KEYWORD_ARG,
 
-      // /* Literals */
-      case ast::Node::Kind::BOOLEAN_TRUE: {
+      case ast::Node::Kind::BOOLEAN_TRUE:
         return new (*_alloc) BooleanLiteral(node->location, true);
+
+      case ast::Node::Kind::BOOLEAN_FALSE:
+        return new (*_alloc) BooleanLiteral(node->location, false);
+
+      case ast::Node::Kind::CHAR_LITERAL: {
+        auto literal = static_cast<const ast::Literal*>(node);
+        std::wstring wideValue;
+        if (!ConvertUTF8toWide(literal->value, wideValue)) {
+          diag.error(node) << "Invalid character literal";
+          return &Expr::ERROR;
+        } else if (wideValue.size() < 1) {
+          diag.error(node) << "Empty character literal";
+          return &Expr::ERROR;
+        } else if (wideValue.size() > 1) {
+          diag.error(node) << "Character literal can only hold a single character";
+          return &Expr::ERROR;
+        } else {
+          return new (*_alloc) IntegerLiteral(
+            node->location,
+            llvm::APInt(32, wideValue[0], false),
+            true,
+            false,
+            &IntegerType::CHAR);
+        }
       }
 
-      case ast::Node::Kind::BOOLEAN_FALSE: {
-        return new (*_alloc) BooleanLiteral(node->location, false);
+      case ast::Node::Kind::INTEGER_LITERAL: {
+        auto literal = static_cast<const ast::Literal*>(node);
+        bool isUnsigned = false;
+        for (auto suffixChar : literal->suffix) {
+          if (suffixChar == 'u' || suffixChar == 'U') {
+            isUnsigned = true;
+          } else {
+            diag.error(node) << "Invalid integer suffix: '" << literal->suffix << "'";
+            break;
+          }
+        }
+
+        StringRef value = literal->value;
+        uint8_t radix = 10;
+        if (value.startswith("0x") || value.startswith("0X")) {
+          radix = 16;
+          value = value.substr(2);
+        }
+
+        // Figure out how many bits we need.
+        uint32_t bits = APInt::getBitsNeeded(value, radix) + 1;
+        return new (*_alloc) IntegerLiteral(
+          node->location,
+          APInt(bits, value, radix),
+          isUnsigned,
+          false,
+          &IntegerType::UNSIZED_INT);
+      }
+
+      case ast::Node::Kind::FLOAT_LITERAL: {
+        auto literal = static_cast<const ast::Literal*>(node);
+        bool isSingle = false;
+        for (auto suffixChar : literal->suffix) {
+          if (suffixChar == 'f' || suffixChar == 'F') {
+            isSingle = true;
+          } else {
+            diag.error(node) << "Invalid integer suffix: '" << literal->suffix << "'";
+            break;
+          }
+        }
+
+        APFloat value(
+            isSingle ? APFloat::IEEEsingle() : APFloat::IEEEdouble(),
+            literal->value);
+        return new (*_alloc) FloatLiteral(node->location, value, false,
+            isSingle ? &FloatType::F32 : &FloatType::F64);
       }
 
       // CHAR_LITERAL,
@@ -615,7 +684,14 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::INTEGER_LITERAL:
       case ast::Node::Kind::CHAR_LITERAL:
-      case ast::Node::Kind::STRING_LITERAL:
+      case ast::Node::Kind::STRING_LITERAL: {
+        auto expr = visitExpr(scope, node);
+        if (Expr::isError(expr)) {
+          return &Type::ERROR;
+        }
+        return _cu.types().createSingletonType(expr);
+      }
+
       case ast::Node::Kind::ADD:
       case ast::Node::Kind::SUB:
       case ast::Node::Kind::DIV:

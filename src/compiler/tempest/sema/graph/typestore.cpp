@@ -1,10 +1,72 @@
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/expr.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/type.hpp"
 #include "tempest/sema/graph/typestore.hpp"
 #include "tempest/sema/graph/typeorder.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::graph {
+
+  /** A hashable expression for singletons. */
+  bool SingletonKey::equals(const SingletonKey& sk) const {
+    if (sk._value->kind != _value->kind) {
+      return false;
+    }
+    switch (_value->kind) {
+      case Expr::Kind::INTEGER_LITERAL: {
+        auto lhs = static_cast<const IntegerLiteral*>(_value);
+        auto rhs = static_cast<const IntegerLiteral*>(sk._value);
+        size_t maxWidth = std::max(lhs->value().getBitWidth(), rhs->value().getBitWidth());
+        llvm::APInt lhsValue(lhs->value().sext(maxWidth));
+        llvm::APInt rhsValue(rhs->value().sext(maxWidth));
+        return lhsValue.eq(rhsValue);
+      }
+
+      case Expr::Kind::STRING_LITERAL: {
+        auto lhs = static_cast<const StringLiteral*>(_value);
+        auto rhs = static_cast<const StringLiteral*>(sk._value);
+        return lhs->value() == rhs->value();
+      }
+
+      case Expr::Kind::BOOLEAN_LITERAL: {
+        auto lhs = static_cast<const BooleanLiteral*>(_value);
+        auto rhs = static_cast<const BooleanLiteral*>(sk._value);
+        return lhs->value() == rhs->value();
+      }
+
+      default:
+        assert(false && "Invalid singleton type");
+    }
+  }
+
+  std::size_t SingletonKeyHash::operator()(const SingletonKey& sk) const {
+    std::size_t hash = std::hash<size_t>()((size_t) sk.value()->kind);
+    switch (sk.value()->kind) {
+      case Expr::Kind::INTEGER_LITERAL: {
+        auto value = static_cast<const IntegerLiteral*>(sk.value());
+        hash_combine(hash, (size_t) llvm::hash_value(value->value()));
+        break;
+      }
+
+      case Expr::Kind::STRING_LITERAL: {
+        auto value = static_cast<const StringLiteral*>(sk.value());
+        hash_combine(hash, (size_t) llvm::hash_value(value->value()));
+        break;
+      }
+
+      case Expr::Kind::BOOLEAN_LITERAL: {
+        auto value = static_cast<const BooleanLiteral*>(sk.value());
+        hash_combine(hash, std::hash<bool>()(value->value()));
+        break;
+      }
+
+      default:
+        assert(false && "Invalid singleton type");
+    }
+    return hash;
+  }
+
   UnionType* TypeStore::createUnionType(const TypeArray& members) {
     // Sort members by pointer. This makes the type key hash independent of order.
     llvm::SmallVector<Type*, 4> sortedMembers(members.begin(), members.end());
@@ -46,6 +108,18 @@ namespace tempest::sema::graph {
 
     auto ct = new (_alloc) ConstType(base, provisional);
     _constTypes[key] = ct;
+    return ct;
+  }
+
+  SingletonType* TypeStore::createSingletonType(const Expr* expr) {
+    SingletonKey key(expr);
+    auto it = _singletonTypes.find(key);
+    if (it != _singletonTypes.end()) {
+      return it->second;
+    }
+
+    auto ct = new (_alloc) SingletonType(expr);
+    _singletonTypes[key] = ct;
     return ct;
   }
 

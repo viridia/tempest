@@ -1214,6 +1214,10 @@ namespace tempest::parse {
       case TOKEN_UINT: return builtinType(ast::BuiltinType::UINT);
       case TOKEN_FLOAT32: return builtinType(ast::BuiltinType::F32);
       case TOKEN_FLOAT64: return builtinType(ast::BuiltinType::F64);
+      case TOKEN_STRING_LIT: return stringLit();
+      case TOKEN_CHAR_LIT: return charLit();
+      case TOKEN_DEC_INT_LIT:
+      case TOKEN_HEX_INT_LIT: return integerLit();
       default: {
         if (allowPartial) {
           return &Node::ABSENT;

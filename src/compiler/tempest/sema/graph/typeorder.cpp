@@ -1,6 +1,8 @@
 #include "tempest/sema/graph/typeorder.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/expr.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
 
 namespace tempest::sema::graph {
   bool TypeOrder::operator()(const Type* lhs, const Type* rhs) const {
@@ -27,9 +29,6 @@ namespace tempest::sema::graph {
         }
         if (intLhs->isUnsigned() != intRhs->isUnsigned()) {
           return intLhs->isUnsigned() < intRhs->bits();
-        }
-        if (intLhs->isPositive() != intRhs->isPositive()) {
-          return intLhs->isPositive() < intRhs->isPositive();
         }
         return false;
       }
@@ -102,6 +101,12 @@ namespace tempest::sema::graph {
         return memberOrder(udtLhs->defn(), udtRhs->defn());
       }
 
+      case Type::Kind::SINGLETON: {
+        auto sLhs = static_cast<const SingletonType*>(lhs);
+        auto sRhs = static_cast<const SingletonType*>(rhs);
+        return exprOrder(sLhs->value, sRhs->value);
+      }
+
       default:
         assert(false && "Unsupported type kind");
     }
@@ -149,5 +154,39 @@ namespace tempest::sema::graph {
     }
 
     return lhs->name() < rhs->name();
+  }
+
+  bool TypeOrder::exprOrder(const Expr* lhs, const Expr* rhs) const {
+    // Equality
+    if (lhs == rhs) {
+      return false;
+    }
+
+    if (lhs->kind != rhs->kind) {
+      return lhs->kind < rhs->kind;
+    }
+
+    switch (lhs->kind) {
+      case Expr::Kind::INTEGER_LITERAL: {
+        auto lhsInt = static_cast<const IntegerLiteral*>(lhs);
+        auto rhsInt = static_cast<const IntegerLiteral*>(rhs);
+        if (lhsInt->type() != rhsInt->type()) {
+          return operator()(lhsInt->type(), rhsInt->type());
+        }
+        size_t maxWidth = std::max(lhsInt->value().getBitWidth(), rhsInt->value().getBitWidth());
+        llvm::APInt lhsValue(lhsInt->value().sext(maxWidth));
+        llvm::APInt rhsValue(rhsInt->value().sext(maxWidth));
+        return lhsValue.slt(rhsValue);
+      }
+
+      case Expr::Kind::STRING_LITERAL: {
+        auto lhsStr = static_cast<const StringLiteral*>(lhs);
+        auto rhsStr = static_cast<const StringLiteral*>(rhs);
+        return lhsStr->value() < rhsStr->value();
+      }
+
+      default:
+        assert(false && "Invalid singleton type");
+    }
   }
 }

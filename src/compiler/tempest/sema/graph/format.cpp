@@ -1,7 +1,10 @@
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/error/diagnostics.hpp"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Casting.h"
 
 namespace tempest::sema::graph {
   using tempest::error::diag;
@@ -111,7 +114,6 @@ namespace tempest::sema::graph {
       }
 
       case Member::Kind::SPECIALIZED: {
-        diag.info() << "Member::Kind::SPECIALIZED " << m->name();
         auto spec = static_cast<const SpecializedDefn*>(m);
         // TODO: We really need a separate function for type signatures.
         bool saveShowContent = showContent;
@@ -269,6 +271,18 @@ namespace tempest::sema::graph {
       case Type::Kind::SPECIALIZED: {
         auto st = static_cast<const SpecializedType*>(t);
         visit(st->spec);
+        break;
+      }
+
+      case Type::Kind::SINGLETON: {
+        auto st = static_cast<const SingletonType*>(t);
+        if (auto intLit = llvm::dyn_cast<IntegerLiteral>(st->value)) {
+          llvm::SmallString<16> str;
+          intLit->value().toString(str, 10, !intLit->isUnsigned());
+          out << str;
+        } else if (auto strLit = llvm::dyn_cast<StringLiteral>(st->value)) {
+          out << "\"" << strLit->value() << "\"";
+        }
         break;
       }
 

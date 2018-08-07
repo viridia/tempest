@@ -37,6 +37,7 @@ namespace tempest::sema::names {
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
 
+  // TODO: I don't think this is used, or needed.
   /** Name resolver specialized for resolving types. */
   class MemberNameLookup {
   public:

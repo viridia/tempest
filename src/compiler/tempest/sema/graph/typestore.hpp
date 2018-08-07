@@ -119,6 +119,38 @@ namespace tempest::sema::graph {
     }
   };
 
+  /** A hashable expression for singletons. */
+  class SingletonKey {
+  public:
+    SingletonKey() = default;
+    SingletonKey(const SingletonKey& key) = default;
+    SingletonKey(const Expr* value)
+      : _value(value)
+    {}
+
+    /** The generic type to be specialized. */
+    const Expr* value() const { return _value; }
+
+    bool equals(const SingletonKey& sk) const;
+
+    /** Equality comparison. */
+    friend bool operator==(const SingletonKey& lhs, const SingletonKey& rhs) {
+      return lhs.equals(rhs);
+    }
+
+    /** Inequality comparison. */
+    friend bool operator!=(const SingletonKey& lhs, const SingletonKey& rhs) {
+      return !lhs.equals(rhs);
+    }
+
+  private:
+    const Expr* _value;
+  };
+
+  struct SingletonKeyHash {
+    std::size_t operator()(const SingletonKey& value) const;
+  };
+
   /** A store of canonicalized, uniqued derived types. */
   class TypeStore {
   public:
@@ -133,6 +165,9 @@ namespace tempest::sema::graph {
 
     /** Create a tuple type from the given type key. */
     TupleType* createTupleType(const TypeArray& members);
+
+    /** Create a singleton type. */
+    SingletonType* createSingletonType(const Expr* expr);
 
     /** Specialize a generic definition. */
     SpecializedDefn* specialize(GenericDefn* base, const TypeArray& typeArgs);
@@ -168,6 +203,7 @@ namespace tempest::sema::graph {
     std::unordered_map<TypeKey, TupleType*, TypeKeyHash> _tupleTypes;
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;
     std::unordered_map<ConstKey, ConstType*, ConstKeyHash> _constTypes;
+    std::unordered_map<SingletonKey, SingletonType*, SingletonKeyHash> _singletonTypes;
     std::unordered_map<SpecializationKey, SpecializedDefn*, SpecializationKeyHash> _specs;
     std::unordered_set<Type*> _addressTypes;
   //     self.valueRefTypes = {}

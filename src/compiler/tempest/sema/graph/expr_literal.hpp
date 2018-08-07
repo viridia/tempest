@@ -18,7 +18,7 @@ namespace tempest::sema::graph {
     {}
 
     /** The value of the boolean literal. */
-    bool value() { return _value; }
+    bool value() const { return _value; }
 
     /** Dynamic casting support. */
     static bool classof(const BooleanLiteral* e) { return true; }
@@ -81,10 +81,15 @@ namespace tempest::sema::graph {
   /** Floating-point literal. */
   class FloatLiteral : public Expr {
   public:
-    FloatLiteral(Location location, const llvm::APFloat &value, bool isNegative = false)
+    FloatLiteral(
+        Location location,
+        const llvm::APFloat &value,
+        bool isNegative = false,
+        FloatType* type = nullptr)
       : Expr(Kind::FLOAT_LITERAL, location)
       , _value(value)
       , _isNegative(isNegative)
+      , _type(type)
     {}
 
     /** Type of the float */

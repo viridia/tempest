@@ -123,6 +123,7 @@ namespace tempest::parse {
     bool classBody(ast::TypeDefn* d);
     bool classMember(NodeListBuilder &members, NodeListBuilder &friends);
     ast::Defn* enumTypeDef();
+    ast::Defn* aliasTypeDef();
     bool enumMember(NodeListBuilder &members);
     ast::Defn* methodDef();
     ast::Node* methodBody();
@@ -144,6 +145,7 @@ namespace tempest::parse {
     ast::Node* typePrimary(bool allowPartial = false);
     ast::Node* functionType();
     ast::Node* baseTypeName();
+    ast::Node* enumBaseTypeName();
     ast::Node* specializedTypeName();
     ast::Node* builtinType(ast::BuiltinType::Type t);
 

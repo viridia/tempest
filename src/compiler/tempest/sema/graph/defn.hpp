@@ -226,6 +226,10 @@ namespace tempest::sema::graph {
     Type* type() const { return _type; }
     void setType(Type* type) { _type = type; }
 
+    /** If this definition is a type alias, then this points to the target. */
+    Type* aliasTarget() const { return _aliasTarget; }
+    void setAliasTarget(Type* aliasTarget) { _aliasTarget = aliasTarget; }
+
     /** List of all members of this type. */
     DefnList& members() { return _members; }
     const DefnArray members() const { return _members; }
@@ -255,6 +259,7 @@ namespace tempest::sema::graph {
 
   private:
     Type* _type;
+    Type* _aliasTarget = nullptr;
     const ast::TypeDefn* _ast = nullptr;
     DefnList _members;
     MemberList _extends;

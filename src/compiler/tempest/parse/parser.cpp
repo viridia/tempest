@@ -279,6 +279,9 @@ namespace tempest::parse {
       case TOKEN_ENUM:
         result = enumTypeDef();
         break;
+      case TOKEN_TYPE:
+        result = aliasTypeDef();
+        break;
       case TOKEN_FN:
       case TOKEN_UNDEF:
       case TOKEN_OVERRIDE:
@@ -286,6 +289,7 @@ namespace tempest::parse {
         break;
       default:
         diag.error(location()) << "Declaration expected.";
+        skipOverDefn();
         return nullptr;
     }
 
@@ -432,7 +436,7 @@ namespace tempest::parse {
     if (match(TOKEN_EXTENDS)) {
       NodeListBuilder extends(_alloc);
       for (;;) {
-        auto base = baseTypeName();
+        auto base = enumBaseTypeName();
         if (base == nullptr) {
           skipUntil({TOKEN_LBRACE});
           return d;
@@ -510,6 +514,42 @@ namespace tempest::parse {
     }
     members.append(ev);
     return true;
+  }
+
+  Defn* Parser::aliasTypeDef() {
+    next();
+    if (_token != TOKEN_ID) {
+      diag.error(location()) << "Type name expected.";
+      _recovering = true;
+    }
+    StringRef name = copyOf(tokenValue());
+    Location loc = location();
+    next();
+
+    auto d = new (_alloc) ast::TypeDefn(Node::Kind::ALIAS_DEFN, loc, name);
+
+    if (!match(TOKEN_ASSIGN)) {
+      expected("=");
+      skipOverDefn();
+    }
+
+    auto init = typeExpression();
+    if (init == nullptr) {
+      skipOverDefn();
+    } else {
+      // For alias we'll consider the target an 'extends'.
+      NodeListBuilder extends(_alloc);
+      extends.append(init);
+      d->extends = extends.build();
+    }
+
+    if (!match(TOKEN_SEMI)) {
+      diag.error(location()) << "Semicolon expected.";
+      skipUntil({TOKEN_SEMI});
+      next();
+    }
+
+    return d;
   }
 
   // Method
@@ -1271,6 +1311,25 @@ namespace tempest::parse {
     } else {
       expected("base type name");
       return nullptr;
+    }
+  }
+
+  Node* Parser::enumBaseTypeName() {
+    switch (_token) {
+      case TOKEN_ID: return specializedTypeName();
+      case TOKEN_I8: return builtinType(ast::BuiltinType::I8);
+      case TOKEN_I16: return builtinType(ast::BuiltinType::I16);
+      case TOKEN_I32: return builtinType(ast::BuiltinType::I32);
+      case TOKEN_I64: return builtinType(ast::BuiltinType::I64);
+      case TOKEN_INT: return builtinType(ast::BuiltinType::INT);
+      case TOKEN_U8: return builtinType(ast::BuiltinType::U8);
+      case TOKEN_U16: return builtinType(ast::BuiltinType::U16);
+      case TOKEN_U32: return builtinType(ast::BuiltinType::U32);
+      case TOKEN_U64: return builtinType(ast::BuiltinType::U64);
+      case TOKEN_UINT: return builtinType(ast::BuiltinType::UINT);
+      default:
+        expected("base type name");
+        return nullptr;
     }
   }
 

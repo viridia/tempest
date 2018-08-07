@@ -157,6 +157,7 @@ namespace tempest::ast {
       TRAIT_DEFN,
       EXTEND_DEFN,
       OBJECT_DEFN,
+      ALIAS_DEFN,
       ENUM_DEFN,
       MEMBER_VAR,
       MEMBER_CONST,

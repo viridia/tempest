@@ -214,7 +214,11 @@ namespace tempest::sema::graph {
         break;
       }
 
-      // ALIAS,          // An alias for another type
+      case Type::Kind::ALIAS: {
+        auto aliasType = static_cast<const UserDefinedType*>(t);
+        out << "type " << aliasType->defn()->name();
+        break;
+      }
 
       case Type::Kind::TYPE_VAR: {
         auto tv = static_cast<const TypeVar*>(t);

@@ -53,6 +53,7 @@ namespace tempest::sema::pass {
 
     void visitList(LookupScope* scope, DefnArray members);
     void visitTypeDefn(LookupScope* scope, TypeDefn* td);
+    void visitEnumDefn(LookupScope* scope, TypeDefn* td);
     void visitFunctionDefn(LookupScope* scope, FunctionDefn* fd);
     void visitValueDefn(LookupScope* scope, ValueDefn* vd);
 

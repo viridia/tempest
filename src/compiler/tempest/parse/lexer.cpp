@@ -94,6 +94,7 @@ namespace tempest::parse {
       { "trait", TOKEN_TRAIT },
       { "true", TOKEN_TRUE },
       { "try", TOKEN_TRY },
+      { "type", TOKEN_TYPE },
       { "u16", TOKEN_U16 },
       { "u32", TOKEN_U32 },
       { "u64", TOKEN_U64 },

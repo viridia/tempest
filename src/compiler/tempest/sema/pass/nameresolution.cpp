@@ -148,7 +148,11 @@ namespace tempest::sema::pass {
     // resolverequirements.ResolveRequirements(
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, typeDefn).run()
     // typeDefn.setFriends(self.visitList(typeDefn.getFriends()))
-    if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
+    if (td->type()->kind == Type::Kind::ALIAS) {
+      td->setAliasTarget(resolveType(scope, td->ast()->extends[0]));
+    } else if (td->type()->kind == Type::Kind::ENUM) {
+      visitEnumDefn(scope, td);
+    } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
       resolveBaseTypes(scope, td);
       TypeDefnScope tdScope(scope, td);
       visitList(&tdScope, td->members());
@@ -156,6 +160,15 @@ namespace tempest::sema::pass {
     // else:
     // self.visitDefn(typeDefn) # Visits members and attrs
     // self.nameLookup.setSubject(savedSubject)
+  }
+
+  void NameResolutionPass::visitEnumDefn(LookupScope* scope, TypeDefn* td) {
+    resolveBaseTypes(scope, td);
+    for (auto m : td->members()) {
+      assert(m->kind == Defn::Kind::ENUM_VAL);
+      auto ev = static_cast<ValueDefn*>(m);
+      ev->setType(td->type());
+    }
   }
 
   void NameResolutionPass::visitFunctionDefn(LookupScope* scope, FunctionDefn* fd) {
@@ -791,6 +804,13 @@ namespace tempest::sema::pass {
         }
       }
 
+      case ast::Node::Kind::BUILTIN_TYPE: {
+        // We can get here via 'enum extends' - enums can have integer bases.
+        auto type = resolveType(scope, node);
+        result.push_back(cast<IntegerType>(type)->defn());
+        return true;
+      }
+
       default:
         diag.error(node) << "Invalid node kind for resolveDefnName: "
             << ast::Node::KindName(node->kind);
@@ -930,7 +950,12 @@ namespace tempest::sema::pass {
             diag.error(astBase->location) << "Extensions cannot be extended.";
             break;
           case Type::Kind::ENUM:
-            diag.error(astBase->location) << "Enumerations cannot be extended.";
+            if (baseKind != Type::Kind::INTEGER) {
+              diag.error(astBase->location) << "Enumations can only extend integer types.";
+            } else if (!td->extends().empty()) {
+              diag.error(astBase->location) <<
+                  "Multiple implementation inheritance is not allowed.";
+            }
             break;
           default:
             assert(false && "Type cannot extend");
@@ -979,9 +1004,14 @@ namespace tempest::sema::pass {
       }
     }
 
-    // Classes inherit from 'Object' if no base class specified.
-    if (td->type()->kind == Type::Kind::CLASS && td->extends().empty()) {
-      td->extends().push_back(intrinsic::IntrinsicDefns::get()->objectClass.get());
+    if (td->extends().empty()) {
+      if (td->type()->kind == Type::Kind::CLASS) {
+        // Classes inherit from 'Object' if no base class specified.
+        td->extends().push_back(intrinsic::IntrinsicDefns::get()->objectClass.get());
+      } else if (td->type()->kind == Type::Kind::ENUM) {
+        // Enums inherit from 'u32' if no base class specified.
+        td->extends().push_back(IntegerType::U32.defn());
+      }
     }
   }
 

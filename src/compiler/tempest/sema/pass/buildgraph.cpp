@@ -130,6 +130,7 @@ namespace tempest::sema::pass {
   //       decl.setRequiredMethodScope(StandardScope(decl, 'constraint'))
         return td;
       }
+
       case ast::Node::Kind::ENUM_DEFN: {
         const ast::TypeDefn* ast = static_cast<const ast::TypeDefn*>(node);
         TypeDefn* td = new TypeDefn(ast->location, ast->name, parent);
@@ -142,6 +143,17 @@ namespace tempest::sema::pass {
         createMembers(ast->members, td, td->members(), td->memberScope());
         return td;
       }
+
+      case ast::Node::Kind::ALIAS_DEFN: {
+        const ast::TypeDefn* ast = static_cast<const ast::TypeDefn*>(node);
+        TypeDefn* td = new TypeDefn(ast->location, ast->name, parent);
+        UserDefinedType* cls = new (*_alloc) UserDefinedType(Type::Kind::ALIAS);
+        td->setAst(ast);
+        td->setType(cls);
+        cls->setDefn(td);
+        return td;
+      }
+
       case ast::Node::Kind::FUNCTION: {
         const ast::Function* ast = static_cast<const ast::Function*>(node);
         FunctionDefn* f = new FunctionDefn(ast->location, ast->name, parent);
@@ -150,6 +162,7 @@ namespace tempest::sema::pass {
         f->setAst(ast);
         return f;
       }
+
       default:
         diag.fatal(node->location) << "Invalid member node type: " << node->kind;
         return nullptr;

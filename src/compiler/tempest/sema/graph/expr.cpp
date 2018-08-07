@@ -3,4 +3,3 @@
 namespace tempest::sema::graph {
   Expr Expr::ERROR(Expr::Kind::INVALID, Location());
 }
-

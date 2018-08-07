@@ -40,7 +40,7 @@ namespace {
   }
 }
 
-TEST_CASE("NameResolution", "[sema]") {
+TEST_CASE("NameResolution.Type", "[sema]") {
   const Location L;
   CompilationUnit cu;
 
@@ -82,6 +82,25 @@ TEST_CASE("NameResolution", "[sema]") {
     REQUIRE(cast<TupleType>(vdef->type())->members.size() == 3);
     REQUIRE_THAT(vdef->type(), TypeEQ("(i32, f32, bool)"));
   }
+
+  SECTION("Resolve alias type") {
+    auto mod = compile(cu,
+      "type A = i32 | void;\n"
+      "let X: A;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::ALIAS);
+    REQUIRE_THAT(vdef->type(), TypeEQ("type A"));
+    auto udt = static_cast<const UserDefinedType*>(vdef->type());
+    REQUIRE_THAT(udt->defn()->aliasTarget(), TypeEQ("void | i32"));
+  }
+}
+
+TEST_CASE("NameResolution.Class", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
 
   SECTION("Resolve class type") {
     auto mod = compile(cu,
@@ -153,18 +172,47 @@ TEST_CASE("NameResolution", "[sema]") {
     REQUIRE(vdef->type()->kind == Type::Kind::SPECIALIZED);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B[i32]"));
   }
+}
 
-  // SECTION("Resolve alias type") {
-  //   auto mod = compile(cu,
-  //     "type A = i32 | void;\n"
-  //     "let X: A;"
-  //   );
-  //   auto vdef = cast<ValueDefn>(mod->members().back());
-  //   REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
-  //   REQUIRE(vdef->type() != nullptr);
-  //   REQUIRE(vdef->type()->kind == Type::Kind::ALIAS);
-  //   REQUIRE_THAT(vdef->type(), TypeEQ("class A"));
-  // }
+TEST_CASE("NameResolution.Enum", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Resolve enum type") {
+    auto mod = compile(cu,
+      "enum A {\n"
+      "  B,\n"
+      "  C,\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    REQUIRE(td->type()->kind == Type::Kind::ENUM);
+    REQUIRE(td->extends()[0]->kind == Defn::Kind::TYPE);
+    REQUIRE(static_cast<const TypeDefn*>(td->extends()[0])->type()->kind == Type::Kind::INTEGER);
+    // REQUIRE(vdef->type() != nullptr);
+    // REQUIRE(vdef->type()->kind == Type::Kind::ALIAS);
+    // REQUIRE_THAT(vdef->type(), TypeEQ("type A"));
+    // auto udt = static_cast<const UserDefinedType*>(vdef->type());
+    // REQUIRE_THAT(udt->defn()->aliasTarget(), TypeEQ("void | i32"));
+  }
+
+  SECTION("Resolve enum type") {
+    auto mod = compile(cu,
+      "enum A extends u8 {\n"
+      "  B,\n"
+      "  C,\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    REQUIRE(td->type()->kind == Type::Kind::ENUM);
+    REQUIRE(td->extends()[0]->kind == Defn::Kind::TYPE);
+    REQUIRE(static_cast<const TypeDefn*>(td->extends()[0])->type()->kind == Type::Kind::INTEGER);
+    // REQUIRE(vdef->type() != nullptr);
+    // REQUIRE(vdef->type()->kind == Type::Kind::ALIAS);
+    // REQUIRE_THAT(vdef->type(), TypeEQ("type A"));
+    // auto udt = static_cast<const UserDefinedType*>(vdef->type());
+    // REQUIRE_THAT(udt->defn()->aliasTarget(), TypeEQ("void | i32"));
+  }
 
   // Enum type
   //

@@ -20,6 +20,7 @@ namespace tempest::sema::graph {
     void visitType(const Type* t);
     void visitList(const DefnArray nodes);
     void visitNamedList(const DefnArray nodes, llvm::StringRef name);
+    void visitExpr(const Expr* e);
     // void visitNamedNode(const Node* node, llvm::StringRef name);
     // void visitDefnFlags(const Defn* de);
     // void printFlag(llvm::StringRef name, bool enabled);
@@ -280,13 +281,7 @@ namespace tempest::sema::graph {
 
       case Type::Kind::SINGLETON: {
         auto st = static_cast<const SingletonType*>(t);
-        if (auto intLit = llvm::dyn_cast<IntegerLiteral>(st->value)) {
-          llvm::SmallString<16> str;
-          intLit->value().toString(str, 10, !intLit->isUnsigned());
-          out << str;
-        } else if (auto strLit = llvm::dyn_cast<StringLiteral>(st->value)) {
-          out << "\"" << strLit->value() << "\"";
-        }
+        visitExpr(st->value);
         break;
       }
 
@@ -330,6 +325,44 @@ namespace tempest::sema::graph {
     }
   }
 
+  void Formatter::visitExpr(const Expr* e) {
+    if (e == nullptr) {
+      out << "<null>";
+      return;
+    }
+    switch (e->kind) {
+      case Expr::Kind::INVALID:
+        out << "<error>";
+        break;
+
+      case Expr::Kind::INTEGER_LITERAL: {
+        auto intLit = static_cast<const IntegerLiteral*>(e);
+        llvm::SmallString<16> str;
+        intLit->value().toString(str, 10, !intLit->isUnsigned());
+        out << str;
+        break;
+      }
+
+      case Expr::Kind::STRING_LITERAL: {
+        auto strLit = static_cast<const StringLiteral*>(e);
+        out << "\"" << strLit->value() << "\"";
+        break;
+      }
+
+      case Expr::Kind::FLOAT_LITERAL: {
+        auto floatLit = static_cast<const FloatLiteral*>(e);
+        llvm::SmallString<16> str;
+        floatLit->value().toString(str, 5);
+        out << str;
+        break;
+      }
+
+      default:
+        diag.error() << "Format not implemented: " << int(e->kind);
+        assert(false && "Format not implemented.");
+    }
+  }
+
   void format(::std::ostream& out, const Member* m, bool pretty) {
     Formatter fmt(out, pretty);
     fmt.visit(m);
@@ -341,5 +374,10 @@ namespace tempest::sema::graph {
   void format(::std::ostream& out, const Type* t) {
     Formatter fmt(out, false);
     fmt.visitType(t);
+  }
+
+  void format(::std::ostream& out, const Expr* e) {
+    Formatter fmt(out, false);
+    fmt.visitExpr(e);
   }
 }

@@ -5,6 +5,7 @@
 #include "tempest/ast/oper.hpp"
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/intrinsic/defns.hpp"
+#include "tempest/sema/eval/evalconst.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
@@ -24,16 +25,60 @@ namespace tempest::sema::pass {
   using namespace tempest::sema::names;
 
   namespace {
-    // Given a (possibly specialized) type definition, return what kind of type it is.
-    Type::Kind typeKindOf(Member* m) {
+    Defn* unwrapSpecialization(Member* m) {
+      if (!m) {
+        return nullptr;
+      }
       if (auto sp = dyn_cast<SpecializedDefn>(m)) {
         m = sp->generic();
       }
+      return dyn_cast<Defn>(m);
+    }
+
+    // Given a (possibly specialized) type definition, return what kind of type it is.
+    Type::Kind typeKindOf(Member* m) {
+      m = unwrapSpecialization(m);
 
       if (auto td = dyn_cast_or_null<TypeDefn>(m)) {
         return td->type()->kind;
       }
       return Type::Kind::INVALID;
+    }
+
+    /** Return true if member is defined within the enclosing definition. */
+    bool isDefinedIn(Member* subject, Member* enclosing) {
+      while (subject) {
+        if (subject == enclosing) {
+          return true;
+        } else if (auto defn = dyn_cast<Defn>(subject)) {
+          subject = defn->definedIn();
+        } else {
+          break;
+        }
+      }
+      return false;
+    }
+
+    /** Return true if member is defined within a base type of the enclosing definition. */
+    bool isDefinedInBaseType(Member* subject, Member* enclosing) {
+      while (subject) {
+        if (subject == enclosing) {
+          return true;
+        } else if (auto enclosingType = dyn_cast<TypeDefn>(enclosing)) {
+          for (auto extDef : enclosingType->extends()) {
+            if (isDefinedInBaseType(subject, extDef)) {
+              return true;
+            }
+          }
+        }
+
+        if (auto defn = dyn_cast<Defn>(subject)) {
+          subject = defn->definedIn();
+        } else {
+          break;
+        }
+      }
+      return false;
     }
   }
 
@@ -164,10 +209,44 @@ namespace tempest::sema::pass {
 
   void NameResolutionPass::visitEnumDefn(LookupScope* scope, TypeDefn* td) {
     resolveBaseTypes(scope, td);
+    auto base = cast<IntegerType>(cast<TypeDefn>(td->extends()[0])->type());
+    APInt index(base->bits(), 0, !base->isUnsigned());
+    TypeDefnScope tdScope(scope, td);
     for (auto m : td->members()) {
       assert(m->kind == Defn::Kind::ENUM_VAL);
       auto ev = static_cast<ValueDefn*>(m);
       ev->setType(td->type());
+      if (ev->ast()->init) {
+        auto expr = visitExpr(&tdScope, ev->ast()->init);
+        eval::EvalResult result;
+        if (!eval::evalConstExpr(expr, result) || result.type != eval::EvalResult::INT) {
+          diag.error(expr) << "Enumeration value expression should be a constant integer";
+          break;
+        }
+
+        if (base->isUnsigned()) {
+          if (result.hasSign && result.intResult.isNegative()) {
+            diag.error(expr) << "Can't assign a negative value to an unsigned enumeration.";
+            break;
+          } else if (result.intResult.getActiveBits() > (unsigned) base->bits()) {
+            diag.error(expr) << "Constant integer size too large to fit in enum value";
+            break;
+          }
+        } else {
+          if (result.intResult.getMinSignedBits() > (unsigned) base->bits()) {
+            diag.error(expr) << "Constant integer size too large to fit in enum value";
+            break;
+          }
+        }
+
+        if (base->isUnsigned()) {
+          index = result.intResult.zextOrTrunc(base->bits());
+        } else {
+          index = result.intResult.sextOrTrunc(base->bits());
+        }
+      }
+      ev->setInit(new (*_alloc) IntegerLiteral(
+          ev->location(), index++, base->isUnsigned(), false, base));
     }
   }
 
@@ -228,6 +307,9 @@ namespace tempest::sema::pass {
     if (vd->ast()->type) {
       vd->setType(resolveType(scope, vd->ast()->type));
     }
+    if (vd->ast()->init) {
+      vd->setInit(visitExpr(scope, vd->ast()->init));
+    }
     // if vdef.astInit:
     //   if vdef.hasType() and isinstance(vdef.getType(), graph.Enum):
     //     self.nameLookup.scopeStack.push(vdef.getType().getDefn().getMemberScope())
@@ -248,7 +330,17 @@ namespace tempest::sema::pass {
       // }
       // SUPER,
 
-      // IDENT,
+      case ast::Node::Kind::IDENT: {
+        NameLookupResult result;
+        if (!resolveDefnName(scope, node, result)) {
+          return &Expr::ERROR;
+        }
+
+        return createNameRef(node->location, result,
+          cast_or_null<Defn>(scope->subject()),
+          nullptr);
+      }
+
       // MEMBER,
       // SELF_NAME_REF,
       // BUILTIN_ATTRIBUTE,
@@ -302,11 +394,10 @@ namespace tempest::sema::pass {
           value = value.substr(2);
         }
 
-        // Figure out how many bits we need.
-        uint32_t bits = APInt::getBitsNeeded(value, radix) + 1;
+        // Integer literals default to 64 bits wide.
         return new (*_alloc) IntegerLiteral(
           node->location,
-          APInt(bits, value, radix),
+          APInt(64, value, radix),
           isUnsigned,
           false,
           &IntegerType::UNSIZED_INT);
@@ -319,7 +410,7 @@ namespace tempest::sema::pass {
           if (suffixChar == 'f' || suffixChar == 'F') {
             isSingle = true;
           } else {
-            diag.error(node) << "Invalid integer suffix: '" << literal->suffix << "'";
+            diag.error(node) << "Invalid float suffix: '" << literal->suffix << "'";
             break;
           }
         }
@@ -331,14 +422,29 @@ namespace tempest::sema::pass {
             isSingle ? &FloatType::F32 : &FloatType::F64);
       }
 
-      // CHAR_LITERAL,
-      // INTEGER_LITERAL,
-      // FLOAT_LITERAL,
-      // STRING_LITERAL,
+      case ast::Node::Kind::STRING_LITERAL: {
+        auto literal = static_cast<const ast::Literal*>(node);
+        return new (*_alloc) StringLiteral(node->location, copyOf(literal->value));
+      }
 
-      // NEGATE,
-      // COMPLEMENT,
-      // LOGICAL_NOT,
+      case ast::Node::Kind::LOGICAL_NOT: {
+        auto op = static_cast<const ast::UnaryOp*>(node);
+        auto arg = visitExpr(scope, op->arg);
+        return new (*_alloc) UnaryOp(Expr::Kind::NOT, arg->location, arg);
+      }
+
+      case ast::Node::Kind::NEGATE: {
+        auto op = static_cast<const ast::UnaryOp*>(node);
+        auto arg = visitExpr(scope, op->arg);
+        return new (*_alloc) UnaryOp(Expr::Kind::NEGATE, arg->location, arg);
+      }
+
+      case ast::Node::Kind::COMPLEMENT: {
+        auto op = static_cast<const ast::UnaryOp*>(node);
+        auto arg = visitExpr(scope, op->arg);
+        return new (*_alloc) UnaryOp(Expr::Kind::COMPLEMENT, arg->location, arg);
+      }
+
       // PRE_INC,
       // POST_INC,
       // PRE_DEC,
@@ -351,35 +457,35 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::ADD: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::ADD, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::SUB: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::SUBTRACT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::MUL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::MULTIPLY, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::DIV: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::DIVIDE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::MOD: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(
             Expr::Kind::REMAINDER, lhs->location | rhs->location, lhs, rhs);
       }
@@ -387,91 +493,91 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::BIT_AND: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::BIT_AND, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::BIT_OR: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::BIT_OR, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::BIT_XOR: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::BIT_XOR, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::RSHIFT: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::RSHIFT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::LSHIFT: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::LSHIFT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::EQ, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::NOT_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::NE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::GREATER_THAN: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::GT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::GREATER_THAN_OR_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::GE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::LESS_THAN: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::LT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::LESS_THAN_OR_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::LE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::REF_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::REF_EQ, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::REF_NOT_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::REF_NE, lhs->location | rhs->location, lhs, rhs);
       }
 
@@ -617,6 +723,30 @@ namespace tempest::sema::pass {
           }
         }
 
+        NameLookupResult privateMembers;
+        NameLookupResult protectedMembers;
+        auto subject = scope->subject();
+        for (auto member : lookupResult) {
+          auto m = unwrapSpecialization(member);
+          if (!isVisibleMember(subject, m)) {
+            if (m->visibility() == PRIVATE) {
+              privateMembers.push_back(m);
+            } else if (m->visibility() == PROTECTED) {
+              protectedMembers.push_back(m);
+            }
+          }
+        }
+
+        if (privateMembers.size() > 0) {
+          auto p = unwrapSpecialization(privateMembers[0]);
+          diag.error(node) << "Cannot access private member '" << p->name() << "'.";
+          diag.info(p->location()) << "Defined here.";
+        } else if (protectedMembers.size() > 0) {
+          auto p = unwrapSpecialization(protectedMembers[0]);
+          diag.error(node) << "Cannot access protected member '" << p->name() << "'.";
+          diag.info(p->location()) << "Defined here.";
+        }
+
         assert(!types.empty());
         if (types.size() == 1) {
           return types[0];
@@ -724,6 +854,83 @@ namespace tempest::sema::pass {
     }
   }
 
+  Expr* NameResolutionPass::createNameRef(
+      const Location& loc,
+      const NameLookupResultRef& result,
+      Defn* subject,
+      Expr* stem,
+      bool preferPrivate) {
+    NameLookupResult vars;
+    NameLookupResult functions;
+    NameLookupResult types;
+    NameLookupResult privateMembers;
+    NameLookupResult protectedMembers;
+    for (auto member : result) {
+      auto m = unwrapSpecialization(member);
+      if (!isVisibleMember(subject, m)) {
+        if (m->visibility() == PRIVATE) {
+          privateMembers.push_back(m);
+        } else if (m->visibility() == PROTECTED) {
+          protectedMembers.push_back(m);
+        }
+      }
+
+      if (m->kind == Member::Kind::TYPE || m->kind == Member::Kind::TYPE_PARAM) {
+        types.push_back(member);
+      } else if (m->kind == Member::Kind::FUNCTION) {
+        functions.push_back(member);
+      } else if (m->kind == Member::Kind::CONST_DEF
+          || m->kind == Member::Kind::LET_DEF
+          || m->kind == Member::Kind::ENUM_VAL
+          || m->kind == Member::Kind::FUNCTION_PARAM
+          || m->kind == Member::Kind::TUPLE_MEMBER) {
+        vars.push_back(member);
+      } else {
+        assert(false && "Other member types not allowed here.");
+      }
+    }
+
+    if (privateMembers.size() > 0) {
+      auto p = unwrapSpecialization(privateMembers[0]);
+      diag.error(loc) << "Cannot access private member '" << p->name() << "'.";
+      diag.info(p->location()) << "Defined here.";
+    } else if (protectedMembers.size() > 0) {
+      auto p = unwrapSpecialization(protectedMembers[0]);
+      diag.error(loc) << "Cannot access protected member '" << p->name() << "'.";
+      diag.info(p->location()) << "Defined here.";
+    } else {
+      auto m = unwrapSpecialization(result[0]);
+      if (vars.size() > 0) {
+        if (functions.size() > 0 || types.size() > 0) {
+          diag.error(loc) << "Conflicting definitions for '" << m->name() << "'.";
+        } else if (vars.size() > 1) {
+          diag.error(loc) << "Reference to '" << m->name() << "' is ambiguous.";
+        } else {
+          return new (*_alloc) DefnRef(Expr::Kind::VAR_REF, loc, result[0], stem);
+        }
+      } else if (types.size() > 0) {
+        if (functions.size() > 0) {
+          diag.error(loc) << "Conflicting definitions for '" << m->name() << "'.";
+        } else {
+          auto tref = new (*_alloc) MemberListExpr(
+              Expr::Kind::TYPE_REF_OVERLOAD, loc, result[0]->name());
+          tref->setStem(stem);
+          tref->setMembers(copyOf(types));
+          return tref;
+        }
+      } else {
+        auto mref = new (*_alloc) MemberListExpr(
+            Expr::Kind::FUNCTION_REF_OVERLOAD, loc, result[0]->name());
+        mref->setStem(stem);
+        mref->setMembers(copyOf(types));
+        return mref;
+      }
+    }
+    return nullptr;
+  }
+
+  // This handles compound names such as A, A.B.C, A[X].B[Y], but not (expression).B.
+  // The result is an array of possibly overloaded definitions.
   bool NameResolutionPass::resolveDefnName(
     LookupScope* scope, const ast::Node* node, NameLookupResultRef& result) {
     switch (node->kind) {
@@ -748,6 +955,7 @@ namespace tempest::sema::pass {
         if (!resolveDefnName(scope, memberRef->base, baseResult)) {
           return false;
         }
+        // TODO: We should ensure baseResult is a type
 
         for (auto baseDefn : baseResult) {
           resolveMemberName(node->location, baseDefn, memberRef->name, result);
@@ -783,8 +991,14 @@ namespace tempest::sema::pass {
           // Class, struct, etc. In other words, a potential generic type.
           if (auto gd = dyn_cast<GenericDefn>(udt->defn())) {
             if (typeArgs.size() != gd->typeParams().size()) {
-              diag.error(node) << "Generic definition requires " << gd->typeParams().size() <<
-                  " type arguments, " << typeArgs.size() << " were provided.";
+              if (gd->typeParams().empty()) {
+                diag.error(node) << "Definition '" << gd->name() << "' is not generic.";
+
+              } else {
+                diag.error(node) << "Generic definition '" << gd->name() << "' requires "
+                    << gd->typeParams().size() << " type arguments, "
+                    << typeArgs.size() << " were provided.";
+              }
               return false;
             }
 
@@ -1031,5 +1245,38 @@ namespace tempest::sema::pass {
 
     // Otherwise, just return the specialized type.
     return specDefn->type();
+  }
+
+  bool NameResolutionPass::isVisibleMember(Member* subject, Member* target) {
+    auto subjectDefn = unwrapSpecialization(subject);
+    auto targetDefn = unwrapSpecialization(target);
+    if (subjectDefn && targetDefn) {
+      return isVisible(subjectDefn, targetDefn);
+    }
+    return false;
+  }
+
+  bool NameResolutionPass::isVisible(Defn* subject, Defn* target) {
+    // If the target has a visibility of PUBLIC then it's visible.
+    if (target->visibility() == PUBLIC) {
+      return true;
+    }
+
+    // If the subject is transitively contained within the immediate parent scope of target, then
+    // target is visible.
+    auto targetParent = target->definedIn();
+    if (isDefinedIn(subject, targetParent)) {
+      return true;
+    }
+
+    // If target is protected and subject is contained within a type that inherits from
+    // target's parent, then target is visible.
+    if (target->visibility() == PROTECTED && isDefinedInBaseType(subject, targetParent)) {
+      return true;
+    }
+
+    // TODO: friends
+
+    return false;
   }
 }

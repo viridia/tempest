@@ -80,9 +80,39 @@ namespace tempest::sema::pass {
     size_t _importSourcesProcessed = 0;
     llvm::BumpPtrAllocator* _alloc = nullptr;
 
+    Expr* createNameRef(
+        const source::Location& loc,
+        const NameLookupResultRef& result,
+        Defn* subject,
+        Expr* stem = nullptr,
+        bool preferPrivate = false);
     void eagerResolveBaseTypes(TypeDefn* td);
     void resolveBaseTypes(LookupScope* scope, TypeDefn* td);
     Type* simplifyTypeSpecialization(SpecializedDefn* specDefn);
+
+    // Return true if target is visible from within currentScope.
+    bool isVisibleMember(Member* subject, Member* target);
+    bool isVisible(Defn* subject, Defn* target);
+
+    /** Make a copy of this string within the current alloc. */
+    llvm::StringRef copyOf(llvm::StringRef str) {
+      auto data = static_cast<char*>(_alloc->Allocate(str.size(), 1));
+      std::copy(str.begin(), str.end(), data);
+      return llvm::StringRef((char*) data, str.size());
+    }
+
+    /** Make a copy of this array within the current alloc. */
+    template<class T> llvm::ArrayRef<T> copyOf(llvm::ArrayRef<T> array) {
+      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
+      std::copy(array.begin(), array.end(), data);
+      return llvm::ArrayRef((T*) data, array.size());
+    }
+
+    template<class T> llvm::ArrayRef<T> copyOf(const llvm::SmallVectorImpl<T>& array) {
+      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
+      std::copy(array.begin(), array.end(), data);
+      return llvm::ArrayRef((T*) data, array.size());
+    }
   };
 }
 

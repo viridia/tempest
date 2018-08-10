@@ -29,7 +29,6 @@ namespace tempest::sema::graph {
       ID,
       SELF,
       SUPER,
-      NS_LITERAL,       // A literal reference to a module or package
       // BUILTIN_ATTR,
 
       // Literals
@@ -42,6 +41,8 @@ namespace tempest::sema::graph {
 
       // Unary Operators
       NOT,
+      NEGATE,
+      COMPLEMENT,
 
       // Binary Operators
       ADD,
@@ -108,8 +109,13 @@ namespace tempest::sema::graph {
     //   CALL,                         # Function call156
 
     // Member references
-      MEMBER_LIST,                  // List of members - results of a lookup
-      DEFN_REF,                     // Reference to a definition (produced from MEMBER_LIST).
+      VAR_REF,                      // Reference to a variable
+      TYPE_REF,                     // Reference to a type name
+      TYPE_REF_OVERLOAD,            // Reference to an overloaded type name
+      FUNCTION_REF,                 // Reference to a function
+      FUNCTION_REF_OVERLOAD,        // Reference to an overloaded function name
+      // MEMBER_LIST,                  // List of members - results of a lookup
+      // DEFN_REF,                     // Reference to a definition (produced from MEMBER_LIST).
     //   PRIVATE_NAME,                 # Reference to private member (.a)
     //   FLUENT_MEMBER,                # Sticky reference to member (a.{b;c;d})
     //   TEMP_VAR,                     # Reference to an anonymous, temporary variable.
@@ -183,6 +189,9 @@ namespace tempest::sema::graph {
     /** Implemente Locatable. */
     const Location& getLocation() const { return location; }
 
+    // Return the name of the specified kind.
+    static const char* KindName(Kind kind);
+
     /** Return true if this type is an error sentinel. */
     static bool isError(const Expr* e) {
       return e == nullptr || e->kind == Kind::INVALID;
@@ -193,6 +202,9 @@ namespace tempest::sema::graph {
 
     static Expr ERROR;
   };
+
+  /** Function to print a type. */
+  void format(::std::ostream& out, const Expr* e);
 
   // Built-in values
 
@@ -235,7 +247,12 @@ namespace tempest::sema::graph {
   /** Reference to a definition, with optional stem expression. */
   class DefnRef : public Expr {
   public:
-    DefnRef(Location location): Expr(Kind::DEFN_REF, location) {}
+    DefnRef(Expr::Kind kind, Location location): Expr(kind, location) {}
+    DefnRef(Expr::Kind kind, Location location, Member* defn, Expr* stem = nullptr)
+      : Expr(kind, location)
+      , _defn(defn)
+      , _stem(stem)
+    {}
 
     /** Member reference - function, variable, etc. */
     Member* defn() const { return _defn; }
@@ -251,7 +268,11 @@ namespace tempest::sema::graph {
 
     /** Dynamic casting support. */
     static bool classof(const DefnRef* e) { return true; }
-    static bool classof(const Expr* e) { return e->kind == Kind::DEFN_REF; }
+    static bool classof(const Expr* e) {
+      return e->kind == Kind::VAR_REF
+          || e->kind == Kind::FUNCTION_REF
+          || e->kind == Kind::TYPE_REF;
+    }
 
   private:
     Member* _defn = nullptr;
@@ -262,18 +283,9 @@ namespace tempest::sema::graph {
   /** Possibly ambiguous result of a name lookup, waiting for inference to resolve. */
   class MemberListExpr : public Expr {
   public:
-    enum class ListType {
-      INCOMPLETE,     // We haven't actually filled in the members yet.
-      NAMESPACE,      // Package or module
-      FUNCTION,       // List of functions, possibly overloaded
-      TYPE,           // List of types, possibly overloaded
-      VARIABLE,       // A reference to a variable, parameter, or property
-    };
-
-    MemberListExpr(Location location, llvm::StringRef name)
-      : Expr(Kind::MEMBER_LIST, location)
+    MemberListExpr(Expr::Kind kind, Location location, llvm::StringRef name)
+      : Expr(kind, location)
       , _name(name)
-      , _listType(ListType::INCOMPLETE)
     {}
 
     /** The name of the members that were searched for. */
@@ -291,18 +303,15 @@ namespace tempest::sema::graph {
     Type* stemType() const { return _stemType; }
     void setStemType(Type* type) { _stemType = type; }
 
-    /** What kind of members are in this list. */
-    ListType listType() const { return _listType; }
-    void setListType(ListType listType) { _listType = listType; }
-
     /** Dynamic casting support. */
     static bool classof(const DefnRef* e) { return true; }
-    static bool classof(const Expr* e) { return e->kind == Kind::MEMBER_LIST; }
+    static bool classof(const Expr* e) {
+      return e->kind == Kind::TYPE_REF_OVERLOAD || e->kind == Kind::FUNCTION_REF_OVERLOAD;
+    }
 
   private:
     llvm::StringRef _name;
     llvm::ArrayRef<Member*> _members;
-    ListType _listType;
     Expr* _stem = nullptr;
     Type* _stemType = nullptr;
   };

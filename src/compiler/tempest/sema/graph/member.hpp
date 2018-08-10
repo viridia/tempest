@@ -1,7 +1,3 @@
-// ============================================================================
-// sema/graph/member.h: Member defintion.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
 #define TEMPEST_SEMA_GRAPH_MEMBER_HPP 1
 

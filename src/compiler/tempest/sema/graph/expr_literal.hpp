@@ -117,7 +117,10 @@ namespace tempest::sema::graph {
   /** String literal. */
   class StringLiteral : public Expr {
   public:
-    StringLiteral(Location location): Expr(Kind::STRING_LITERAL, location) {}
+    StringLiteral(Location location, llvm::StringRef value)
+      : Expr(Kind::STRING_LITERAL, location)
+      , _value(value)
+    {}
 
     /** The value as an arbitrary-precision integer. */
     llvm::StringRef& value() { return _value; }

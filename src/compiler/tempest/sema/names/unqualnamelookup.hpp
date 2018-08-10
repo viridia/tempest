@@ -49,6 +49,12 @@ namespace tempest::sema::names {
     LookupScope(const LookupScope&) = delete;
     virtual void lookup(const llvm::StringRef& name, NameLookupResultRef& result) = 0;
     virtual void forEach(const NameCallback& nameFn) = 0;
+
+    // The 'subject' is the context which determines whether private variables are visible.
+    // The basic rule is that any scope which defines private variables grants visibility
+    // to any of its inner scopes, but only for those variables defined directly in that scope,
+    // not variables defined in descendant scopes.
+    virtual Member* subject() const = 0;
   };
 
   /** A lookup scope representing an enclosing module definition. */
@@ -58,6 +64,9 @@ namespace tempest::sema::names {
     ModuleScope(LookupScope* prev, Module* module) : LookupScope(prev), module(module) {}
     void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
+    Member* subject() const {
+      return nullptr;
+    }
   };
 
   /** A lookup scope representing an enclosing type definition. */
@@ -67,6 +76,9 @@ namespace tempest::sema::names {
     TypeDefnScope(LookupScope* prev, TypeDefn* typeDefn) : LookupScope(prev), typeDefn(typeDefn) {}
     void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
+    Member* subject() const {
+      return typeDefn;
+    }
   };
 
   /** A lookup scope representing an enclosing local scope. */
@@ -74,6 +86,9 @@ namespace tempest::sema::names {
     LocalScope(LookupScope* prev, TypeDefn* defn) : LookupScope(prev) {}
     void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
+    Member* subject() const {
+      return prev ? prev->subject() : nullptr;
+    }
   };
 }
 

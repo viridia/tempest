@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/expr.hpp"
 #include "tempest/sema/graph/type.hpp"
 #include <iostream>
 #include <llvm/ADT/SmallVector.h>
@@ -68,4 +69,34 @@ private:
 
 inline TypeStrEquals TypeEQ(llvm::StringRef expected) {
   return TypeStrEquals(expected);
+}
+
+/** Match the expr against it's string representation. */
+class ExprStrEquals : public Catch::MatcherBase<const tempest::sema::graph::Expr*> {
+public:
+  ExprStrEquals(llvm::StringRef expected) : _expected(expected) {}
+
+  virtual bool match(const tempest::sema::graph::Expr* e) const override {
+    std::stringstream strm;
+    tempest::sema::graph::format(strm, e);
+    if (strm.str() != _expected) {
+      std::cerr << "Actual value:\n";
+      std::cerr << strm.str() << "\n";
+      return false;
+    }
+    return true;
+  }
+
+  virtual std::string describe() const override {
+    std::ostringstream ss;
+    ss << "Expected to equal:\n" << _expected;
+    return ss.str();
+  }
+
+private:
+  llvm::StringRef _expected;
+};
+
+inline ExprStrEquals ExprEQ(llvm::StringRef expected) {
+  return ExprStrEquals(expected);
 }

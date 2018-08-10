@@ -14,9 +14,12 @@ namespace tempest::sema::names {
   struct ClosestName {
     llvm::StringRef targetName;
     llvm::StringRef bestMatch;
-    unsigned bestDistance = 10;
+    unsigned bestDistance;
 
-    ClosestName(llvm::StringRef targetName) : targetName(targetName) {}
+    ClosestName(llvm::StringRef targetName)
+      : targetName(targetName)
+      , bestDistance(std::min(targetName.size(), size_t(10)))
+    {}
     ClosestName() = delete;
     ClosestName(const ClosestName&) = delete;
 

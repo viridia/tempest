@@ -121,6 +121,7 @@ namespace tempest::sema::graph {
           || m->kind == Kind::TYPE_PARAM
           || m->kind == Kind::CONST_DEF
           || m->kind == Kind::LET_DEF
+          || m->kind == Kind::ENUM_VAL
           || m->kind == Kind::FUNCTION
           || m->kind == Kind::FUNCTION_PARAM;
     }
@@ -582,8 +583,6 @@ namespace tempest::sema::graph {
     int32_t methodIndex() const { return _methodIndex; }
     void setMethodIndex(int32_t index) { _methodIndex = index; }
 
-    // void format(std::ostream& out) const;
-
     /** Dynamic casting support. */
     static bool classof(const FunctionDefn* m) { return true; }
     static bool classof(const Member* m) { return m->kind == Kind::FUNCTION; }
@@ -601,7 +600,6 @@ namespace tempest::sema::graph {
     bool _requirement;
     bool _native;
     int32_t _methodIndex;
-    //linkageName: string = 10;     # If present, indicates the symbolic linkage name of this function
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
   };
 

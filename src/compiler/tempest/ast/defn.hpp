@@ -152,17 +152,16 @@ namespace tempest::ast {
     const Node* returnType;
     NodeList params;
     const Node* body;
-    bool constructor;
-    bool native;
-    const Node* selfType;
+    bool constructor = false;
+    bool native = false;
+    bool getter = false;
+    bool setter = false;
+    const Node* selfType = nullptr;
 
     Function(const Location& location, const StringRef& name)
       : Defn(Kind::FUNCTION, location, name)
       , returnType(nullptr)
       , body(nullptr)
-      , constructor(false)
-      , native(false)
-      , selfType(nullptr)
     {}
   };
 }

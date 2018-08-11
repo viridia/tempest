@@ -106,7 +106,7 @@ namespace tempest::sema::graph {
     //   # TPARAM_DEFAULT,
 
     //   # Evaluations and Invocations
-    //   CALL,                         # Function call156
+      CALL,                         // Function call
 
     // Member references
       VAR_REF,                      // Reference to a variable
@@ -181,6 +181,7 @@ namespace tempest::sema::graph {
 
     const Kind kind;
     const Location location;
+    Type* type = nullptr;
 
     Expr(Kind kind, Location location) : kind(kind), location(location) {}
     Expr() = delete;
@@ -213,16 +214,9 @@ namespace tempest::sema::graph {
   public:
     SuperExpr(Location location): Expr(Kind::SUPER, location) {}
 
-    /** Actual type of 'super' */
-    Type* type() const { return _type; }
-    void setType(Type* type) { _type = type; }
-
     /** Dynamic casting support. */
     static bool classof(const SuperExpr* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::SUPER; }
-
-  private:
-    Type* _type = nullptr;
   };
 
   /** The 'self' keyword. */
@@ -230,16 +224,9 @@ namespace tempest::sema::graph {
   public:
     SelfExpr(Location location): Expr(Kind::SELF, location) {}
 
-    /** Actual type of 'super' */
-    Type* type() const { return _type; }
-    void setType(Type* type) { _type = type; }
-
     /** Dynamic casting support. */
     static bool classof(const SelfExpr* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::SELF; }
-
-  private:
-    Type* _type = nullptr;
   };
 
   // Identifiers
@@ -247,24 +234,18 @@ namespace tempest::sema::graph {
   /** Reference to a definition, with optional stem expression. */
   class DefnRef : public Expr {
   public:
+    /** Member reference - function, variable, etc. */
+    Member* defn = nullptr;
+
+    /** Stem expression */
+    Expr* stem = nullptr;
+
     DefnRef(Expr::Kind kind, Location location): Expr(kind, location) {}
     DefnRef(Expr::Kind kind, Location location, Member* defn, Expr* stem = nullptr)
       : Expr(kind, location)
-      , _defn(defn)
-      , _stem(stem)
+      , defn(defn)
+      , stem(stem)
     {}
-
-    /** Member reference - function, variable, etc. */
-    Member* defn() const { return _defn; }
-    void setMember(Member* m) { _defn = m; }
-
-    /** Stem expression */
-    Expr* stem() const { return _stem; }
-    void setStem(Expr* stem) { _stem = stem; }
-
-    /** Cached type of the stem */
-    Type* stemType() const { return _stemType; }
-    void setStemType(Type* type) { _stemType = type; }
 
     /** Dynamic casting support. */
     static bool classof(const DefnRef* e) { return true; }
@@ -273,47 +254,30 @@ namespace tempest::sema::graph {
           || e->kind == Kind::FUNCTION_REF
           || e->kind == Kind::TYPE_REF;
     }
-
-  private:
-    Member* _defn = nullptr;
-    Expr* _stem = nullptr;
-    Type* _stemType = nullptr;
   };
 
   /** Possibly ambiguous result of a name lookup, waiting for inference to resolve. */
   class MemberListExpr : public Expr {
   public:
-    MemberListExpr(Expr::Kind kind, Location location, llvm::StringRef name)
-      : Expr(kind, location)
-      , _name(name)
-    {}
-
     /** The name of the members that were searched for. */
-    const llvm::StringRef& name() const { return _name; }
+    llvm::StringRef name;
 
     /** List of members. */
-    const llvm::ArrayRef<Member*>& members() const { return _members; }
-    void setMembers(llvm::ArrayRef<Member*> members) { _members = members; }
+    llvm::ArrayRef<Member*> members;
 
     /** Stem expression */
-    Expr* stem() const { return _stem; }
-    void setStem(Expr* stem) { _stem = stem; }
+    Expr* stem = nullptr;
 
-    /** Cached type of the stem */
-    Type* stemType() const { return _stemType; }
-    void setStemType(Type* type) { _stemType = type; }
+    MemberListExpr(Expr::Kind kind, Location location, llvm::StringRef name)
+      : Expr(kind, location)
+      , name(name)
+    {}
 
     /** Dynamic casting support. */
     static bool classof(const DefnRef* e) { return true; }
     static bool classof(const Expr* e) {
       return e->kind == Kind::TYPE_REF_OVERLOAD || e->kind == Kind::FUNCTION_REF_OVERLOAD;
     }
-
-  private:
-    llvm::StringRef _name;
-    llvm::ArrayRef<Member*> _members;
-    Expr* _stem = nullptr;
-    Type* _stemType = nullptr;
   };
 }
 

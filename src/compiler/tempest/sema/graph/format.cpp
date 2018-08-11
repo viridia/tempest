@@ -1,5 +1,7 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_op.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/error/diagnostics.hpp"
@@ -338,7 +340,7 @@ namespace tempest::sema::graph {
       case Expr::Kind::INTEGER_LITERAL: {
         auto intLit = static_cast<const IntegerLiteral*>(e);
         llvm::SmallString<16> str;
-        intLit->value().toString(str, 10, !intLit->isUnsigned());
+        intLit->value().toString(str, 10, !intLit->isUnsigned);
         out << str;
         break;
       }
@@ -357,8 +359,69 @@ namespace tempest::sema::graph {
         break;
       }
 
+      case Expr::Kind::FUNCTION_REF_OVERLOAD: {
+        auto fnRef = static_cast<const MemberListExpr*>(e);
+        out << fnRef->members.front()->name();
+        if (fnRef->members.size() > 1) {
+          out << "×" << fnRef->members.size();
+        }
+        break;
+      }
+
+      case Expr::Kind::ADD: {
+        auto op = static_cast<const InfixOp*>(e);
+        out << "(";
+        visitExpr(op->lhs);
+        out << " + ";
+        visitExpr(op->rhs);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::CALL: {
+        auto op = static_cast<const InvokeOp*>(e);
+        visitExpr(op->function);
+        out << "(";
+        llvm::StringRef sep = "";
+        for (auto arg : op->args) {
+          out << sep;
+          sep = ", ";
+          visitExpr(arg);
+        }
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::BLOCK: {
+        auto blk = static_cast<const BlockStmt*>(e);
+        out << "{";
+        if (pretty) {
+          indent += 2;
+          for (auto st : blk->stmts) {
+            out << '\n' << std::string(indent, ' ');
+            visitExpr(st);
+          }
+          if (blk->result) {
+            out << '\n' << std::string(indent, ' ');
+            visitExpr(blk->result);
+          }
+          indent -= 2;
+          out << '\n' << std::string(indent, ' ') << "}";
+        } else {
+          out << " ";
+          for (auto st : blk->stmts) {
+            visitExpr(st);
+          }
+          if (blk->result) {
+            visitExpr(blk->result);
+          }
+          out << " }";
+        }
+        break;
+      }
+
       default:
-        diag.error() << "Format not implemented: " << int(e->kind);
+        diag.error() << "Format not implemented: " << Expr::KindName(e->kind);
         assert(false && "Format not implemented.");
     }
   }

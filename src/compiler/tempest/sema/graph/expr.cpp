@@ -77,9 +77,7 @@ namespace tempest::sema::graph {
     //   case Kind::TUPLE_MEMBER: return "TUPLE_MEMBER";
     //   # case Kind::TPARAM_DEFAULT: return "TPARAM_DEFAULT";
 
-    //   # Evaluations and Invocations
-    //   case Kind::CALL: return "CALL";
-
+      case Kind::CALL: return "CALL";
       case Kind::VAR_REF: return "VAR_REF";
       case Kind::TYPE_REF: return "TYPE_REF";
       case Kind::TYPE_REF_OVERLOAD: return "TYPE_REF_OVERLOAD";

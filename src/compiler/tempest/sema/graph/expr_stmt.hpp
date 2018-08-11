@@ -13,26 +13,18 @@ namespace tempest::sema::graph {
   /** A statement block. */
   class BlockStmt : public Expr {
   public:
+    ArrayRef<Expr*> stmts;
+    Expr* result;
+
     BlockStmt(Location location, const ArrayRef<Expr*>& stmts, Expr* result = nullptr)
       : Expr(Kind::BLOCK, location)
-      , _stmts(stmts)
-      , _result(result)
+      , stmts(stmts)
+      , result(result)
     {}
-
-    /** The list of stmts to assign to. */
-    const ArrayRef<Expr*>& stmts() const { return _stmts; }
-    void setStmts(const ArrayRef<Expr*>& stmts) { _stmts = stmts; }
-
-    /** The result expression of the block. */
-    Expr* result() const { return _result; }
-    void setResult(Expr* result) { _result = result; }
 
     /** Dynamic casting support. */
     static bool classof(const BlockStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::BLOCK; }
-  private:
-    ArrayRef<Expr*> _stmts;
-    Expr* _result;
   };
 
   /** An if-statement. */
@@ -47,44 +39,33 @@ namespace tempest::sema::graph {
     /** The 'else' block. */
     Expr* elseBlock;
 
-    /** The resulting type of this if statement. */
-    Type* type;
-
-    IfStmt(Location location, Expr* test, Expr* thenBlock, Expr* elseBlock, Type* type = nullptr)
+    IfStmt(Location location, Expr* test, Expr* thenBlock, Expr* elseBlock)
       : Expr(Kind::IF, location)
       , test(test)
       , thenBlock(thenBlock)
       , elseBlock(elseBlock)
-      , type(type)
     {}
 
     /** Dynamic casting support. */
     static bool classof(const IfStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::IF; }
-  private:
   };
 
   /** A while-statement. */
   class WhileStmt : public Expr {
   public:
+    Expr* test;
+    Expr* body;
+
     WhileStmt(Location location, Expr* test, Expr* body)
       : Expr(Kind::WHILE, location)
-      , _test(test)
-      , _body(body)
+      , test(test)
+      , body(body)
     {}
-
-    /** The test expression. */
-    Expr* test() const { return _test; }
-
-    /** The 'then' block. */
-    Expr* body() const { return _body; }
 
     /** Dynamic casting support. */
     static bool classof(const WhileStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::WHILE; }
-  private:
-    Expr* _test;
-    Expr* _body;
   };
 
   #if 0
@@ -138,6 +119,12 @@ namespace tempest::sema::graph {
   /** A for-in-statement. */
   class ForInStmt : public Expr {
   public:
+    ArrayRef<ValueDefn*> vars;
+    Expr* iter;
+    Expr* body;
+    ValueDefn* iterVar;
+    ValueDefn* nextVar;
+
     ForInStmt(
         Location location,
         Expr* iter = nullptr,
@@ -145,199 +132,119 @@ namespace tempest::sema::graph {
         ValueDefn* iterVar = nullptr,
         ValueDefn* nextVar = nullptr)
       : Expr(Kind::FOR_IN, location)
-      , _iter(iter)
-      , _body(body)
-      , _iterVar(iterVar)
-      , _nextVar(nullptr)
+      , iter(iter)
+      , body(body)
+      , iterVar(iterVar)
+      , nextVar(nullptr)
     {}
-
-    /** The list of defined variables. */
-    const ArrayRef<ValueDefn*>& vars() const { return _vars; }
-    void setVars(const ArrayRef<ValueDefn*>& vars) { _vars = vars; }
-
-    /** The init expression. */
-    Expr* iter() const { return _iter; }
-    void setIter(Expr* e) { _iter = e; }
-
-    /** The loop body. */
-    Expr* body() const { return _body; }
-    void setBody(Expr* e) { _body = e; }
-
-    /** The variable that contains the iteration expression. */
-    ValueDefn* iterVar() const { return _iterVar; }
-    void setIterVar(ValueDefn* vd) { _iterVar = vd; }
-
-    /** The variable that contains the value of iterator.next(). This is used to determine
-        if we've reached the end of the sequence before assigning the values to the individual
-        loop vars. */
-    ValueDefn* nextVar() const { return _nextVar; }
-    void setNextVar(ValueDefn* vd) { _nextVar = vd; }
 
     /** Dynamic casting support. */
     static bool classof(const ForInStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::FOR_IN; }
-  private:
-    ArrayRef<ValueDefn*> _vars;
-    Expr* _iter;
-    Expr* _body;
-    ValueDefn* _iterVar;
-    ValueDefn* _nextVar;
   };
 
   /** A switch case statement. */
   class CaseStmt : public Expr {
   public:
+    ArrayRef<Expr*> values;
+    ArrayRef<Expr*> rangeValues;
+    Expr* body;
+
     CaseStmt(Location location)
       : Expr(Kind::SWITCH_CASE, location)
-      , _body(nullptr)
+      , body(nullptr)
     {}
-
-    /** The set of constant case values to compare to the test expression. */
-    const ArrayRef<Expr*>& values() const { return _values; }
-    void setValues(const ArrayRef<Expr*>& values) { _values = values; }
-
-    /** The set of constant case ranges to compare to the test expression. */
-    const ArrayRef<Expr*>& rangeValues() const { return _rangeValues; }
-    void setRangeValues(const ArrayRef<Expr*>& rangeValues) { _rangeValues = rangeValues; }
-
-    /** The body of the case statement. */
-    Expr* body() const { return _body; }
-    void setBody(Expr* body) { _body = body; }
 
     /** Dynamic casting support. */
     static bool classof(const CaseStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::SWITCH_CASE; }
-  private:
-    ArrayRef<Expr*> _values;
-    ArrayRef<Expr*> _rangeValues;
-    Expr* _body;
   };
 
   /** A switch statement. */
   class SwitchStmt : public Expr {
   public:
+    Expr* testExpr;
+    ArrayRef<CaseStmt*> cases;
+    Expr* elseBody;
+
     SwitchStmt(Location location)
       : Expr(Kind::SWITCH, location)
-      , _testExpr(nullptr)
-      , _elseBody(nullptr)
+      , testExpr(nullptr)
+      , elseBody(nullptr)
     {}
-
-    /** The test expression. */
-    Expr* testExpr() const { return _testExpr; }
-    void setTestExpr(Expr* e) { _testExpr = e; }
-
-    /** The list of cases. */
-    const ArrayRef<CaseStmt*>& cases() const { return _cases; }
-    void setCases(const ArrayRef<CaseStmt*>& cases) { _cases = cases; }
-
-    /** The loop body. */
-    Expr* elseBody() const { return _elseBody; }
-    void setElseBody(Expr* e) { _elseBody = e; }
 
     /** Dynamic casting support. */
     static bool classof(const SwitchStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::SWITCH; }
-  private:
-    Expr* _testExpr;
-    ArrayRef<CaseStmt*> _cases;
-    Expr* _elseBody;
   };
 
   /** A match pattern. */
   class Pattern : public Expr {
   public:
+    ValueDefn* var;
+    Expr* body;
+
     Pattern(Location location)
       : Expr(Kind::MATCH_PATTERN, location)
-      , _var(nullptr)
-      , _body(nullptr)
+      , var(nullptr)
+      , body(nullptr)
     {}
-
-    /** The variable that the expression is assigned to. */
-    ValueDefn* var() const { return _var; }
-    void setVar(ValueDefn* var) { _var = var; }
-
-    /** The body of the case statement. */
-    Expr* body() const { return _body; }
-    void setBody(Expr* body) { _body = body; }
 
     /** Dynamic casting support. */
     static bool classof(const Pattern* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::MATCH_PATTERN; }
-  private:
-    ValueDefn* _var;
-    Expr* _body;
   };
 
   /** A match statement. */
   class MatchStmt : public Expr {
   public:
+    Expr* testExpr;
+    ArrayRef<Pattern*> patterns;
+    Expr* elseBody;
+
     MatchStmt(Location location)
       : Expr(Kind::MATCH, location)
-      , _testExpr(nullptr)
-      , _elseBody(nullptr)
+      , testExpr(nullptr)
+      , elseBody(nullptr)
     {}
-
-    /** The test expression. */
-    Expr* testExpr() const { return _testExpr; }
-    void setTestExpr(Expr* e) { _testExpr = e; }
-
-    /** The list of cases. */
-    const ArrayRef<Pattern*>& patterns() const { return _patterns; }
-    void setPatterns(const ArrayRef<Pattern*>& patterns) { _patterns = patterns; }
-
-    /** The loop body. */
-    Expr* elseBody() const { return _elseBody; }
-    void setElseBody(Expr* e) { _elseBody = e; }
 
     /** Dynamic casting support. */
     static bool classof(const MatchStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::MATCH; }
-  private:
-    Expr* _testExpr;
-  //   Type* _testType;
-    ArrayRef<Pattern*> _patterns;
-    Expr* _elseBody;
   };
 
   /** A return statemtn. */
   class ReturnStmt : public Expr {
   public:
+    Expr* expr;
+
     ReturnStmt(Location location, Expr* expr = nullptr)
       : Expr(Kind::RETURN, location)
-      , _expr(expr)
+      , expr(expr)
     {}
-    ReturnStmt(Expr* expr) : Expr(Kind::RETURN, Location()), _expr(expr) {}
-
-    /** The expression to return. */
-    Expr* expr() const { return _expr; }
+    ReturnStmt(Expr* expr) : Expr(Kind::RETURN, Location()), expr(expr) {}
 
     /** Dynamic casting support. */
     static bool classof(const ReturnStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::RETURN; }
-  private:
-    Expr* _expr;
   };
 
   /** A throw statemtn. */
   class ThrowStmt : public Expr {
   public:
+    Expr* expr;
+
     ThrowStmt(Location location, Expr* expr = nullptr)
       : Expr(Kind::THROW, location)
-      , _expr(expr)
+      , expr(expr)
     {}
-
-    /** The expression to return. */
-    Expr* expr() const { return _expr; }
 
     /** Dynamic casting support. */
     static bool classof(const ThrowStmt* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::THROW; }
-  private:
-    Expr* _expr;
   };
 
   #if 0
-
   struct Try(Expr) = ExprType.TRY {
     struct Catch {
       location: spark.location.SourceLocation = 1;

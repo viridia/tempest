@@ -6,6 +6,7 @@
 #include "tempest/sema/graph/type.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
+#include "llvm/Support/Casting.h"
 
 namespace tempest::sema::eval {
   using namespace tempest::sema::graph;
@@ -21,8 +22,8 @@ namespace tempest::sema::eval {
         auto intLit = static_cast<const IntegerLiteral*>(e);
         result.intResult = intLit->value();
         result.type = EvalResult::INT;
-        result.hasSize = intLit->type()->bits() > 0;
-        result.hasSign = !intLit->type()->isUnsigned();
+        result.hasSize = llvm::cast<IntegerType>(intLit->type)->bits() > 0;
+        result.hasSign = !llvm::cast<IntegerType>(intLit->type)->isUnsigned();
         return true;
       }
 
@@ -261,18 +262,18 @@ namespace tempest::sema::eval {
 
       case Expr::Kind::VAR_REF: {
         auto var = static_cast<const DefnRef*>(e);
-        if (var->defn()->kind == Member::Kind::ENUM_VAL) {
-          auto varDef = static_cast<const ValueDefn*>(var->defn());
+        if (var->defn->kind == Member::Kind::ENUM_VAL) {
+          auto varDef = static_cast<const ValueDefn*>(var->defn);
           if (varDef->init()) {
             // TODO: Ensure there are no cycles.
             return evalConstExpr(varDef->init(), result);
           } else {
-            diag.debug(e->location) << "Enumeration value '" << var->defn()->name() <<
+            diag.debug(e->location) << "Enumeration value '" << var->defn->name() <<
                 "' has not yet been assigned a value.";
 
           }
         } else {
-          diag.debug(e->location) << "Reference to variable '" << var->defn()->name() <<
+          diag.debug(e->location) << "Reference to variable '" << var->defn->name() <<
               "' is not a compile-time constant.";
           return false;
         }

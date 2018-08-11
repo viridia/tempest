@@ -99,6 +99,32 @@ namespace tempest::sema::graph {
       return e->kind >= Kind::RELATIONAL_START && e->kind <= Kind::RELATIONAL_END;
     }
   };
+
+  /** Operator with a variable number of arguments. */
+  class InvokeOp : public Expr {
+  public:
+    Expr* function;
+    llvm::ArrayRef<Expr*> args;
+    Type* type;
+
+    InvokeOp(
+          Kind kind,
+          Location location,
+          Expr* function,
+          llvm::ArrayRef<Expr*> args,
+          Type* type = nullptr)
+      : Expr(kind, location)
+      , function(function)
+      , args(args)
+      , type(type)
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const InfixOp* e) { return true; }
+    static bool classof(const Expr* e) {
+      return e->kind == Kind::CALL;
+    }
+  };
 }
 
 #endif

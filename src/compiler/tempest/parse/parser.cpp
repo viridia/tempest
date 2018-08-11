@@ -225,6 +225,11 @@ namespace tempest::parse {
   }
 
   Defn* Parser::declaration(DeclarationScope scope) {
+    NodeListBuilder attributes(_alloc);
+    while (auto attr = attribute()) {
+      attributes.append(attr);
+    }
+
     Defn* result = nullptr;
     bool isAbstract = false;
     bool isFinal = false;
@@ -285,6 +290,8 @@ namespace tempest::parse {
       case TOKEN_FN:
       case TOKEN_UNDEF:
       case TOKEN_OVERRIDE:
+      case TOKEN_GET:
+      case TOKEN_SET:
         result = methodDef();
         break;
       default:
@@ -296,6 +303,7 @@ namespace tempest::parse {
     result->setAbstract(isAbstract);
     result->setFinal(isFinal);
     result->setStatic(isStatic);
+    result->attributes = attributes.build();
     return result;
   }
 
@@ -557,12 +565,24 @@ namespace tempest::parse {
   Defn* Parser::methodDef() {
     bool isUndef = false;
     bool isOverride = false;
+    bool isGetter = false;
+    bool isSetter = false;
     if (match(TOKEN_UNDEF)) {
       isUndef = true;
     } else if (match(TOKEN_OVERRIDE)) {
       isOverride = true;
-    } else if (!match(TOKEN_FN)) {
-      assert(false && "Invalid function token.");
+    }
+
+    if (match(TOKEN_GET)) {
+      isGetter = true;
+    } else if (match(TOKEN_SET)) {
+      isSetter = true;
+    }
+
+    if (!isUndef && !isOverride && !isGetter && !isSetter) {
+      if (!match(TOKEN_FN)) {
+        assert(false && "Invalid function token.");
+      }
     }
 
     // Method name (may be empty).
@@ -583,7 +603,7 @@ namespace tempest::parse {
         skipOverDefn();
         return nullptr;
       }
-    } else if (name.empty()) {
+    } else if (name.empty() && !isGetter) {
       expected("function parameter list");
       skipOverDefn();
       return nullptr;
@@ -613,6 +633,8 @@ namespace tempest::parse {
       fn->params = params.build();
       fn->setOverride(isOverride);
       fn->setUndef(isUndef);
+      fn->getter = isGetter;
+      fn->setter = isSetter;
       fn->returnType = returnType;
 
       // Type constraints
@@ -628,82 +650,6 @@ namespace tempest::parse {
         fn->body = body;
       }
       return fn;
-    // } else if (match(TOKEN_COLON)) {
-    //   // Property
-    //   auto propType = typeExpression();
-    //   if (propType == nullptr) {
-    //     skipOverDefn();
-    //     return nullptr;
-    //   }
-
-    //   ast::Property* prop = new (_alloc) PropertyDefn(loc, name);
-    //   prop->setType(propType);
-    //   prop->setTypeParams(templateParams.build());
-    //   prop->setParams(params.build());
-    //   prop->setOverride(isOverride);
-    //   prop->setUndef(isUndef);
-
-    //   // Type constraints
-    //   NodeListBuilder requires(_alloc);
-    //   requirements(requires);
-    //   prop->setRequires(requires.build());
-
-    //   // Accessors
-    //   if (match(TOKEN_SEMI)) {
-    //     return prop;
-    //   }
-    //   if (!match(TOKEN_LBRACE)) {
-    //     expected("{");
-    //     skipOverDefn();
-    //     return nullptr;
-    //   }
-
-    //   for (;;) {
-    //     if (match(TOKEN_RBRACE)) {
-    //       break;
-    //     }
-
-    //     if (_token == TOKEN_ID) {
-    //       loc = location();
-    //       name = copyOf(tokenValue());
-    //       next();
-
-    //       NodeListBuilder accessorParams(_alloc);
-    //       if (match(TOKEN_LPAREN)) {
-    //         if (!paramList(accessorParams)) {
-    //           skipOverDefn();
-    //           continue;
-    //         }
-    //       }
-
-    //       ast::Function* accessor = new (_alloc) ast::Function(loc, name);
-    //       accessor->setParams(accessorParams.build());
-
-    //       if (name == "get") {
-    //         if (prop->getter() != nullptr) {
-    //           diag.error(loc) << "Property 'get' method already defined.";
-    //         }
-    //         prop->setGetter(accessor);
-    //       } else if (name == "set") {
-    //         if (prop->setter() != nullptr) {
-    //           diag.error(loc) << "Property 'get' method already defined.";
-    //         }
-    //         prop->setSetter(accessor);
-    //       } else {
-    //         diag.error(loc) << "Invalid accessor name: " << name;
-    //       }
-
-    //       auto body = methodBody();
-    //       if (body == &Node::ERROR) {
-    //         skipOverDefn();
-    //         continue;
-    //       } else if (body != nullptr) {
-    //         accessor->setBody(body);
-    //       }
-    //     }
-    //   }
-
-    //   return prop;
     } else {
       diag.error(location()) << "return type or function body expected.";
       skipOverDefn();

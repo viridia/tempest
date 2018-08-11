@@ -31,6 +31,7 @@
 
 namespace tempest::sema::names {
   using tempest::sema::graph::TypeDefn;
+  using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Member;
   using tempest::sema::graph::Module;
   using tempest::sema::graph::Type;
@@ -78,6 +79,21 @@ namespace tempest::sema::names {
     void forEach(const NameCallback& nameFn);
     Member* subject() const {
       return typeDefn;
+    }
+  };
+
+  /** A lookup scope that includes the function parameters. */
+  struct FunctionScope : public LookupScope {
+    FunctionDefn* funcDefn;
+
+    FunctionScope(LookupScope* prev, FunctionDefn* funcDefn)
+      : LookupScope(prev)
+      , funcDefn(funcDefn)
+    {}
+    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    void forEach(const NameCallback& nameFn);
+    Member* subject() const {
+      return funcDefn;
     }
   };
 

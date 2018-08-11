@@ -160,6 +160,10 @@ namespace tempest::sema::pass {
         createParamList(ast->params, f, f->params(), f->paramScope());
         createTypeParamList(ast->typeParams, f, f->typeParamScope());
         f->setAst(ast);
+        f->setConstructor(ast->constructor);
+        f->setNative(ast->native);
+        f->setGetter(ast->getter);
+        f->setSetter(ast->setter);
         return f;
       }
 

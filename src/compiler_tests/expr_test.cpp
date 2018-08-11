@@ -9,6 +9,6 @@ TEST_CASE("Exprs", "[sema]") {
   SECTION("Block") {
 
     BlockStmt emptyBlock(Location(), {});
-    REQUIRE(emptyBlock.stmts().size() == 0);
+    REQUIRE(emptyBlock.stmts.size() == 0);
   }
 }

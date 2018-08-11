@@ -97,7 +97,6 @@ namespace tempest::sema::pass {
     resolveImports(mod);
     ModuleScope scope(nullptr, mod);
     visitList(&scope, mod->members());
-    // createMembers(modAst->members, mod, mod->members(), mod->memberScope());
   }
 
   void NameResolutionPass::resolveImports(Module* mod) {
@@ -187,8 +186,7 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::visitTypeDefn(LookupScope* scope, TypeDefn* td) {
-    // self.processAttributes(defn)
-    // savedSubject = self.nameLookup.setSubject(typeDefn)
+    visitAttributes(scope, td, td->ast());
     // self.nameLookup.scopeStack.push(typeDefn.getTypeParamScope())
     // resolverequirements.ResolveRequirements(
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, typeDefn).run()
@@ -198,20 +196,71 @@ namespace tempest::sema::pass {
     } else if (td->type()->kind == Type::Kind::ENUM) {
       visitEnumDefn(scope, td);
     } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
-      resolveBaseTypes(scope, td);
-      TypeDefnScope tdScope(scope, td);
-      visitList(&tdScope, td->members());
+      visitCompositeDefn(scope, td);
     }
     // else:
     // self.visitDefn(typeDefn) # Visits members and attrs
     // self.nameLookup.setSubject(savedSubject)
   }
 
-  void NameResolutionPass::visitEnumDefn(LookupScope* scope, TypeDefn* td) {
+  void NameResolutionPass::visitCompositeDefn(LookupScope* scope, TypeDefn* td) {
+    if (td->isFinal()) {
+      if (td->isAbstract()) {
+        diag.error(td) << "Type definition cannot be both abtract and final.";
+      } else if (td->type()->kind == Type::Kind::INTERFACE) {
+        diag.error(td) << "Interfaces cannot be final.";
+      } else if (td->type()->kind == Type::Kind::TRAIT) {
+        diag.error(td) << "Traits cannot be final.";
+      } else if (td->type()->kind == Type::Kind::EXTENSION) {
+        diag.error(td) << "Extensions cannot be declared final.";
+      }
+    } else if (td->isAbstract()) {
+      if (td->type()->kind != Type::Kind::CLASS) {
+        diag.error(td) << "Only classes can be declared abstract.";
+      }
+    }
+
+    if (td->isUndef()) {
+      diag.error(td) << "Type definition cannot be undefined.";
+    } else if (td->isOverride()) {
+      diag.error(td) << "Type definition cannot be declared as override.";
+    }
+
+    if (td->isStatic()) {
+      auto subject = scope->subject();
+      if (!subject) {
+        diag.error(td) << "Only inner types may be declared as 'static'.";
+      } else if (subject->kind == Member::Kind::TYPE
+          && cast<TypeDefn>(subject)->type()->kind == Type::Kind::STRUCT) {
+        diag.error(td) << "Types defined within a struct type are always static.";
+      }
+    }
+
     resolveBaseTypes(scope, td);
+    TypeDefnScope tdScope(scope, td);
+    visitList(&tdScope, td->members());
+  }
+
+  void NameResolutionPass::visitEnumDefn(LookupScope* scope, TypeDefn* td) {
+    visitAttributes(scope, td, td->ast());
+    resolveBaseTypes(scope, td);
+
+    if (td->isStatic()) {
+      diag.error(td) << "Enumeration types cannot be declared as 'static'.";
+    } else if (td->isAbstract()) {
+      diag.error(td) << "Enumeration types cannot be declared as abstract.";
+    } else if (td->isUndef()) {
+      diag.error(td) << "Enumeration types cannot be undefined.";
+    } else if (td->isOverride()) {
+      diag.error(td) << "Enumeration types cannot be overridden.";
+    } else if (td->isFinal()) {
+      diag.error(td) << "Enumeration types are alwaus final.";
+    }
+
     auto base = cast<IntegerType>(cast<TypeDefn>(td->extends()[0])->type());
     APInt index(base->bits(), 0, !base->isUnsigned());
     TypeDefnScope tdScope(scope, td);
+
     for (auto m : td->members()) {
       assert(m->kind == Defn::Kind::ENUM_VAL);
       auto ev = static_cast<ValueDefn*>(m);
@@ -251,11 +300,75 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::visitFunctionDefn(LookupScope* scope, FunctionDefn* fd) {
+    auto enclosingType = dyn_cast_or_null<TypeDefn>(fd->definedIn());
+    auto enclosingKind = enclosingType ? enclosingType->type()->kind : Type::Kind::VOID;
+    if (fd->isNative()) {
+      if (fd->isAbstract()) {
+        diag.error(fd) << "Native functions cannot be abstract.";
+      } else if (fd->isUndef()) {
+        diag.error(fd) << "Native functions cannot be undefined.";
+      } else if (fd->ast()->body) {
+        diag.error(fd) << "Native functions cannot have a function body.";
+      }
+    } else if (fd->isStatic()) {
+      if (fd->isAbstract()) {
+        diag.error(fd) << "Static functions cannot be abstract.";
+      } else if (fd->isUndef()) {
+        diag.error(fd) << "Static functions cannot be undefined.";
+      } else if (!fd->ast()->body) {
+        diag.error(fd) << "Static function must have a function body.";
+      } else if (enclosingKind == Type::Kind::INTERFACE) {
+        diag.error(fd) << "Static function may not be defined within an interface.";
+      }
+    } else if (fd->isAbstract()) {
+      if (fd->ast()->body) {
+        diag.error(fd) << "Abstract function cannot have a function body.";
+      } else if (fd->isUndef()) {
+        diag.error(fd) << "Abstract function cannot be undefined.";
+      } else if (!enclosingType || !enclosingType->isAbstract()) {
+        diag.error(fd) << "Abstract function must be defined within an abstract class.";
+      } else if (enclosingKind == Type::Kind::INTERFACE) {
+        diag.error(fd) << "A function defined within an interface is implicitly abstract.";
+      }
+    } else if (fd->ast()->body) {
+      if (fd->isUndef()) {
+        diag.error(fd) << "Undefined function cannot have a function body.";
+      } else if (enclosingType && enclosingType->type()->kind == Type::Kind::INTERFACE) {
+        diag.error(fd) << "A function within an interface cannot have a function body.";
+      }
+    } else if (enclosingKind != Type::Kind::TRAIT) {
+      diag.error(fd) << "Non-abstract function must have a function body.";
+    }
+
+    if (fd->isConstructor()) {
+      if (!enclosingType) {
+        diag.error(fd) << "Constructor function must be a member of a type.";
+      } else if (fd->isSetter() || fd->isGetter()) {
+        diag.error(fd) << "Constructor function can not also be a getter / setter.";
+      }
+    } else if (fd->isGetter() && !fd->ast()->returnType) {
+      diag.error(fd) << "Getter method must declare a return type.";
+    } else if (fd->isSetter()) {
+      if (fd->ast()->returnType) {
+        diag.error(fd) << "Setter method may not declare a return type.";
+      } else if (fd->params().empty()) {
+        diag.error(fd) << "Setter method must declare at least one method parameter.";
+      }
+    }
+
+    visitAttributes(scope, fd, fd->ast());
     // savedSubject = self.nameLookup.setSubject(func)
     // if func.hasTypeParamScope():
     //   self.nameLookup.scopeStack.push(func.getTypeParamScope())
     // resolverequirements.ResolveRequirements(
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, func).run()
+
+    Type* returnType = nullptr;
+    if (fd->ast()->returnType) {
+      returnType = resolveType(scope, fd->ast()->returnType);
+    } else if (!fd->ast()->body) {
+      diag.error(fd) << "No function body, function return type cannot be inferred.";
+    }
 
     // if func.astReturnType:
     //   returnType = self.resolveTypes.visit(func.astReturnType)
@@ -263,11 +376,20 @@ namespace tempest::sema::pass {
     // else:
     //   func.getMutableType().setReturnType(primitivetypes.VOID)
 
-    // self.processParamList(func, func.getParams())
-    // if func.astBody:
-    //   self.nameLookup.scopeStack.push(func.getParamScope())
-    //   func.setBody(self.resolveExprs.visit(func.astBody))
-    //   self.nameLookup.scopeStack.pop()
+    for (auto param : fd->params()) {
+      visitAttributes(scope, param, param->ast());
+      if (param->ast()->type) {
+        param->setType(resolveType(scope, param->ast()->type));
+      }
+      if (param->ast()->init) {
+        param->setInit(visitExpr(scope, param->ast()->init));
+      }
+    }
+
+    if (fd->ast()->body) {
+      FunctionScope fnScope(scope, fd);
+      fd->setBody(visitExpr(&fnScope, fd->ast()->body));
+    }
 
     // self.visitDefn(func) # Visits members and attrs
     // if func.hasTypeParamScope():
@@ -304,6 +426,7 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::visitValueDefn(LookupScope* scope, ValueDefn* vd) {
+    visitAttributes(scope, vd, vd->ast());
     if (vd->ast()->type) {
       vd->setType(resolveType(scope, vd->ast()->type));
     }
@@ -321,6 +444,15 @@ namespace tempest::sema::pass {
     //       vdef.setInit(init)
     // self.visitDefn(vdef) # Visits members and attrs
     // return vdef
+  }
+
+  void NameResolutionPass::visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast) {
+    for (auto attr : ast->attributes) {
+      auto expr = visitExpr(scope, attr);
+      if (!Expr::isError(expr)) {
+        defn->attributes().push_back(expr);
+      }
+    }
   }
 
   Expr* NameResolutionPass::visitExpr(LookupScope* scope, const ast::Node* node) {
@@ -587,7 +719,7 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::ASSIGN: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
-        auto rhs = visitExpr(scope, op->operands[0]);
+        auto rhs = visitExpr(scope, op->operands[1]);
         return new (*_alloc) InfixOp(Expr::Kind::ASSIGN, lhs->location | rhs->location, lhs, rhs);
       }
 
@@ -615,12 +747,24 @@ namespace tempest::sema::pass {
       // RETURN,
       // THROW,
 
-      // /* N-ary operators */
-      // TUPLE_TYPE,
-      // UNION_TYPE,
-      // ARRAY_TYPE,
-      // SPECIALIZE,
       // CALL,
+      case ast::Node::Kind::CALL: {
+        auto op = static_cast<const ast::Oper*>(node);
+        llvm::SmallVector<Expr*, 8> args;
+        auto fn = visitExpr(scope, op->op);
+        for (auto arg : op->operands) {
+          auto argExpr = visitExpr(scope, arg);
+          if (!Expr::isError(argExpr)) {
+            args.push_back(argExpr);
+          }
+        }
+        if (Expr::isError(fn)) {
+          return fn;
+        }
+
+        return new (*_alloc) InvokeOp(Expr::Kind::CALL, op->location, fn, copyOf(args));
+      }
+
       // FLUENT_MEMBER,
       // ARRAY_LITERAL,
       // LIST_LITERAL,
@@ -629,8 +773,25 @@ namespace tempest::sema::pass {
       // CALL_REQUIRED_STATIC,
       // LIST,       // List of opions for switch cases, catch blocks, etc.
 
+      case ast::Node::Kind::BLOCK: {
+        auto block = static_cast<const ast::Block*>(node);
+        llvm::SmallVector<Expr*, 8> stmts;
+        for (auto st : block->stmts) {
+          auto stExpr = visitExpr(scope, st);
+          if (stExpr) {
+            stmts.push_back(stExpr);
+          }
+        }
+
+        Expr* result = nullptr;
+        if (block->result) {
+          result = visitExpr(scope, block->result);
+        }
+
+        return new (*_alloc) BlockStmt(node->location, copyOf(stmts), result);
+      }
+
       // /* Misc statements */
-      // BLOCK,      // A statement block
       // LOCAL_LET,  // A single variable definition (ident, type, init)
       // LOCAL_CONST,// A single variable definition (ident, type, init)
       // ELSE,       // default for match or switch
@@ -678,9 +839,6 @@ namespace tempest::sema::pass {
       // FUNCTION,
       // DEFN_END,
 
-      // MODULE,
-      // IMPORT,
-      // EXPORT,
       default:
         diag.error(node) << "Invalid expression type: " << ast::Node::KindName(node->kind);
         assert(false && "Invalid node kind");
@@ -914,15 +1072,15 @@ namespace tempest::sema::pass {
         } else {
           auto tref = new (*_alloc) MemberListExpr(
               Expr::Kind::TYPE_REF_OVERLOAD, loc, result[0]->name());
-          tref->setStem(stem);
-          tref->setMembers(copyOf(types));
+          tref->stem = stem;
+          tref->members = copyOf(types);
           return tref;
         }
       } else {
         auto mref = new (*_alloc) MemberListExpr(
             Expr::Kind::FUNCTION_REF_OVERLOAD, loc, result[0]->name());
-        mref->setStem(stem);
-        mref->setMembers(copyOf(types));
+        mref->stem = stem;
+        mref->members = copyOf(functions);
         return mref;
       }
     }

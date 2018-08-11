@@ -42,54 +42,9 @@ namespace tempest::sema::graph {
     }
   }
 
-  // void TypeDefn::format(std::ostream& out) const {
-  //   formatModifiers(out);
-  //   switch (type()->kind) {
-  //     case Type::Kind::CLASS: out << "class "; break;
-  //     case Type::Kind::TRAIT: out << "trait "; break;
-  //     case Type::Kind::STRUCT: out << "struct "; break;
-  //     case Type::Kind::INTERFACE: out << "interface "; break;
-  //     case Type::Kind::ENUM: out << "enum "; break;
-  //     default:
-  //       assert(false);
-  //   }
-  //   out << name();
-  // }
-
-  // void TypeParameter::format(std::ostream& out) const {
-  //   formatModifiers(out);
-  //   out << "tparam " << name();
-  // }
-
-  // void ValueDefn::format(std::ostream& out) const {
-  //   formatModifiers(out);
-  //   switch (kind) {
-  //     case Kind::CONST_DEF: out << "const "; break;
-  //     case Kind::LET_DEF: out << "let "; break;
-  //     default:
-  //       assert(false);
-  //   }
-  //   out << name();
-  // }
-
-  // void EnumValueDefn::format(std::ostream& out) const {
-  //   formatModifiers(out);
-  //   out << "enum value " << name();
-  // }
-
-  // void ParameterDefn::format(std::ostream& out) const {
-  //   formatModifiers(out);
-  //   out << "param " << name();
-  // }
-
   FunctionDefn::~FunctionDefn() {
     // for (ParameterDefn* param : _params) {
     //   delete param;
     // }
   }
-
-  // void FunctionDefn::format(std::ostream& out) const {
-  //   formatModifiers(out);
-  //   out << "fn " << name();
-  // }
 }

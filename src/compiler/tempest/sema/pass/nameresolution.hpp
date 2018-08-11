@@ -53,6 +53,7 @@ namespace tempest::sema::pass {
 
     void visitList(LookupScope* scope, DefnArray members);
     void visitTypeDefn(LookupScope* scope, TypeDefn* td);
+    void visitCompositeDefn(LookupScope* scope, TypeDefn* td);
     void visitEnumDefn(LookupScope* scope, TypeDefn* td);
     void visitFunctionDefn(LookupScope* scope, FunctionDefn* fd);
     void visitValueDefn(LookupScope* scope, ValueDefn* vd);
@@ -80,6 +81,7 @@ namespace tempest::sema::pass {
     size_t _importSourcesProcessed = 0;
     llvm::BumpPtrAllocator* _alloc = nullptr;
 
+    void visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast);
     Expr* createNameRef(
         const source::Location& loc,
         const NameLookupResultRef& result,

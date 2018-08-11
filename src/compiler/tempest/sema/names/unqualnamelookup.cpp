@@ -70,6 +70,25 @@ namespace tempest::sema::names {
     }
   }
 
+  void FunctionScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+    auto resultSize = result.size();
+    funcDefn->paramScope()->lookupName(name, result);
+    if (result.size() > resultSize) {
+      // If we found a member with that name, return
+      return;
+    }
+    if (result.empty() && prev) {
+      prev->lookup(name, result);
+    }
+  }
+
+  void FunctionScope::forEach(const NameCallback& nameFn) {
+    funcDefn->paramScope()->forAllNames(nameFn);
+    if (prev) {
+      prev->forEach(nameFn);
+    }
+  }
+
   void LocalScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
   }
 

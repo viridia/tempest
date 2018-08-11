@@ -170,8 +170,8 @@ namespace tempest::sema::graph {
       case Expr::Kind::INTEGER_LITERAL: {
         auto lhsInt = static_cast<const IntegerLiteral*>(lhs);
         auto rhsInt = static_cast<const IntegerLiteral*>(rhs);
-        if (lhsInt->type() != rhsInt->type()) {
-          return operator()(lhsInt->type(), rhsInt->type());
+        if (lhsInt->type != rhsInt->type) {
+          return operator()(lhsInt->type, rhsInt->type);
         }
         size_t maxWidth = std::max(lhsInt->value().getBitWidth(), rhsInt->value().getBitWidth());
         llvm::APInt lhsValue(lhsInt->value().sext(maxWidth));

@@ -96,6 +96,14 @@ namespace tempest::sema::graph {
     bool isAbstract() const { return _abstract; }
     void setAbstract(bool value) { _abstract = value; }
 
+    /** Whether this was declared as a getter. */
+    bool isGetter() const { return _getter; }
+    void setGetter(bool value) { _getter = value; }
+
+    /** Whether this was declared as a setter. */
+    bool isSetter() const { return _setter; }
+    void setSetter(bool value) { _setter = value; }
+
     /** The list of attributes on this definition. */
     std::vector<Expr*>& attributes() { return _attributes; }
     const std::vector<Expr*>& attributes() const { return _attributes; }
@@ -138,6 +146,8 @@ namespace tempest::sema::graph {
     bool _abstract;
     bool _undef;                  // Undefined method
     bool _static;                 // Was declared static
+    bool _getter;                 // Declared as 'get'
+    bool _setter;                 // Declared as 'set'
 
     std::vector<Expr*> _attributes;
     std::vector<TypeVar*> _typeVars;

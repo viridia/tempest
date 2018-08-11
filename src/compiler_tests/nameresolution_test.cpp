@@ -378,11 +378,8 @@ TEST_CASE("NameResolution.Attribute", "[sema]") {
       "@observer\n"
       "class B {}\n"
     );
-    auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
-    REQUIRE(vdef->type() != nullptr);
-    REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
-    REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
+    auto tdef = cast<TypeDefn>(mod->members().back());
+    REQUIRE(tdef->attributes().size() == 1);
   }
 }
 
@@ -423,5 +420,116 @@ TEST_CASE("NameResolution.Literal", "[sema]") {
     auto vdef = cast<ValueDefn>(mod->members().back());
     REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
     REQUIRE_THAT(vdef->init(), ExprEQ("\"abc\""));
+  }
+}
+
+TEST_CASE("NameResolution.FunctionBody", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Basic function") {
+    auto mod = compile(cu,
+      "fn test() {\n"
+      "  1\n"
+      "}\n"
+    );
+    auto fn = cast<FunctionDefn>(mod->members().back());
+    REQUIRE(fn->kind == Defn::Kind::FUNCTION);
+    REQUIRE_THAT(fn->body(), ExprEQ("{ 1 }"));
+  }
+
+  SECTION("Basic function w/ infix") {
+    auto mod = compile(cu,
+      "fn test() {\n"
+      "  1 + 2\n"
+      "}\n"
+    );
+    auto fn = cast<FunctionDefn>(mod->members().back());
+    REQUIRE(fn->kind == Defn::Kind::FUNCTION);
+    REQUIRE_THAT(fn->body(), ExprEQ("{ (1 + 2) }"));
+  }
+
+  SECTION("Basic function w/ call") {
+    auto mod = compile(cu,
+      "fn c(a: i32, b: i32) {}\n"
+      "fn test() {\n"
+      "  c(1, 2)\n"
+      "}\n"
+    );
+    auto fn = cast<FunctionDefn>(mod->members().back());
+    REQUIRE(fn->kind == Defn::Kind::FUNCTION);
+    REQUIRE_THAT(fn->body(), ExprEQ("{ c(1, 2) }"));
+  }
+
+  SECTION("Basic function name not found") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "fn test() {\n"
+        "  c(1, 2)\n"
+        "}\n"
+      ),
+      Catch::Contains("Name not found: c"));
+  }
+}
+
+TEST_CASE("NameResolution.Method", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Class methods") {
+    auto mod = compile(cu,
+      "class A {\n"
+      "  fn a() {}\n"
+      "  get b() -> i32 {}\n"
+      "  set c(value: i32) {}\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    auto fnA = cast<FunctionDefn>(td->members()[0]);
+    REQUIRE(fnA->kind == Defn::Kind::FUNCTION);
+    REQUIRE(!fnA->isAbstract());
+    REQUIRE(!fnA->isConstructor());
+    REQUIRE(!fnA->isGetter());
+    REQUIRE(!fnA->isSetter());
+    auto fnB = cast<FunctionDefn>(td->members()[1]);
+    REQUIRE(fnB->kind == Defn::Kind::FUNCTION);
+    REQUIRE(!fnB->isAbstract());
+    REQUIRE(!fnB->isConstructor());
+    REQUIRE(fnB->isGetter());
+    REQUIRE(!fnB->isSetter());
+    auto fnC = cast<FunctionDefn>(td->members()[2]);
+    REQUIRE(fnC->kind == Defn::Kind::FUNCTION);
+    REQUIRE(!fnC->isAbstract());
+    REQUIRE(!fnC->isConstructor());
+    REQUIRE(!fnC->isGetter());
+    REQUIRE(fnC->isSetter());
+  }
+
+  SECTION("Invalid getter") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "class A {\n"
+        "  get b() {}\n"
+        "}\n"
+      ),
+      Catch::Contains("Getter method must declare a return type"));
+  }
+
+  SECTION("Invalid setter") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "class A {\n"
+        "  set c() {}\n"
+        "}\n"
+      ),
+      Catch::Contains("Setter method must declare at least one method parameter"));
+
+    REQUIRE_THAT(
+      compileError(cu,
+        "class A {\n"
+        "  set c(value: i32) -> i32 {}\n"
+        "}\n"
+      ),
+      Catch::Contains("Setter method may not declare a return type"));
   }
 }

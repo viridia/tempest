@@ -493,7 +493,7 @@ namespace tempest::gen {
     }
 
     // Generate code for each statement in the block.
-    for (auto it = blk->stmts().begin(); it != blk->stmts().end(); ++it) {
+    for (auto it = blk->stmts.begin(); it != blk->stmts.end(); ++it) {
       if (atTerminator()) {
         diag.warn(*it) << "Unreachable statement";
       }
@@ -505,9 +505,9 @@ namespace tempest::gen {
     }
 
     llvm::Value* result = nullptr;
-    if (blk->result()) {
-      setDebugLocation(blk->result()->location);
-      result = visitExpr(blk->result());
+    if (blk->result) {
+      setDebugLocation(blk->result->location);
+      result = visitExpr(blk->result);
     }
 
     // Restore the lexical scope.
@@ -613,12 +613,12 @@ namespace tempest::gen {
     // }
 
     // setDebugLocation(in->location());
-    if (in->expr() == NULL) {
+    if (in->expr == NULL) {
       // Return nothing
       _builder.CreateRet(NULL);
     } else {
       // Generate the return value.
-      Expr* returnVal = in->expr();
+      Expr* returnVal = in->expr;
       Value* value = visitExpr(returnVal);
       if (value == NULL) {
         return NULL;
@@ -697,7 +697,7 @@ namespace tempest::gen {
   }
 
   Value* CGFunctionBuilder::visitIntegerLiteral(IntegerLiteral* value) {
-    return llvm::Constant::getIntegerValue(_module->types().get(value->type()), value->value());
+    return llvm::Constant::getIntegerValue(_module->types().get(value->type), value->value());
   }
 
   Value* CGFunctionBuilder::voidValue() const {

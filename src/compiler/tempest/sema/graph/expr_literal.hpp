@@ -35,18 +35,13 @@ namespace tempest::sema::graph {
     /** Whether this literal had an unsigned suffix when parsed. */
     bool isUnsigned = false;
 
-    /** Whether this literal had an explicit negative sign when parsed. */
-    bool isNegative = false;
-
     IntegerLiteral(
           Location location,
           const llvm::APInt& value,
           bool isUnsigned = false,
-          bool isNegative = false,
           IntegerType* type = nullptr)
       : Expr(Kind::INTEGER_LITERAL, location)
       , isUnsigned(isUnsigned)
-      , isNegative(isNegative)
       , _value(value)
     {
       this->type = type;
@@ -54,7 +49,6 @@ namespace tempest::sema::graph {
     IntegerLiteral(int32_t value, IntegerType* type)
       : Expr(Kind::INTEGER_LITERAL, Location())
       , isUnsigned(false)
-      , isNegative(false)
       , _value(llvm::APInt(32, value, true))
     {
       this->type = type;

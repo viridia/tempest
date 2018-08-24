@@ -69,7 +69,7 @@ namespace tempest::sema::graph {
 
   UnionType* TypeStore::createUnionType(const TypeArray& members) {
     // Sort members by pointer. This makes the type key hash independent of order.
-    llvm::SmallVector<Type*, 4> sortedMembers(members.begin(), members.end());
+    llvm::SmallVector<const Type*, 4> sortedMembers(members.begin(), members.end());
     std::sort(sortedMembers.begin(), sortedMembers.end(), TypeOrder());
 
     // Return matching union instance if already exists.
@@ -99,15 +99,15 @@ namespace tempest::sema::graph {
     return tt;
   }
 
-  ConstType* TypeStore::createConstType(Type* base, bool provisional) {
-    auto key = std::pair<Type*, bool>(base, provisional);
-    auto it = _constTypes.find(key);
-    if (it != _constTypes.end()) {
+  ModifiedType* TypeStore::createModifiedType(Type* base, uint32_t modifiers) {
+    auto key = std::pair<Type*, uint32_t>(base, modifiers);
+    auto it = _modifiedTypes.find(key);
+    if (it != _modifiedTypes.end()) {
       return it->second;
     }
 
-    auto ct = new (_alloc) ConstType(base, provisional);
-    _constTypes[key] = ct;
+    auto ct = new (_alloc) ModifiedType(base, modifiers);
+    _modifiedTypes[key] = ct;
     return ct;
   }
 
@@ -123,8 +123,11 @@ namespace tempest::sema::graph {
     return ct;
   }
 
-  FunctionType* TypeStore::createFunctionType(Type* returnType, const TypeArray& paramTypes) {
-    std::vector<Type*> signature;
+  FunctionType* TypeStore::createFunctionType(
+      const Type* returnType,
+      const TypeArray& paramTypes,
+      bool isVariadic) {
+    std::vector<const Type*> signature;
     signature.reserve(paramTypes.size() + 1);
     signature.push_back(returnType);
     signature.insert(signature.end(), paramTypes.begin(), paramTypes.end());
@@ -135,7 +138,7 @@ namespace tempest::sema::graph {
     }
     auto paramTypesCopy = new (_alloc) TypeArray(paramTypes);
     auto signatureCopy = new (_alloc) TypeArray(signature);
-    auto ft = new (_alloc) FunctionType(returnType, *paramTypesCopy, false);
+    auto ft = new (_alloc) FunctionType(returnType, *paramTypesCopy, false, isVariadic);
     _functionTypes[TypeKey(*signatureCopy)] = ft;
     return ft;
   }

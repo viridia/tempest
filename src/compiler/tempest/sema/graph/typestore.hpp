@@ -58,12 +58,12 @@ namespace tempest::sema::graph {
     size_t size() const { return _members.size(); }
 
     /** Read-only random access. */
-    Type* operator[](int index) const {
+    const Type* operator[](int index) const {
       return _members[index];
     }
 
   private:
-    llvm::ArrayRef<Type*> _members;
+    llvm::ArrayRef<const Type*> _members;
   };
 
   inline void hash_combine(size_t& lhs, size_t rhs) {
@@ -73,8 +73,8 @@ namespace tempest::sema::graph {
   struct TypeKeyHash {
     inline std::size_t operator()(const TypeKey& value) const {
       std::size_t seed = 0;
-      for (Type* member : value) {
-        hash_combine(seed, std::hash<Type*>()(member));
+      for (auto member : value) {
+        hash_combine(seed, std::hash<const Type*>()(member));
       }
       return seed;
     }
@@ -173,7 +173,10 @@ namespace tempest::sema::graph {
     SpecializedDefn* specialize(GenericDefn* base, const TypeArray& typeArgs);
 
     /** Create a function type from a return type and parameter types. */
-    FunctionType* createFunctionType(Type* returnType, const TypeArray& paramTypes);
+    FunctionType* createFunctionType(
+        const Type* returnType,
+        const TypeArray& paramTypes,
+        bool isVariadic = false);
 
     /** Create a function type from a return type and a parameter list. */
     // FunctionType* createFunctionType(
@@ -181,19 +184,19 @@ namespace tempest::sema::graph {
     //     const llvm::ArrayRef<ParameterDefn*>& params);
 
     /** Create a const type. */
-    ConstType* createConstType(Type* base, bool provisional);
+    ModifiedType* createModifiedType(Type* base, uint32_t modifiers);
 
   private:
-    typedef std::pair<Type*, bool> ConstKey;
-    struct ConstKeyHash {
-      inline std::size_t operator()(const ConstKey& value) const {
+    typedef std::pair<Type*, uint32_t> ModifiedKey;
+    struct ModifiedKeyHash {
+      inline std::size_t operator()(const ModifiedKey& value) const {
         std::size_t result = std::hash<Type*>()(value.first);
-        hash_combine(result, std::hash<bool>()(value.second));
+        hash_combine(result, std::hash<uint32_t>()(value.second));
         return result;
       }
     };
-    struct ConstKeyEqual {
-      inline bool operator()(const ConstKey& key0, const ConstKey& key1) const {
+    struct ModifiedKeyEqual {
+      inline bool operator()(const ModifiedKey& key0, const ModifiedKey& key1) const {
         return key0.first == key1.first && key0.second == key1.second;
       }
     };
@@ -202,7 +205,7 @@ namespace tempest::sema::graph {
     std::unordered_map<TypeKey, UnionType*, TypeKeyHash> _unionTypes;
     std::unordered_map<TypeKey, TupleType*, TypeKeyHash> _tupleTypes;
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;
-    std::unordered_map<ConstKey, ConstType*, ConstKeyHash> _constTypes;
+    std::unordered_map<ModifiedKey, ModifiedType*, ModifiedKeyHash> _modifiedTypes;
     std::unordered_map<SingletonKey, SingletonType*, SingletonKeyHash> _singletonTypes;
     std::unordered_map<SpecializationKey, SpecializedDefn*, SpecializationKeyHash> _specs;
     std::unordered_set<Type*> _addressTypes;

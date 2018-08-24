@@ -295,7 +295,7 @@ namespace tempest::sema::pass {
         }
       }
       ev->setInit(new (*_alloc) IntegerLiteral(
-          ev->location(), index++, base->isUnsigned(), false, base));
+          ev->location(), index++, base->isUnsigned(), base));
     }
   }
 
@@ -336,7 +336,7 @@ namespace tempest::sema::pass {
       } else if (enclosingType && enclosingType->type()->kind == Type::Kind::INTERFACE) {
         diag.error(fd) << "A function within an interface cannot have a function body.";
       }
-    } else if (enclosingKind != Type::Kind::TRAIT) {
+    } else if (enclosingKind != Type::Kind::TRAIT && enclosingKind != Type::Kind::INTERFACE) {
       diag.error(fd) << "Non-abstract function must have a function body.";
     }
 
@@ -376,10 +376,14 @@ namespace tempest::sema::pass {
     // else:
     //   func.getMutableType().setReturnType(primitivetypes.VOID)
 
+    SmallVector<Type*, 8> paramTypes;
     for (auto param : fd->params()) {
       visitAttributes(scope, param, param->ast());
       if (param->ast()->type) {
         param->setType(resolveType(scope, param->ast()->type));
+        paramTypes.push_back(param->type());
+      } else {
+        diag.error(param) << "Parameter type is required";
       }
       if (param->ast()->init) {
         param->setInit(visitExpr(scope, param->ast()->init));
@@ -389,6 +393,12 @@ namespace tempest::sema::pass {
     if (fd->ast()->body) {
       FunctionScope fnScope(scope, fd);
       fd->setBody(visitExpr(&fnScope, fd->ast()->body));
+    }
+
+    // If we know the return type now, then create a function type, otherwise we'll do it
+    // in the type resolution pass.
+    if (returnType) {
+      fd->setType(_cu.types().createFunctionType(returnType, paramTypes, fd->isVariadic()));
     }
 
     // self.visitDefn(func) # Visits members and attrs
@@ -502,7 +512,6 @@ namespace tempest::sema::pass {
             node->location,
             llvm::APInt(32, wideValue[0], false),
             true,
-            false,
             &IntegerType::CHAR);
         }
       }
@@ -531,7 +540,6 @@ namespace tempest::sema::pass {
           node->location,
           APInt(64, value, radix),
           isUnsigned,
-          false,
           &IntegerType::UNSIZED_INT);
       }
 

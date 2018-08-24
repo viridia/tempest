@@ -636,6 +636,13 @@ namespace tempest::parse {
       fn->getter = isGetter;
       fn->setter = isSetter;
       fn->returnType = returnType;
+      for (auto p : fn->params) {
+        if (static_cast<const ast::Parameter*>(p)->variadic) {
+          fn->variadic = true;
+        } else if (fn->variadic) {
+          diag.error(fn) << "Only the last parameter in a function can be variadic.";
+        }
+      }
 
       // Type constraints
       NodeListBuilder requires(_alloc);
@@ -646,7 +653,7 @@ namespace tempest::parse {
       if (body == &Node::ERROR) {
         skipOverDefn();
         return nullptr;
-      } else if (body != nullptr) {
+      } else if (body != nullptr && body->kind != Node::Kind::ABSENT) {
         fn->body = body;
       }
       return fn;
@@ -979,7 +986,6 @@ namespace tempest::parse {
       auto valType = typeExpression();
       if (valType == nullptr) {
         skipUntil({TOKEN_SEMI});
-        next();
       } else {
         val->type = valType;
       }

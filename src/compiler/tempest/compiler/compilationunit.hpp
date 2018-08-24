@@ -43,6 +43,9 @@ namespace tempest::compiler {
 
     // specializationStore
 
+    // Static instance of current compilation unit.
+    static CompilationUnit* theCU;
+
   private:
     TypeStore _types;
     ImportMgr _importMgr;

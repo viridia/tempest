@@ -164,6 +164,7 @@ namespace tempest::sema::pass {
         f->setNative(ast->native);
         f->setGetter(ast->getter);
         f->setSetter(ast->setter);
+        f->setVariadic(ast->variadic);
         return f;
       }
 
@@ -186,11 +187,10 @@ namespace tempest::sema::pass {
       ParameterDefn* param = new ParameterDefn(ast->location, ast->name, parent);
       param->setAst(ast);
       param->setKeywordOnly(ast->keywordOnly);
-      param->setVariadic(ast->variadic);
+      // param->setVariadic(ast->variadic);
       param->setSelfParam(ast->selfParam);
       param->setClassParam(ast->classParam);
       param->setExpansion(ast->expansion);
-
       paramList.push_back(param);
       paramScope->addMember(param);
     }
@@ -214,8 +214,9 @@ namespace tempest::sema::pass {
       const ast::TypeParameter* ast = static_cast<const ast::TypeParameter*>(node);
       TypeParameter* param = new TypeParameter(ast->location, ast->name, genericDefn);
       param->setAst(ast);
-      param->setVariadic(ast->variadic);
+      // param->setVariadic(ast->variadic);
       param->setTypeVar(new (*_alloc) TypeVar(param));
+      param->setIndex(genericDefn->allTypeParams().size());
       paramScope->addMember(param);
       genericDefn->typeParams().push_back(param);
       genericDefn->allTypeParams().push_back(param);

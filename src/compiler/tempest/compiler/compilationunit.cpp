@@ -7,6 +7,8 @@ namespace tempest::compiler {
   using tempest::error::diag;
   using tempest::parse::Parser;
 
+  CompilationUnit* CompilationUnit::theCU = nullptr;
+
   void CompilationUnit::addSourceFile(llvm::StringRef filepath, llvm::StringRef moduleName) {
     auto mod = _importMgr.getCachedModule(moduleName);
     if (mod) {

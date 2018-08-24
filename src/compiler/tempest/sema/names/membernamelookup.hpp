@@ -37,7 +37,6 @@ namespace tempest::sema::names {
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
 
-  // TODO: I don't think this is used, or needed.
   /** Name resolver specialized for resolving types. */
   class MemberNameLookup {
   public:
@@ -51,21 +50,21 @@ namespace tempest::sema::names {
     /** Given a list of types to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
-        const llvm::ArrayRef<Type*>& stem,
+        const llvm::ArrayRef<const Type*>& stem,
         bool fromStatic,
         NameLookupResultRef& result);
 
     /** Given a member to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
-        Member* stem,
+        const Member* stem,
         bool fromStatic,
         NameLookupResultRef& result);
 
     /** Given a type to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
-        Type* stem,
+        const Type* stem,
         bool fromStatic,
         NameLookupResultRef& result);
 

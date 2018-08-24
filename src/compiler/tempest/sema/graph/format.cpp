@@ -268,10 +268,15 @@ namespace tempest::sema::graph {
         break;
       }
 
-      case Type::Kind::CONST: {
-        auto ct = static_cast<const ConstType*>(t);
-        out << "const ";
-        visitType(ct->base());
+      case Type::Kind::MODIFIED: {
+        auto ct = static_cast<const ModifiedType*>(t);
+        if (ct->isReadOnly()) {
+          out << "const ";
+        }
+        if (ct->isImmutable()) {
+          out << "immutable ";
+        }
+        visitType(ct->base);
         break;
       }
 

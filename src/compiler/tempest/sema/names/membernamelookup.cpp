@@ -30,7 +30,7 @@ namespace tempest::sema::names {
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
-      const llvm::ArrayRef<Type*>& stem,
+      const llvm::ArrayRef<const Type*>& stem,
       bool fromStatic,
       NameLookupResultRef& result) {
     for (auto t : stem) {
@@ -40,17 +40,17 @@ namespace tempest::sema::names {
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
-      Member* stem,
+      const Member* stem,
       bool fromStatic,
       NameLookupResultRef& result) {
 
     NameLookupResult members;
     switch (stem->kind) {
       case Member::Kind::MODULE:
-        static_cast<Module*>(stem)->memberScope()->lookupName(name, members);
+        static_cast<const Module*>(stem)->memberScope()->lookupName(name, members);
         break;
       case Member::Kind::TYPE: {
-        auto td = static_cast<TypeDefn*>(stem);
+        auto td = static_cast<const TypeDefn*>(stem);
         if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
           lookupInherited(name, udt, fromStatic, result);
         } else {
@@ -59,7 +59,7 @@ namespace tempest::sema::names {
         break;
       }
       case Member::Kind::TYPE_PARAM: {
-        auto tp = static_cast<TypeParameter*>(stem);
+        auto tp = static_cast<const TypeParameter*>(stem);
         for (auto st : tp->subtypeConstraints()) {
           lookup(name, st, fromStatic, result);
         }
@@ -86,7 +86,7 @@ namespace tempest::sema::names {
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
-      Type* stem,
+      const Type* stem,
       bool fromStatic,
       NameLookupResultRef& result) {
     if (auto udt = dyn_cast<UserDefinedType>(stem)) {

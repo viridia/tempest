@@ -25,6 +25,7 @@ namespace tempest::ast {
     NodeList typeParams;
     NodeList requires;
     common::DocComment* docComment;
+    bool variadicTemplate = false;
 
     Defn(Kind kind, const Location& location, const StringRef& name)
       : Node(kind, location)
@@ -156,6 +157,7 @@ namespace tempest::ast {
     bool native = false;
     bool getter = false;
     bool setter = false;
+    bool variadic = false;
     const Node* selfType = nullptr;
 
     Function(const Location& location, const StringRef& name)

@@ -22,7 +22,7 @@ namespace tempest::sema::graph {
   class TypeParameter;
   class FunctionType;
   class SpecializedType;
-  typedef llvm::ArrayRef<Type*> TypeArray;
+  typedef llvm::ArrayRef<const Type*> TypeArray;
 
   enum Visibility {
     PUBLIC,
@@ -63,6 +63,8 @@ namespace tempest::sema::graph {
       , _abstract(false)
       , _undef(false)
       , _static(false)
+      , _resolving(false)
+      , _resolved(false)
       , _overloadIndex(0)
     {}
 
@@ -103,6 +105,14 @@ namespace tempest::sema::graph {
     /** Whether this was declared as a setter. */
     bool isSetter() const { return _setter; }
     void setSetter(bool value) { _setter = value; }
+
+    /** Whether type resolution is being performed on this definition. */
+    bool isResolving() const { return _resolving; }
+    void setResolving(bool value) { _resolving = value; }
+
+    /** Whether type resolution has been completed for this definition. */
+    bool isResolved() const { return _resolved; }
+    void setResolved(bool value) { _resolved = value; }
 
     /** The list of attributes on this definition. */
     std::vector<Expr*>& attributes() { return _attributes; }
@@ -148,6 +158,8 @@ namespace tempest::sema::graph {
     bool _static;                 // Was declared static
     bool _getter;                 // Declared as 'get'
     bool _setter;                 // Declared as 'set'
+    bool _resolving;              // Means type resolution pass in progress
+    bool _resolved;               // Means type resolution finished
 
     std::vector<Expr*> _attributes;
     std::vector<TypeVar*> _typeVars;
@@ -299,7 +311,6 @@ namespace tempest::sema::graph {
       , _typeVar(nullptr)
       , _defaultType(nullptr)
       , _index(0)
-      , _variadic(false)
     {}
 
     TypeParameter(
@@ -312,7 +323,6 @@ namespace tempest::sema::graph {
       , _typeVar(nullptr)
       , _defaultType(nullptr)
       , _index(index)
-      , _variadic(false)
     {}
 
     /** AST for this parameter definition. */
@@ -345,10 +355,6 @@ namespace tempest::sema::graph {
     bool index() const { return _index; }
     void setIndex(int32_t index) { _index = index; }
 
-    /** Indicates this type parameter accepts a list of types. */
-    bool isVariadic() const { return _variadic; }
-    void setVariadic(bool variadic) { _variadic = variadic; }
-
     /** Indicates this type parameter is tied to the 'self' type used to invoke the method or
         property that defines that parameter. */
     bool isSelfParam() const { return _selfParam; }
@@ -376,7 +382,6 @@ namespace tempest::sema::graph {
     TypeVar* _typeVar;
     Type* _defaultType;
     int32_t _index;
-    bool _variadic;
     bool _selfParam;
     bool _classParam;
     TypeArray _subtypeConstraints;
@@ -541,6 +546,7 @@ namespace tempest::sema::graph {
       , _constructor(false)
       , _requirement(false)
       , _native(false)
+      , _variadic(false)
       , _methodIndex(0)
     {}
 
@@ -585,6 +591,10 @@ namespace tempest::sema::graph {
     bool isNative() const { return _native; }
     void setNative(bool native) { _native = native; }
 
+    /** True if the last parameter is a 'rest' param. */
+    bool isVariadic() const { return _variadic; }
+    void setVariadic(bool variadic) { _variadic = variadic; }
+
     /** If this type is an intrinsic type, here is the information for it. */
     // intrinsic::IntrinsicFunction* intrinsic() const { return _intrinsic; }
     // void setIntrinsic(intrinsic::IntrinsicFunction* i) { _intrinsic = i; }
@@ -609,6 +619,7 @@ namespace tempest::sema::graph {
     bool _constructor;
     bool _requirement;
     bool _native;
+    bool _variadic;
     int32_t _methodIndex;
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
   };
@@ -618,7 +629,7 @@ namespace tempest::sema::graph {
   public:
     SpecializedDefn(
         Member* generic,
-        const llvm::ArrayRef<Type*>& typeArgs,
+        const llvm::ArrayRef<const Type*>& typeArgs,
         const llvm::ArrayRef<TypeParameter*>& typeParams)
       : Member(Kind::SPECIALIZED, generic->name())
       , _generic(generic)
@@ -627,7 +638,8 @@ namespace tempest::sema::graph {
     {
     }
 
-    /** The generic type that this is a specialiation of. */
+    /** The generic type that this is a specialiation of. Note that this could be
+        a member of a template as well as the template itself. */
     Member* generic() const { return _generic; }
 
     /** If this generic definition is a type then here's the corresponding type object. */
@@ -635,7 +647,7 @@ namespace tempest::sema::graph {
     void setType(SpecializedType* type) { _type = type; }
 
     /** The array of type arguments for this type. */
-    const llvm::ArrayRef<Type*> typeArgs() const { return _typeArgs; }
+    const llvm::ArrayRef<const Type*> typeArgs() const { return _typeArgs; }
 
     /** The array of type parameters that the args are mapped to. */
     const llvm::ArrayRef<TypeParameter*> typeParams() const { return _typeParams; }
@@ -647,7 +659,7 @@ namespace tempest::sema::graph {
   private:
     Member* _generic;
     SpecializedType* _type = nullptr;
-    llvm::SmallVector<Type*, 2> _typeArgs;
+    llvm::SmallVector<const Type*, 2> _typeArgs;
     llvm::ArrayRef<TypeParameter*> _typeParams;
   };
 }

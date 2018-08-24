@@ -3,6 +3,7 @@
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/loadimports.hpp"
 #include "tempest/sema/pass/nameresolution.hpp"
+#include "tempest/sema/pass/resolvetypes.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -27,6 +28,7 @@ namespace tempest::compiler {
 
   int Compiler::run() {
     addSourceFiles();
+    CompilationUnit::theCU = &_cu;
     if (_cu.sourceModules().empty()) {
       diag.error() << "No input files found.";
       return 1;
@@ -43,6 +45,11 @@ namespace tempest::compiler {
       NameResolutionPass pass(_cu);
       pass.run();
     }
+    if (diag.errorCount() == 0) {
+      ResolveTypesPass pass(_cu);
+      pass.run();
+    }
+    CompilationUnit::theCU = nullptr;
     return diag.errorCount() == 0 ? 0 : 1;
   }
 

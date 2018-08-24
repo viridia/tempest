@@ -22,6 +22,8 @@ namespace tempest::source {
   /** Interface for reading source code. */
   class ProgramSource {
   public:
+    virtual ~ProgramSource() {}
+
     /** Open the source file stream for reading. */
     virtual std::istream& open() = 0;
 

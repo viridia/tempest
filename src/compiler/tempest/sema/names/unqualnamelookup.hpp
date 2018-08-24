@@ -48,6 +48,7 @@ namespace tempest::sema::names {
     LookupScope(LookupScope* prev) : prev(prev) {}
     LookupScope() = delete;
     LookupScope(const LookupScope&) = delete;
+    virtual ~LookupScope() {}
     virtual void lookup(const llvm::StringRef& name, NameLookupResultRef& result) = 0;
     virtual void forEach(const NameCallback& nameFn) = 0;
 

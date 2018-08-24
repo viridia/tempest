@@ -38,8 +38,7 @@ namespace tempest::parse {
   };
 
   Parser::Parser(ProgramSource* source, llvm::BumpPtrAllocator& alloc)
-    : _source(source)
-    , _alloc(alloc)
+    : _alloc(alloc)
     , _lexer(source)
     , _recovering(false)
   {
@@ -1413,7 +1412,7 @@ namespace tempest::parse {
 
       case TOKEN_LET:
       case TOKEN_CONST:
-        return fieldDef();
+        return localDefn();
 
       case TOKEN_FN:
       case TOKEN_CLASS:
@@ -1428,6 +1427,28 @@ namespace tempest::parse {
         return assignStmt();
       }
     }
+  }
+
+  Node* Parser::localDefn() {
+    Node::Kind kind;
+    if (match(TOKEN_CONST)) {
+      kind = Node::Kind::LOCAL_CONST;
+    } else {
+      next();
+      kind = Node::Kind::LOCAL_LET;
+    }
+
+    ast::ValueDefn* var = varDecl(kind);
+
+    // Initializer
+    if (match(TOKEN_ASSIGN)) {
+      auto init = exprList();
+      if (init != nullptr) {
+        var->init = init;
+      }
+    }
+
+    return var;
   }
 
   Node* Parser::assignStmt() {

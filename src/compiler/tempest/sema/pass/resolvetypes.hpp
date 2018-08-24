@@ -11,6 +11,9 @@
 
 namespace tempest::sema::graph {
   class BlockStmt;
+  class LocalVarStmt;
+  class DefnRef;
+  class MemberListExpr;
 }
 
 namespace tempest::sema::infer {
@@ -68,6 +71,10 @@ namespace tempest::sema::pass {
     llvm::BumpPtrAllocator* _alloc = nullptr;
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
+    Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
+    Type* visitVarName(DefnRef* expr, ConstraintSolver& cs);
+    Type* visitFunctionName(DefnRef* expr, ConstraintSolver& cs);
+    Type* visitTypeName(DefnRef* expr, ConstraintSolver& cs);
 
     Type* chooseIntegerType(Expr* expr, Type* ty);
   };

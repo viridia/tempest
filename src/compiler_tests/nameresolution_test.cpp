@@ -5,6 +5,7 @@
 #include "tempest/ast/module.hpp"
 #include "tempest/parse/lexer.hpp"
 #include "tempest/parse/parser.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
@@ -531,5 +532,23 @@ TEST_CASE("NameResolution.Method", "[sema]") {
         "}\n"
       ),
       Catch::Contains("Setter method may not declare a return type"));
+  }
+}
+
+TEST_CASE("NameResolution.LocalVar", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Local var") {
+    auto mod = compile(cu,
+      "fn x() {\n"
+      "  let result = 1;\n"
+      "  result\n"
+      "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE(letSt->defn->name() == "result");
   }
 }

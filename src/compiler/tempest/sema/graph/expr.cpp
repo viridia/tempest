@@ -101,10 +101,9 @@ namespace tempest::sema::graph {
     //   # case Kind::YIELD: return "YIELD";
       case Kind::BREAK: return "BREAK";
       case Kind::CONTINUE: return "CONTINUE";
-    //   case Kind::LOCAL_DECL: return "LOCAL_DECL";
+      case Kind::LOCAL_VAR: return "LOCAL_VAR";
       case Kind::SWITCH: return "SWITCH"; case Kind::SWITCH_CASE: return "SWITCH_CASE";
       case Kind::MATCH: return "MATCH"; case Kind::MATCH_PATTERN: return "MATCH_PATTERN";
-    //   case Kind::INTRINSIC: return "INTRINSIC";
       case Kind::UNREACHABLE: return "UNREACHABLE";
 
     //   case Kind::KEYWORD_ARG: return "KEYWORD_ARG";

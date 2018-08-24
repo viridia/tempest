@@ -31,6 +31,7 @@ namespace tempest::sema::graph {
       INVALID = 0,
       NEVER,          // Sentinel type used to indicate expression never returns
       IGNORED,        // Sentinel type used to indicate value is ignored.
+      NOT_EXPR,       // Sentinel type used to indicate value is not an expression.
 
       // Nominal types
       VOID,
@@ -77,6 +78,7 @@ namespace tempest::sema::graph {
 
     static Type ERROR;
     static Type IGNORED;
+    static Type NOT_EXPR;
     static Type NO_RETURN;
   };
 

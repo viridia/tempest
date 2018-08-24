@@ -134,11 +134,10 @@ namespace tempest::sema::graph {
     //   # YIELD,
       BREAK,
       CONTINUE,
-    //   LOCAL_DECL,
+      LOCAL_VAR,
     //   IMPORT,
       SWITCH, SWITCH_CASE,
       MATCH, MATCH_PATTERN,
-    //   INTRINSIC,                    # Call to built-in function
       UNREACHABLE,                  // Indicates control cannot reach this point
 
     //   # Other syntax

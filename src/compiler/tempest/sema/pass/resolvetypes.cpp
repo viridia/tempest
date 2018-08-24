@@ -320,8 +320,21 @@ namespace tempest::sema::pass {
   //   # either that, or we need to tweak the lookup alg.
   //   return cs.renamer.transformType(expr.getType())
 
+      case Expr::Kind::VAR_REF:
+        return visitVarName(static_cast<DefnRef*>(e), cs);
+
+      case Expr::Kind::FUNCTION_REF:
+        return visitFunctionName(static_cast<DefnRef*>(e), cs);
+
+      case Expr::Kind::TYPE_REF:
+        return visitTypeName(static_cast<DefnRef*>(e), cs);
+
       case Expr::Kind::BLOCK:
         return visitBlock(static_cast<BlockStmt*>(e), cs);
+
+      case Expr::Kind::LOCAL_VAR:
+        return visitLocalVar(static_cast<LocalVarStmt*>(e), cs);
+
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(e->kind);
         assert(false && "Invalid expression kind");
@@ -352,6 +365,38 @@ namespace tempest::sema::pass {
     }
 
     return earlyExit ? &Type::NO_RETURN : &VoidType::VOID;
+  }
+
+  Type* ResolveTypesPass::visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs) {
+    auto vd = expr->defn;
+    if (vd->init()) {
+      auto initType = assignTypes(vd->init(), vd->type());
+      if (!vd->type() && !Type::isError(initType)) {
+        vd->setType(chooseIntegerType(vd->init(), initType));
+      }
+    }
+
+    if (!vd->type()) {
+      diag.error(expr) << "Local definition has no type and no initializer.";
+    }
+
+    return &Type::NOT_EXPR;
+  }
+
+  Type* ResolveTypesPass::visitVarName(DefnRef* expr, ConstraintSolver& cs) {
+    auto vd = cast<ValueDefn>(expr->defn);
+    if (!vd->type()) {
+      assert(false && "Do eager type resolution");
+    }
+    return vd->type();
+  }
+
+  Type* ResolveTypesPass::visitFunctionName(DefnRef* expr, ConstraintSolver& cs) {
+    assert(false && "Implement");
+  }
+
+  Type* ResolveTypesPass::visitTypeName(DefnRef* expr, ConstraintSolver& cs) {
+    assert(false && "Implement");
   }
 
   Type* ResolveTypesPass::chooseIntegerType(Expr* expr, Type* ty) {

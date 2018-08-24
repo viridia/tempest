@@ -36,6 +36,7 @@ namespace tempest::sema::names {
   using tempest::sema::graph::Module;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::NameCallback;
+  using tempest::sema::graph::SymbolTable;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
   using tempest::sema::graph::NameLookupResultRef;
@@ -51,6 +52,7 @@ namespace tempest::sema::names {
     virtual ~LookupScope() {}
     virtual void lookup(const llvm::StringRef& name, NameLookupResultRef& result) = 0;
     virtual void forEach(const NameCallback& nameFn) = 0;
+    virtual bool addMember(Member* member) { return false; };
 
     // The 'subject' is the context which determines whether private variables are visible.
     // The basic rule is that any scope which defines private variables grants visibility
@@ -100,12 +102,16 @@ namespace tempest::sema::names {
 
   /** A lookup scope representing an enclosing local scope. */
   struct LocalScope : public LookupScope {
-    LocalScope(LookupScope* prev, TypeDefn* defn) : LookupScope(prev) {}
+    LocalScope(LookupScope* prev) : LookupScope(prev) {}
     void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
+    bool addMember(Member* member);
     Member* subject() const {
       return prev ? prev->subject() : nullptr;
     }
+
+  private:
+    SymbolTable _symbols;
   };
 }
 

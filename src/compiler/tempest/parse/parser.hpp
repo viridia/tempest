@@ -108,7 +108,6 @@ namespace tempest::parse {
     ast::Node* expression();
     ast::Node* typeExpression();
   private:
-    ProgramSource* _source;
     llvm::BumpPtrAllocator& _alloc;
     Lexer _lexer;
     TokenType _token;

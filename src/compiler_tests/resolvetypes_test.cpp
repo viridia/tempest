@@ -5,6 +5,7 @@
 #include "tempest/ast/module.hpp"
 #include "tempest/parse/lexer.hpp"
 #include "tempest/parse/parser.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
@@ -67,11 +68,25 @@ TEST_CASE("ResolveTypes", "[sema]") {
   CompilationUnit cu;
 
   SECTION("Resolve primitive type") {
-    auto mod = compile(cu, "let X = 0;");
+    auto mod = compile(cu, "let x = 0;");
     auto vdef = cast<ValueDefn>(mod->members().back());
     REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::INTEGER);
     REQUIRE_THAT(vdef->type(), TypeEQ("i32"));
+  }
+
+  SECTION("Resolve primitive type") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = 1;\n"
+        "  result\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
   }
 }

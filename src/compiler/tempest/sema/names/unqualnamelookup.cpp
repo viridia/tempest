@@ -90,12 +90,25 @@ namespace tempest::sema::names {
   }
 
   void LocalScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+    // For local scopes, we only return the most recent definition of a name.
+    NameLookupResult names;
+    _symbols.lookupName(name, names);
+    if (names.size() > 0) {
+      result.push_back(names.back());
+    } else {
+      prev->lookup(name, result);
+    }
   }
 
   void LocalScope::forEach(const NameCallback& nameFn) {
-    // typeDefn->memberScope()->forAllNames(nameFn);
+    _symbols.forAllNames(nameFn);
     if (prev) {
       prev->forEach(nameFn);
     }
+  }
+
+  bool LocalScope::addMember(Member* member) {
+    _symbols.addMember(member);
+    return true;
   }
 }

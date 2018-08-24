@@ -27,6 +27,21 @@ namespace tempest::sema::graph {
     static bool classof(const Expr* e) { return e->kind == Kind::BLOCK; }
   };
 
+  /** A throw statemtn. */
+  class LocalVarStmt : public Expr {
+  public:
+    ValueDefn* defn;
+
+    LocalVarStmt(Location location, ValueDefn* defn)
+      : Expr(Kind::LOCAL_VAR, location)
+      , defn(defn)
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const LocalVarStmt* e) { return true; }
+    static bool classof(const Expr* e) { return e->kind == Kind::LOCAL_VAR; }
+  };
+
   /** An if-statement. */
   class IfStmt : public Expr {
   public:

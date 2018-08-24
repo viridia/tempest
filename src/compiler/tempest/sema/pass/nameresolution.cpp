@@ -783,9 +783,10 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::BLOCK: {
         auto block = static_cast<const ast::Block*>(node);
+        LocalScope localScope(scope);
         llvm::SmallVector<Expr*, 8> stmts;
         for (auto st : block->stmts) {
-          auto stExpr = visitExpr(scope, st);
+          auto stExpr = visitExpr(&localScope, st);
           if (stExpr) {
             stmts.push_back(stExpr);
           }
@@ -793,10 +794,32 @@ namespace tempest::sema::pass {
 
         Expr* result = nullptr;
         if (block->result) {
-          result = visitExpr(scope, block->result);
+          result = visitExpr(&localScope, block->result);
         }
 
         return new (*_alloc) BlockStmt(node->location, copyOf(stmts), result);
+      }
+
+      case ast::Node::Kind::LOCAL_CONST:
+      case ast::Node::Kind::LOCAL_LET: {
+        auto decl = static_cast<const ast::ValueDefn*>(node);
+        ValueDefn* defn = new (*_alloc) ValueDefn(
+          node->kind == ast::Node::Kind::LOCAL_CONST ? Defn::Kind::CONST_DEF : Defn::Kind::LET_DEF,
+          node->location,
+          copyOf(decl->name)
+        );
+        if (decl->type) {
+          defn->setType(resolveType(scope, decl->type));
+        }
+        if (decl->init) {
+          defn->setInit(visitExpr(scope, decl->init));
+        }
+
+        if (!scope->addMember(defn)) {
+          diag.error(node) << "Invalid scope for local definition.";
+        }
+
+        return new (*_alloc) LocalVarStmt(node->location, defn);
       }
 
       // /* Misc statements */

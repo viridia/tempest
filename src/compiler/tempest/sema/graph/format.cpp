@@ -161,6 +161,10 @@ namespace tempest::sema::graph {
         out << "<ignored>";
         break;
 
+      case Type::Kind::NOT_EXPR:
+        out << "<not-expr>";
+        break;
+
       case Type::Kind::VOID:
         out << "void";
         break;

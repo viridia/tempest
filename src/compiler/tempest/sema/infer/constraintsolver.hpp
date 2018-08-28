@@ -13,12 +13,17 @@
   #include "tempest/sema/infer/renamer.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_CONVERT_RESULT_HPP
+  #include "tempest/sema/convert/result.hpp"
+#endif
+
 namespace tempest::sema::graph {
   class GenericDefn;
 }
 
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
+  using tempest::sema::convert::ConversionResult;
 
   /** Base class for constraints to be solved. */
   class ConstraintSolver {
@@ -100,6 +105,8 @@ namespace tempest::sema::infer {
     std::vector<size_t> _bestPermutation;
     ConversionRankTotals _bestRankings;
     bool _failed = false;
+
+    void reportConversionError(ConversionConstraint* cct, ConversionResult result);
   };
 }
 

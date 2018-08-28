@@ -136,6 +136,6 @@ TEST_CASE("ResolveTypes", "[sema]") {
           "}\n"
           "fn y(i: i32) => i;\n"
       ),
-      Catch::Contains("Unable to find"));
+      Catch::Contains("Can't convert from"));
   }
 }

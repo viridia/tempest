@@ -12,17 +12,16 @@ namespace tempest::sema::infer {
       const Type* dstType,
       const Type* srcType,
       Conditions when) {
-    (void)_alloc;
-    diag.debug() << "Assignment: " << srcType << " -> " << dstType;
+    // diag.debug() << "Assignment: " << srcType << " -> " << dstType;
 
     if (Type::isError(srcType) || Type::isError(dstType)) {
       return;
     }
 
-    assert (srcType->kind != Type::Kind::NOT_EXPR);
-    assert (dstType->kind != Type::Kind::NOT_EXPR);
-    assert (srcType->kind != Type::Kind::NEVER);
-    assert (dstType->kind != Type::Kind::NEVER);
+    assert(srcType->kind != Type::Kind::NOT_EXPR);
+    assert(dstType->kind != Type::Kind::NOT_EXPR);
+    assert(srcType->kind != Type::Kind::NEVER);
+    assert(dstType->kind != Type::Kind::NEVER);
 
     if (dstType != srcType) {
       _conversionConstraints.push_back(new ConversionConstraint(when, dstType, srcType));
@@ -149,8 +148,6 @@ namespace tempest::sema::infer {
   //           # What we want to know is, is there any other assignmentConstraint that occupies
   //           # the same set of call sites as this one, but has a better conversion ranking?
   //           cc.conversionResults[result.rank] += 1
-
-
   }
 
   // def updateConversionRankingsForConstraint(self, ac):
@@ -201,17 +198,26 @@ namespace tempest::sema::infer {
       site->pruneAll(false);
     }
     _bestRankings.clear();
+    ConversionConstraint* worst = nullptr;
+    ConversionResult worstResult;
     for (auto cct : _conversionConstraints) {
       if (!isViable(cct->when)) {
         continue;
       }
       auto result = isAssignable(cct->dstType, cct->srcType);
-      diag.debug() << "isAssignable: " << cct->srcType << " -> " << cct->dstType
-          << ": " << result;
+      if (result.rank == ConversionRank::ERROR || result.rank == ConversionRank::WARNING) {
+        if (!worst || worstResult.rank > result.rank) {
+          worst = cct;
+          worstResult = result;
+        }
+      }
+      // diag.debug() << "isAssignable: " << cct->srcType << " -> " << cct->dstType
+      //     << ": " << result;
       _bestRankings.count[int(result.rank)] += 1;
     }
-    if (_bestRankings.isError()) {
+    if (worst) {
       diag.error(location) << "Type conversion error:";
+      reportConversionError(worst, worstResult);
       _failed = true;
     }
   }
@@ -237,44 +243,9 @@ namespace tempest::sema::infer {
       }
 
       for (auto cct : _conversionConstraints) {
-        if (!isViable(cct->when)) {
-          continue;
-        }
-        auto result = isAssignable(cct->dstType, cct->srcType);
-        if (result.rank == ConversionRank::ERROR) {
-          switch (result.error) {
-            case ConversionError::INCOMPATIBLE:
-              diag.error() << "Can't convert from " << cct->srcType << " to " << cct->dstType;
-              break;
-
-            case ConversionError::QUALIFIER_LOSS:
-              diag.error() << "Loss of qualifiers converting from " << cct->srcType << " to "
-                  << cct->dstType;
-              break;
-
-            default:
-              assert(false && "Bad conversion error rank");
-          }
-        } else if (result.rank == ConversionRank::WARNING) {
-          switch (result.error) {
-            case ConversionError::TRUNCATION:
-              diag.error() << "Truncation of value converting from " << cct->srcType << " to "
-                  << cct->dstType;
-              break;
-
-            case ConversionError::SIGNED_UNSIGNED:
-              diag.error() << "Signed / unsigned mismatch converting from " << cct->srcType
-                  << " to " << cct->dstType;
-              break;
-
-            case ConversionError::PRECISION_LOSS:
-              diag.error() << "Loss of precision converting from " << cct->srcType
-                  << " to " << cct->dstType;
-              break;
-
-            default:
-              assert(false && "Bad conversion error rank");
-          }
+        if (isViable(cct->when)) {
+          auto result = isAssignable(cct->dstType, cct->srcType);
+          reportConversionError(cct, result);
         }
       }
     }
@@ -294,12 +265,53 @@ namespace tempest::sema::infer {
     } else {
       ConversionRankTotals rankings;
       for (auto cct : _conversionConstraints) {
+        if (!isViable(cct->when)) {
+          continue;
+        }
         auto result = isAssignable(cct->dstType, cct->srcType);
         rankings.count[int(result.rank)] += 1;
       }
 
       if (rankings.isBetterThan(_bestRankings)) {
         _bestRankings = rankings;
+      }
+    }
+  }
+
+  void ConstraintSolver::reportConversionError(ConversionConstraint* cct, ConversionResult result) {
+    if (result.rank == ConversionRank::ERROR) {
+      switch (result.error) {
+        case ConversionError::INCOMPATIBLE:
+          diag.error() << "Can't convert from " << cct->srcType << " to " << cct->dstType << ".";
+          break;
+
+        case ConversionError::QUALIFIER_LOSS:
+          diag.error() << "Loss of qualifiers converting from " << cct->srcType << " to "
+              << cct->dstType << ".";
+          break;
+
+        default:
+          assert(false && "Bad conversion error rank");
+      }
+    } else if (result.rank == ConversionRank::WARNING) {
+      switch (result.error) {
+        case ConversionError::TRUNCATION:
+          diag.error() << "Truncation of value converting from " << cct->srcType << " to "
+              << cct->dstType << ".";
+          break;
+
+        case ConversionError::SIGNED_UNSIGNED:
+          diag.error() << "Signed / unsigned mismatch converting from " << cct->srcType
+              << " to " << cct->dstType << ".";
+          break;
+
+        case ConversionError::PRECISION_LOSS:
+          diag.error() << "Loss of precision converting from " << cct->srcType
+              << " to " << cct->dstType << ".";
+          break;
+
+        default:
+          assert(false && "Bad conversion error rank");
       }
     }
   }

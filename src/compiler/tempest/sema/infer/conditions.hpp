@@ -49,6 +49,10 @@ namespace tempest::sema::infer {
 
       size_t site() const { return _site; }
 
+      bool empty() const {
+        return _choices.empty();
+      }
+
       const_iterator begin() const { return _choices.begin(); }
       const_iterator end() const { return _choices.end(); }
 
@@ -150,6 +154,8 @@ namespace tempest::sema::infer {
     Conditions(Conditions&& src) : _conjuncts(std::move(src._conjuncts)) {}
     Conditions(size_t site, size_t choice) {
       add(site, choice);
+      assert(_conjuncts.size() == 1);
+      assert(!_conjuncts[0].empty());
     }
 
     iterator begin() { return _conjuncts.begin(); }
@@ -175,7 +181,7 @@ namespace tempest::sema::infer {
       if (it != _conjuncts.end()) {
         return it->add(choice);
       } else {
-        _conjuncts.push_back(Conjunct(choice));
+        _conjuncts.push_back(Conjunct(site, choice));
         return true;
       }
     }

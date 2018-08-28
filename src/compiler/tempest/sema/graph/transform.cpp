@@ -2,6 +2,8 @@
 #include "tempest/sema/graph/transform.hpp"
 
 namespace tempest::sema::graph {
+  using tempest::sema::infer::InferredType;
+  using tempest::sema::infer::ContingentType;
 
   const Type* TypeTransform::transform(const Type* ty) {
     if (ty == nullptr) {
@@ -84,15 +86,34 @@ namespace tempest::sema::graph {
         return transformTypeVar(static_cast<const TypeVar*>(ty));
       }
 
-      case Type::Kind::CONTINGENT:
-        assert(false && "Implement");
+      case Type::Kind::CONTINGENT: {
+        return transformContingentType(static_cast<const ContingentType*>(ty));
+      }
 
-      case Type::Kind::RENAMED:
-        assert(false && "Implement");
+      case Type::Kind::INFERRED:
+        return transformInferredType(static_cast<const infer::InferredType*>(ty));
 
       default:
         assert(false && "TypeTransform - unsupported type kind");
     }
+  }
+
+  const Type* TypeTransform::transformContingentType(const infer::ContingentType* in) {
+    llvm::SmallVector<ContingentType::Entry, 8> entries;
+    bool changed = false;
+    for (auto entry : in->entries) {
+      ContingentType::Entry newEntry(entry);
+      newEntry.type = transform(entry.type);
+      if (newEntry.type != entry.type) {
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return in;
+    }
+
+    return new (_alloc) ContingentType(copyOf(entries));
   }
 
   bool TypeTransform::transformArray(

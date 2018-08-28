@@ -1,6 +1,9 @@
 #ifndef TEMPEST_SEMA_CONVERT_RESULT_HPP
 #define TEMPEST_SEMA_CONVERT_RESULT_HPP 1
 
+#include <cstddef>
+#include <iostream>
+
 namespace tempest::sema::convert {
   /** Indicates whether a type conversion is possible. */
   enum class ConversionRank {
@@ -11,6 +14,8 @@ namespace tempest::sema::convert {
     EXACT,                    // Legal, and value is the same.
     IDENTICAL,                // Two sides have exactly the same type.
   };
+
+  const int NUM_RANKS = int(ConversionRank::IDENTICAL) + 1;
 
   /** Details about a conversion error. */
   enum class ConversionError {
@@ -56,6 +61,43 @@ namespace tempest::sema::convert {
     /** Compare two conversion results for equality - used in unit tests. */
     friend bool operator==(const ConversionResult& l, const ConversionResult& r) {
       return l.rank == r.rank && l.error == r.error;
+    }
+  };
+
+  /** A summary of the results of multiple conversions. */
+  class ConversionRankTotals {
+  public:
+    size_t count[NUM_RANKS];
+
+    ConversionRankTotals() {
+      clear();
+    }
+
+    void clear() {
+      for (size_t i = 0; i < NUM_RANKS; i += 1) {
+        count[i] = 0;
+      }
+    }
+
+    void setToWorst() {
+      for (size_t i = 0; i < NUM_RANKS; i += 1) {
+        count[i] = size_t(-1); // Maximum value of size_t
+      }
+    }
+
+    bool isBetterThan(const ConversionRankTotals& other) {
+      for (size_t i = 0; i < NUM_RANKS; i += 1) {
+        if (count[i] < other.count[i]) {
+          return true;
+        } else if (count[i] > other.count[i]) {
+          return false;
+        }
+      }
+      return false;
+    }
+
+    bool isError() const {
+      return count[int(ConversionRank::ERROR)] > 0 || count[int(ConversionRank::WARNING)] > 0;
     }
   };
 

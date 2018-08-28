@@ -1,16 +1,12 @@
 #ifndef TEMPEST_AST_NODE_HPP
 #define TEMPEST_AST_NODE_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SOURCE_LOCATION_HPP
   #include "tempest/source/location.hpp"
-#endif
-
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
-#endif
-
-#if TEMPEST_HAVE_OSTREAM
-  #include <ostream>
 #endif
 
 namespace tempest::ast {

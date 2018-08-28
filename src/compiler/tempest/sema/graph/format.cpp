@@ -15,6 +15,7 @@ namespace tempest::sema::graph {
     ::std::ostream& out;
     int32_t indent = 0;
     bool pretty = false;
+    bool showType = false;
     bool showContent = true;
 
     Formatter(::std::ostream& out, bool pretty) : out(out), pretty(pretty) {}
@@ -97,6 +98,20 @@ namespace tempest::sema::graph {
       case Member::Kind::FUNCTION: {
         auto fd = static_cast<const FunctionDefn*>(m);
         out << "fn " << fd->name();
+        if (showType) {
+          out << "(";
+          auto sep = "";
+          for (auto p : fd->params()) {
+            out << sep;
+            sep = ", ";
+            out << p->name() << ": " << p->type();
+          }
+          if (fd->isVariadic()) {
+            out << "...";
+          }
+          out << ") -> ";
+          out << fd->type()->returnType;
+        }
         break;
       }
 
@@ -388,7 +403,7 @@ namespace tempest::sema::graph {
       }
 
       case Expr::Kind::CALL: {
-        auto op = static_cast<const InvokeOp*>(e);
+        auto op = static_cast<const ApplyFnOp*>(e);
         visitExpr(op->function);
         out << "(";
         llvm::StringRef sep = "";
@@ -435,8 +450,10 @@ namespace tempest::sema::graph {
     }
   }
 
-  void format(::std::ostream& out, const Member* m, bool pretty) {
+  void format(::std::ostream& out, const Member* m, bool pretty, bool showType) {
     Formatter fmt(out, pretty);
+    fmt.pretty = pretty;
+    fmt.showType = showType;
     fmt.visit(m);
     if (pretty) {
       out << '\n';

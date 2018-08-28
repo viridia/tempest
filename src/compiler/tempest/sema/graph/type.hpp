@@ -5,16 +5,12 @@
   #include "config.h"
 #endif
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_GRAPH_ENV_HPP
   #include "tempest/sema/graph/env.hpp"
-#endif
-
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
-#endif
-
-#ifndef LLVM_ADT_SMALLVECTOR_H
-  #include <llvm/ADT/SmallVector.h>
 #endif
 
 namespace tempest::sema::graph {
@@ -51,7 +47,7 @@ namespace tempest::sema::graph {
 
       // Types used during type inference
       CONTINGENT,     // May be one of several types depending on overload selection.
-      RENAMED,        // A renamed type var during inference.
+      INFERRED,       // A renamed type var during inference.
   //     PHI,        // Represents multiple types produced by different code paths.
   //     AMBIGUOUS,  // Ambiguous type
 

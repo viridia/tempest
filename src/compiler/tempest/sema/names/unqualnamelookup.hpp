@@ -1,6 +1,10 @@
 #ifndef TEMPEST_SEMA_NAMES_UNQUALNAMELOOKUP_HPP
 #define TEMPEST_SEMA_NAMES_UNQUALNAMELOOKUP_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
   #include "tempest/sema/graph/member.hpp"
 #endif
@@ -15,14 +19,6 @@
 
 #ifndef TEMPEST_SEMA_GRAPH_SYMBOLTABLE_HPP
   #include "tempest/sema/graph/symboltable.hpp"
-#endif
-
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
-#endif
-
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
 #endif
 
 #ifndef LLVM_ADT_SMALLPTRSET_H

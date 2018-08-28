@@ -9,12 +9,15 @@
   #include "config.h"
 #endif
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #include <istream>
 #include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
-#include <llvm/ADT/StringRef.h>
 
 namespace tempest::source {
   using llvm::StringRef;

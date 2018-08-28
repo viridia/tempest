@@ -1,20 +1,16 @@
 #ifndef TEMPEST_SEMA_GRAPH_TYPESTORE_HPP
 #define TEMPEST_SEMA_GRAPH_TYPESTORE_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_GRAPH_TYPE_HPP
   #include "tempest/sema/graph/type.hpp"
 #endif
 
 #ifndef TEMPEST_SEMA_GRAPH_DEFN_HPP
   #include "tempest/sema/graph/defn.hpp"
-#endif
-
-#ifndef LLVM_SUPPORT_ALLOCATOR_H
-  #include <llvm/Support/Allocator.h>
-#endif
-
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
 #endif
 
 #include <unordered_map>

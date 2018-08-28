@@ -1,12 +1,8 @@
 #ifndef TEMPEST_SEMA_NAMES_CLOSESTNAME_HPP
 #define TEMPEST_SEMA_NAMES_CLOSESTNAME_HPP 1
 
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
-#endif
-
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
 #endif
 
 namespace tempest::sema::names {

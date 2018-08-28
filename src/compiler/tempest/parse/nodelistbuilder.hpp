@@ -1,24 +1,16 @@
 #ifndef TEMPEST_PARSE_NODELISTBUILDER_HPP
 #define TEMPEST_PARSE_NODELISTBUILDER_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_AST_NODE_HPP
   #include "tempest/ast/node.hpp"
 #endif
 
 #ifndef TEMPEST_SOURCE_LOCATION_HPP
   #include "tempest/source/location.hpp"
-#endif
-
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
-#endif
-
-#ifndef LLVM_ADT_SMALLVECTOR_H
-  #include <llvm/ADT/SmallVector.h>
-#endif
-
-#ifndef LLVM_SUPPORT_ALLOCATOR_H
-  #include <llvm/Support/Allocator.h>
 #endif
 
 namespace tempest::parse {

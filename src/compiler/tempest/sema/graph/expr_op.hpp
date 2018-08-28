@@ -101,13 +101,13 @@ namespace tempest::sema::graph {
   };
 
   /** Operator with a variable number of arguments. */
-  class InvokeOp : public Expr {
+  class ApplyFnOp : public Expr {
   public:
     Expr* function;
     llvm::ArrayRef<Expr*> args;
     Type* type;
 
-    InvokeOp(
+    ApplyFnOp(
           Kind kind,
           Location location,
           Expr* function,

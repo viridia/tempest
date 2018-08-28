@@ -9,6 +9,14 @@
   #include "tempest/sema/graph/type.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_EXPR_HPP
+  #include "tempest/sema/graph/expr.hpp"
+#endif
+
+#ifndef TEMPEST_SEMA_INFER_REJECTION_HPP
+  #include "tempest/sema/infer/rejection.hpp"
+#endif
+
 #include <unordered_set>
 
 namespace tempest::sema::infer {
@@ -35,6 +43,48 @@ namespace tempest::sema::infer {
       , _params(params)
     {
       _inUse.resize(_params.size());
+    }
+
+    ParamError error() const { return _error; }
+
+    Rejection rejection() {
+      // TODO: Include the argument position and keyword name in the rejection.
+      switch (_error) {
+        case ParamError::NONE:
+          return Rejection(Rejection::NONE);
+
+        case ParamError::NOT_ENOUGH_ARGS:
+          return Rejection(Rejection::NOT_ENOUGH_ARGS);
+
+        case ParamError::TOO_MANY_ARGUMENTS:
+          return Rejection(Rejection::TOO_MANY_ARGS);
+
+        case ParamError::KEYWORD_ONLY_PARAM:
+          return Rejection(Rejection::KEYWORD_ONLY_ARG);
+
+        case ParamError::KEYWORD_IN_USE:
+          return Rejection(Rejection::KEYWORD_IN_USE);
+
+        case ParamError::KEYWORD_NOT_FOUND:
+          return Rejection(Rejection::KEYWORD_NOT_FOUND);
+
+        default:
+          assert(false && "Invalid error state");
+      }
+    }
+
+    bool forArgs(const llvm::ArrayRef<Expr*>& args) {
+      for (auto arg : args) {
+        if (_error != ParamError::NONE) {
+          return false;
+        }
+        // TODO: Keyword args.
+        (void)arg;
+        addPositionalArg();
+        // if (arg->kind == Expr::Kind::KEY)
+      }
+
+      return _error == ParamError::NONE;
     }
 
     ParamError addPositionalArg() {
@@ -76,7 +126,7 @@ namespace tempest::sema::infer {
       size_t paramIndex = 0;
       for (; paramIndex < _params.size(); ++paramIndex) {
         auto param = _params[paramIndex];
-        if (param->name == name) {
+        if (param->name() == name) {
           break;
         }
       }
@@ -102,7 +152,7 @@ namespace tempest::sema::infer {
         return _error;
       }
 
-      for (size_t paramIndex; paramIndex < _params.size(); ++paramIndex) {
+      for (size_t paramIndex = 0; paramIndex < _params.size(); ++paramIndex) {
         if (!_inUse[paramIndex]) {
           auto param = _params[paramIndex];
           if (!param->init() && !param->isVariadic()) {
@@ -161,7 +211,6 @@ namespace tempest::sema::infer {
         return _error;
       }
 
-      auto param = _ftype->paramTypes[_nextPositionalParam];
       _output.push_back(_nextPositionalParam);
       _inUse[_nextPositionalParam] = true;
 
@@ -177,7 +226,7 @@ namespace tempest::sema::infer {
         return _error;
       }
 
-      for (size_t paramIndex; paramIndex < _ftype->paramTypes.size(); ++paramIndex) {
+      for (size_t paramIndex = 0; paramIndex < _ftype->paramTypes.size(); ++paramIndex) {
         if (!_inUse[paramIndex] && !isVariadic(paramIndex)) {
           _error = ParamError::NOT_ENOUGH_ARGS;
           return _error;

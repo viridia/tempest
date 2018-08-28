@@ -1,16 +1,16 @@
 #ifndef TEMPEST_SEMA_GRAPH_TRANSFORM_HPP
 #define TEMPEST_SEMA_GRAPH_TRANSFORM_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_GRAPH_TYPE_HPP
   #include "tempest/sema/graph/type.hpp"
 #endif
 
-#ifndef LLVM_SUPPORT_ALLOCATOR_H
-  #include <llvm/Support/Allocator.h>
-#endif
-
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
+#ifndef TEMPEST_SEMA_INFER_TYPES_HPP
+  #include "tempest/sema/infer/types.hpp"
 #endif
 
 namespace tempest::sema::graph {
@@ -24,6 +24,9 @@ namespace tempest::sema::graph {
 
     const Type* transform(const Type* in);
     virtual const Type* transformTypeVar(const TypeVar* in) { return in; }
+    virtual const Type* transformContingentType(const infer::ContingentType* in);
+    virtual const Type* transformInferredType(const infer::InferredType* in) { return in; }
+
     bool transformArray(llvm::SmallVectorImpl<const Type*>& out, const TypeArray& in);
 
   private:

@@ -23,7 +23,6 @@ TEST_CASE("Compilation", "[compilation]") {
   commandLine.append(compilationDir);
   commandLine.append("/basic.te");
 
-  diag.info() << "Command line:" << commandLine;
   auto errc = std::system(commandLine.c_str());
   REQUIRE(errc == 0);
 }

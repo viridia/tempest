@@ -12,6 +12,7 @@
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   class OverloadCandidate;
+  class ConstraintSolver;
 
   /** A contingent type is a set of possible types, only one of which will eventually be chosen.
       The type to be chosen will depend on which call candidate gets selected. */
@@ -19,7 +20,7 @@ namespace tempest::sema::infer {
   public:
     struct Entry {
       const OverloadCandidate* when;
-      Type* type;
+      const Type* type;
     };
 
     ContingentType(llvm::ArrayRef<Entry> entries)
@@ -31,19 +32,30 @@ namespace tempest::sema::infer {
     llvm::ArrayRef<Entry> entries;
   };
 
-  /** A type variable which has been renamed so that each call site has distinct vars. */
-  class RenamedTypeVar : public Type {
+  /** A type which needs to be inferred. */
+  class InferredType : public Type {
   public:
-    RenamedTypeVar(TypeVar* original)
-      : Type(Kind::RENAMED)
-      , original(original)
+    InferredType(
+        TypeParameter* typeParam,
+        ConstraintSolver* solver,
+        const OverloadCandidate* context)
+      : Type(Kind::INFERRED)
+      , typeParam(typeParam)
+      , solver(solver)
+      , context(context)
     {}
 
     /** The original type variable. */
-    TypeVar* original;
+    TypeParameter* typeParam;
 
     /** The unique index of this type. */
     size_t index = 0;
+
+    /** Reference to the constraint solver. */
+    ConstraintSolver* solver;
+
+    /** The candidate which defined this type variable. */
+    const OverloadCandidate* context;
   };
 }
 

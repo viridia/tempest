@@ -1,12 +1,12 @@
 #ifndef TEMPEST_ERROR_REPORTER_HPP
 #define TEMPEST_ERROR_REPORTER_HPP 1
 
-#ifndef TEMPEST_SOURCE_LOCATION_HPP
-  #include "tempest/source/location.hpp"
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
 #endif
 
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
+#ifndef TEMPEST_SOURCE_LOCATION_HPP
+  #include "tempest/source/location.hpp"
 #endif
 
 #include <sstream>

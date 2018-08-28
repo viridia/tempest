@@ -34,6 +34,7 @@ namespace {
   std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
+    CompilationUnit::theCU = &cu;
     auto result = parser.module();
     mod->setAst(result);
     BuildGraphPass bgPass(cu);
@@ -42,25 +43,28 @@ namespace {
     nrPass.process(mod.get());
     ResolveTypesPass rtPass(cu);
     rtPass.process(mod.get());
+    CompilationUnit::theCU = nullptr;
     return mod;
   }
 
   /** Parse a module definition with errors and return the error message. */
-  // std::string compileError(CompilationUnit &cu, const char* srcText) {
-  //   UseMockReporter umr;
-  //   auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
-  //   Parser parser(mod->source(), mod->astAlloc());
-  //   auto result = parser.module();
-  //   mod->setAst(result);
-  //   BuildGraphPass bgPass(cu);
-  //   bgPass.process(mod.get());
-  //   NameResolutionPass nrPass(cu);
-  //   nrPass.process(mod.get());
-  //   ResolveTypesPass rtPass(cu);
-  //   rtPass.process(mod.get());
-  //   REQUIRE(MockReporter::INSTANCE.errorCount() > 0);
-  //   return MockReporter::INSTANCE.content().str();
-  // }
+  std::string compileError(CompilationUnit &cu, const char* srcText) {
+    UseMockReporter umr;
+    auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
+    Parser parser(mod->source(), mod->astAlloc());
+    CompilationUnit::theCU = &cu;
+    auto result = parser.module();
+    mod->setAst(result);
+    BuildGraphPass bgPass(cu);
+    bgPass.process(mod.get());
+    NameResolutionPass nrPass(cu);
+    nrPass.process(mod.get());
+    ResolveTypesPass rtPass(cu);
+    rtPass.process(mod.get());
+    CompilationUnit::theCU = nullptr;
+    REQUIRE(MockReporter::INSTANCE.errorCount() > 0);
+    return MockReporter::INSTANCE.content().str();
+  }
 }
 
 TEST_CASE("ResolveTypes", "[sema]") {
@@ -76,7 +80,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(vdef->type(), TypeEQ("i32"));
   }
 
-  SECTION("Resolve primitive type") {
+  SECTION("Resolve local variable type") {
     auto mod = compile(cu,
         "fn x() {\n"
         "  let result = 1;\n"
@@ -88,5 +92,50 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Resolve function call type") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y();\n"
+        "  result\n"
+        "}\n"
+        "fn y() {\n"
+        "  let result = 1;\n"
+        "  result\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Resolve function with parameter") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1);\n"
+        "  result\n"
+        "}\n"
+        "fn y(i: i32) => i;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Resolve function with parameter type error") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x() {\n"
+          "  let result = y(1.0);\n"
+          "  result\n"
+          "}\n"
+          "fn y(i: i32) => i;\n"
+      ),
+      Catch::Contains("Unable to find"));
   }
 }

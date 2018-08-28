@@ -5,12 +5,12 @@
   #include "config.h"
 #endif
 
-#ifndef TEMPEST_SOURCE_LOCATION_HPP
-  #include "tempest/source/location.hpp"
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
 #endif
 
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
+#ifndef TEMPEST_SOURCE_LOCATION_HPP
+  #include "tempest/source/location.hpp"
 #endif
 
 #include <memory>
@@ -21,6 +21,8 @@ namespace tempest::ast {
 }
 
 namespace tempest::sema::graph {
+  using tempest::source::Locatable;
+
   /** Base class for all members within a scope. */
   class Member {
   public:
@@ -70,7 +72,12 @@ namespace tempest::sema::graph {
   typedef llvm::ArrayRef<Member*> MemberArray;
 
   /** Function to pretty-print a Defn graph. */
-  void format(::std::ostream& out, const Member* m, bool pretty);
+  void format(::std::ostream& out, const Member* m, bool pretty, bool showType = false);
+
+  inline ::std::ostream& operator<<(::std::ostream& os, const Member* m) {
+    format(os, m, false, true);
+    return os;
+  }
 }
 
 #endif

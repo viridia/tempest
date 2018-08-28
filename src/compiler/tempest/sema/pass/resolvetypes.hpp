@@ -10,6 +10,7 @@
 #endif
 
 namespace tempest::sema::graph {
+  class ApplyFnOp;
   class BlockStmt;
   class LocalVarStmt;
   class DefnRef;
@@ -32,7 +33,7 @@ namespace tempest::sema::pass {
     ResolveTypesPass(CompilationUnit& cu) : _cu(cu) {}
 
     /** Eagerly resolve types for a definition. */
-    static void visit(Defn* defn);
+    static bool resolve(Defn* defn);
 
     void run();
 
@@ -56,6 +57,10 @@ namespace tempest::sema::pass {
     // Exprs
 
     Type* visitExpr(Expr* expr, ConstraintSolver& cs);
+    void visitExprArray(
+        llvm::SmallVectorImpl<Type*>& types,
+        const llvm::ArrayRef<Expr*>& exprs,
+        ConstraintSolver& cs);
 
     // Inference
 
@@ -72,11 +77,35 @@ namespace tempest::sema::pass {
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
+    Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
+    Type* visitCallName(
+        Expr* callExpr, Expr* fn, const llvm::ArrayRef<Expr*>& args, ConstraintSolver& cs);
+    Type* addCallSite(
+        Expr* callExpr,
+        Expr* fn,
+        const llvm::ArrayRef<Member*>& methodList,
+        const llvm::ArrayRef<Expr*>& args,
+        const llvm::ArrayRef<Type*>& argTypes,
+        ConstraintSolver& cs);
     Type* visitVarName(DefnRef* expr, ConstraintSolver& cs);
     Type* visitFunctionName(DefnRef* expr, ConstraintSolver& cs);
     Type* visitTypeName(DefnRef* expr, ConstraintSolver& cs);
 
+    Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
     Type* chooseIntegerType(Expr* expr, Type* ty);
+
+    /** Make a copy of this array within the current alloc. */
+    template<class T> llvm::ArrayRef<T> copyOf(llvm::ArrayRef<T> array) {
+      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
+      std::copy(array.begin(), array.end(), data);
+      return llvm::ArrayRef((T*) data, array.size());
+    }
+
+    template<class T> llvm::ArrayRef<T> copyOf(const llvm::SmallVectorImpl<T>& array) {
+      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
+      std::copy(array.begin(), array.end(), data);
+      return llvm::ArrayRef((T*) data, array.size());
+    }
   };
 }
 

@@ -5,12 +5,12 @@
 #ifndef TEMPEST_GRAPH_SYMBOLTABLE_HPP
 #define TEMPEST_GRAPH_SYMBOLTABLE_HPP 1
 
-#ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
-  #include "tempest/sema/graph/member.hpp"
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
 #endif
 
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
+#ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
+  #include "tempest/sema/graph/member.hpp"
 #endif
 
 #ifndef LLVM_ADT_STRINGMAP_H

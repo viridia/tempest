@@ -64,7 +64,7 @@ namespace tempest::sema::convert {
         } else {
           auto fdef = static_cast<FunctionDefn*>(member);
           if (fdef->type() == nullptr) {
-            ResolveTypesPass::visit(fdef);
+            ResolveTypesPass::resolve(fdef);
           }
           assert(fdef->type()->returnType != nullptr);
           FunctionDefn* target = nullptr;

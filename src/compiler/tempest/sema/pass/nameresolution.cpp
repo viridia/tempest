@@ -25,16 +25,6 @@ namespace tempest::sema::pass {
   using namespace tempest::sema::names;
 
   namespace {
-    Defn* unwrapSpecialization(Member* m) {
-      if (!m) {
-        return nullptr;
-      }
-      if (auto sp = dyn_cast<SpecializedDefn>(m)) {
-        m = sp->generic();
-      }
-      return dyn_cast<Defn>(m);
-    }
-
     // Given a (possibly specialized) type definition, return what kind of type it is.
     Type::Kind typeKindOf(Member* m) {
       m = unwrapSpecialization(m);
@@ -770,7 +760,7 @@ namespace tempest::sema::pass {
           return fn;
         }
 
-        return new (*_alloc) InvokeOp(Expr::Kind::CALL, op->location, fn, copyOf(args));
+        return new (*_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fn, copyOf(args));
       }
 
       // FLUENT_MEMBER,

@@ -1,6 +1,10 @@
 #ifndef TEMPEST_SEMA_NAMES_MEMBERNAMELOOKUP_HPP
 #define TEMPEST_SEMA_NAMES_MEMBERNAMELOOKUP_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
   #include "tempest/sema/graph/member.hpp"
 #endif
@@ -13,16 +17,8 @@
   #include "tempest/sema/graph/symboltable.hpp"
 #endif
 
-#ifndef LLVM_ADT_ARRAYREF_H
-  #include <llvm/ADT/ArrayRef.h>
-#endif
-
 #ifndef LLVM_ADT_SMALLPTRSET_H
   #include <llvm/ADT/SmallPtrSet.h>
-#endif
-
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
 #endif
 
 // namespace spark {

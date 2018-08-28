@@ -1,6 +1,10 @@
 #ifndef TEMPEST_PARSE_LEXER_HPP
 #define TEMPEST_PARSE_LEXER_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_AST_NODE_HPP
   #include "tempest/ast/node.hpp"
 #endif
@@ -19,10 +23,6 @@
 
 #ifndef TEMPEST_PARSE_TOKENS_HPP
   #include "tempest/parse/tokens.hpp"
-#endif
-
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
 #endif
 
 #include <istream>

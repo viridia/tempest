@@ -1,12 +1,12 @@
 #ifndef TEMPEST_AST_LITERAL_HPP
 #define TEMPEST_AST_LITERAL_HPP 1
 
-#ifndef TEMPEST_AST_NODE_HPP
-  #include "tempest/ast/node.hpp"
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
 #endif
 
-#ifndef LLVM_ADT_STRINGREF_H
-  #include <llvm/ADT/StringRef.h>
+#ifndef TEMPEST_AST_NODE_HPP
+  #include "tempest/ast/node.hpp"
 #endif
 
 namespace tempest::ast {

@@ -34,15 +34,6 @@ namespace tempest::sema::infer {
   }
 
   void ConstraintSolver::run() {
-//     for site in self.sites:
-//       for candidate in site.candidates:
-//         if isinstance(candidate, callsite.CallCandidate) and candidate.member:
-//           for traceSubject in self.TO_TRACE:
-//             if traceSubject.match(candidate.member, self.location):
-//               self.tracing = True
-//               callsite.Choice.tracing = True
-//               break
-
 //     if self.typeChoices:
 // #       debug.write(list(self.typeChoices.values()))
 //       self.sites.extend(self.typeChoices.values())
@@ -311,12 +302,6 @@ namespace tempest::sema::infer {
               }
               // else neither is better, so keep both.
             }
-          //   spec = candidate.isMoreSpecific(msCandidate)
-          // if spec == typerelation.RelativeSpecificity.LESS:
-          //   addNew = False
-          //   preserved.add(msCandidate)
-          // elif spec != typerelation.RelativeSpecificity.MORE:
-          //   preserved.add(msCandidate)
           }
 
           mostSpecific.swap(preserved);
@@ -331,41 +316,6 @@ namespace tempest::sema::infer {
             rej->rejection.reason = Rejection::NOT_MORE_SPECIALIZED;
           }
         }
-
-        // mostSpecific = preserved
-        // if addNew:
-        //   mostSpecific.add(candidate)
-
-//       best = None
-//       if len(mostSpecific) == 1:
-//         best = mostSpecific.pop()
-// #       else:
-// #         debug.writef("## Specificity test failed, {0} most specific", len(mostSpecific))
-
-//         for candidate in site.candidates:
-//           if not candidate.rejection and candidate != best:
-//             candidate.reject(rejection.NotMoreSpecialized())
-//             rejected.add(candidate)
-
-//       if rejected and debug.tracing:
-//         debug.write('candidates rejected because of specificity:')
-//         with debug.indented():
-//           for candidate in rejected:
-//             debug.write(candidate)
-//       if best:
-//         assert site.numViableCandidates() > 0
-//         if debug.tracing:
-//           debug.write('remaining candidates:')
-//           with debug.indented():
-//             debug.write(best)
-
-//     debug.tracing = saveTracing
-
-
-          // Is this candidate equal or narrower to all candidates?
-            // Now, remove any candidates that are less narrow than this one.
-          // }
-        // }
       } else {
         assert(false && "Implement OC Spec");
       }
@@ -573,7 +523,6 @@ namespace tempest::sema::infer {
           // UNSATISFIED_REQIREMENT,
           // UNSATISFIED_TYPE_CONSTRAINT,
           // INCONSISTENT, // Contradictory constraints
-          // NOT_MORE_SPECIALIZED,
 
           case Rejection::NOT_MORE_SPECIALIZED:
             diag.info(method->location()) << cc->method

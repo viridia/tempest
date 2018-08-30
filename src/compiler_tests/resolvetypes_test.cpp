@@ -238,11 +238,26 @@ TEST_CASE("ResolveTypes", "[sema]") {
         "}\n"
         "fn y(a: i64, b: i64) => a;\n"
         "fn y(a: i32, b: i32) => a;\n"
+        "fn y(a: bool, b: bool) => a;\n"
+        "fn y(a: f32, b: f32) => a;\n"
     );
     auto fd = cast<FunctionDefn>(mod->members().front());
     auto body = cast<BlockStmt>(fd->body());
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Ambiguous overloads") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x() {\n"
+          "  let result = y(1, 1);\n"
+          "  result\n"
+          "}\n"
+          "fn y(a: i64, b: i32) => a;\n"
+          "fn y(a: i32, b: i64) => a;\n"
+      ),
+      Catch::Contains("Ambiguous overloaded method"));
   }
 }

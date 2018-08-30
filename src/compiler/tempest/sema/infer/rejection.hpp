@@ -26,20 +26,26 @@ namespace tempest::sema::infer {
       // Type inference rejections
       UNIFICATION_ERROR,
       CONVERSION_FAILURE,
+      QUALIFIER_LOSS,
       UNSATISFIED_REQIREMENT,
       UNSATISFIED_TYPE_CONSTRAINT,
       INCONSISTENT, // Contradictory constraints
       NOT_MORE_SPECIALIZED,
+      NOT_BEST,
     };
 
     /** Reason for the rejection. */
     Reason reason;
 
+    size_t argIndex = 0;
+
     /** Some rejections include a constraint that wasn't satisfied. */
     Constraint* constraint = nullptr;
     Constraint* otherConstraint = nullptr;
 
-    Rejection(Reason reason = NONE) : reason(reason) {};
+    Rejection() : reason(NONE) {};
+    Rejection(Reason reason) : reason(reason) {};
+    Rejection(Reason reason, size_t argIndex) : reason(reason), argIndex(argIndex) {};
     Rejection(const Rejection&) = default;
   };
 }

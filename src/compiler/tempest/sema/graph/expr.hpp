@@ -262,14 +262,19 @@ namespace tempest::sema::graph {
     llvm::StringRef name;
 
     /** List of members. */
-    llvm::ArrayRef<Member*> members;
+    const llvm::ArrayRef<Member*> members;
 
     /** Stem expression */
     Expr* stem = nullptr;
 
-    MemberListExpr(Expr::Kind kind, Location location, llvm::StringRef name)
+    MemberListExpr(
+        Expr::Kind kind,
+        Location location,
+        llvm::StringRef name,
+        const llvm::ArrayRef<Member*>& members)
       : Expr(kind, location)
       , name(name)
+      , members(members)
     {}
 
     /** Dynamic casting support. */

@@ -538,7 +538,7 @@ namespace tempest::sema::pass {
       const ArrayRef<Type*>& argTypes,
       ConstraintSolver& cs) {
 //   def addCallSite(self, callExpr, func, listType, args, argTypes, cs):
-    auto site = new CallSite(callExpr, args, argTypes);
+    auto site = new CallSite(callExpr->location, callExpr, args, argTypes);
     cs.addSite(site);
 
     // The return type will depend on which overload type gets chosen.
@@ -685,22 +685,26 @@ namespace tempest::sema::pass {
       cc->paramTypes = paramTypes;
 
       ParameterAssignmentsBuilder builder(cc->paramAssignments, cc->params);
-      builder.forArgs(args);
+      size_t argIndex = 0;
+      for (auto arg : args) {
+        if (builder.error() != ParamError::NONE) {
+          break;
+        }
+        // TODO: Keyword args.
+        (void)arg;
+        // if (arg->kind == Expr::Kind::KEY)
+        builder.addPositionalArg();
+        argIndex += 1;
+      }
+      builder.validate();
+
       if (builder.error() != ParamError::NONE) {
         if (builder.error() == ParamError::POSITIONAL_AFTER_KEYWORD) {
           diag.error(callExpr) << "Keyword arguments must come after all position arguments.";
           return &Type::ERROR;
         }
         cc->rejection = builder.rejection();
-      } else {
-        for (size_t i = 0; i < cc->paramAssignments.size(); i += 1) {
-          auto paramIndex = cc->paramAssignments[i];
-          cs.addAssignment(
-            args[i]->location,
-            paramTypes[paramIndex],
-            argTypes[i],
-            Conditions(cc->site->ordinal, cc->ordinal));
-        }
+        cc->rejection.argIndex = argIndex;
       }
 
 //       cc.setTypeVars(environ.Env(ccTypeVars))
@@ -745,7 +749,7 @@ namespace tempest::sema::pass {
 
     // Return ambiguous result.
     assert(!returnTypes.empty());
-    return new (_alloc) ContingentType(copyOf(returnTypes));
+    return new (cs.alloc()) ContingentType(cs.alloc().copyOf(returnTypes));
   }
 
 //   def lookupSpecializedCallable(self, func, argTypes, cs):

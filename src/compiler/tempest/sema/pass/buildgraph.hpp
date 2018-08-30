@@ -42,7 +42,7 @@ namespace tempest::sema::pass {
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
-    llvm::BumpPtrAllocator* _alloc = nullptr;
+    tempest::support::BumpPtrAllocator* _alloc = nullptr;
 
     bool moreSources() const {
       return _sourcesProcessed < _cu.sourceModules().size();

@@ -31,18 +31,19 @@ namespace tempest::sema::infer {
 
   class OverloadSite;
 
+  enum class OverloadKind {
+    CALL,
+    SPECIALIZE,
+  };
+
   /** Abstract base class for one of several overload candidates during constraint solving.
       Overloads can be functions calls or type specializations. The solver will attempt to
       choose the best candidate for each site. */
   class OverloadCandidate {
   public:
-    enum class Kind {
-      CALL,
-      SPECIALIZE,
-    };
 
     /** What kind of overload this is. */
-    const Kind kind;
+    const OverloadKind kind;
 
     /** True if this candidate has been eliminated from consideration. */
     bool pruned = false;
@@ -62,7 +63,7 @@ namespace tempest::sema::infer {
     /** Summary of conversion results for this candidate. */
     ConversionRankTotals conversionResults;
 
-    OverloadCandidate(Kind kind, size_t ordinal, OverloadSite* site)
+    OverloadCandidate(OverloadKind kind, size_t ordinal, OverloadSite* site)
       : kind(kind)
       , ordinal(ordinal)
       , site(site) {}
@@ -80,9 +81,11 @@ namespace tempest::sema::infer {
   //   if Choice.tracing:
   //     debug.write('reject:', self, reason=reason)
 
-    bool isViable() const {
-      return rejection.reason == Rejection::NONE && !pruned;
-    }
+    /** True if this candidate is still being considered. */
+    bool isViable() const { return rejection.reason == Rejection::NONE && !pruned; }
+
+    /** True if this candidate has been rejected. */
+    bool isRejected() const { return rejection.reason != Rejection::NONE; }
 
   // def hasBetterConversionRanks(self, other):
   //   return typerelation.isBetterConversionRanks(self.conversionResults, other.conversionResults)
@@ -121,15 +124,18 @@ namespace tempest::sema::infer {
     llvm::SmallVector<size_t, 8> paramAssignments;
 
     CallCandidate(OverloadSite* site, size_t ordinal, Member* member)
-      : OverloadCandidate(Kind::CALL, ordinal, site)
+      : OverloadCandidate(OverloadKind::CALL, ordinal, site)
       , method(member)
     {}
 
     virtual Member* getMember() const { return method; }
 
+    /** Return true if this candidate is either more specific or has equal specificity. */
+    bool isEqualOrNarrower(CallCandidate* cc);
+
     /** Dynamic casting support. */
     static bool classof(const CallCandidate* t) { return true; }
-    static bool classof(const OverloadCandidate* oc) { return oc->kind == Kind::CALL; }
+    static bool classof(const OverloadCandidate* oc) { return oc->kind == OverloadKind::CALL; }
   };
 
   /** Overload candidate representing a generic type specialization. */
@@ -145,8 +151,16 @@ namespace tempest::sema::infer {
       in the expression graph. */
   class OverloadSite {
   public:
+    /** What kind of overload this is. */
+    const OverloadKind kind;
+    source::Location location;
     std::vector<OverloadCandidate*> candidates;
     size_t ordinal;
+
+    OverloadSite(OverloadKind kind, const source::Location& location)
+      : kind(kind)
+      , location(location)
+    {}
 
     ~OverloadSite() {
       for (auto oc : candidates) {
@@ -166,21 +180,61 @@ namespace tempest::sema::infer {
       }
       candidates[index]->pruned = false;
     }
+
+    bool allRejected() const {
+      return std::find_if(
+          candidates.begin(),
+          candidates.end(),
+          [](auto oc) { return oc->rejection.reason == Rejection::NONE; }) == candidates.end();
+    }
+
+    size_t numViable() const {
+      size_t result = 0;
+      for (auto oc : candidates) {
+        if (oc->isViable()) {
+          result += 1;
+        }
+      }
+      return result;
+    }
+
+    /** True if there is only a single remaining unrejected candidate. */
+    bool isSingular() const {
+      return singularCandidate() != nullptr;
+    }
+
+    /** Return the single remaining unrejected candidate, or null. */
+    OverloadCandidate* singularCandidate() const {
+      OverloadCandidate* result = nullptr;
+      for (auto oc : candidates) {
+        if (oc->rejection.reason == Rejection::NONE) {
+          if (result) {
+            return nullptr;
+          } else {
+            result = oc;
+          }
+        }
+      }
+      return result;
+    }
   };
 
+  /** An overload site for a method call. */
   class CallSite : public OverloadSite {
   public:
     Expr* callExpr;
-    llvm::ArrayRef<Expr*> argList;
-    llvm::ArrayRef<Type*> argTypes;
+    llvm::SmallVector<Expr*, 8> argList;
+    const llvm::SmallVector<Type*, 8> argTypes;
 
     CallSite(
+        const source::Location& location,
         Expr* callExpr,
         const llvm::ArrayRef<Expr*> &argList,
         llvm::ArrayRef<Type*> argTypes)
-      : callExpr(callExpr)
-      , argList(argList)
-      , argTypes(argTypes)
+      : OverloadSite(OverloadKind::CALL, location)
+      , callExpr(callExpr)
+      , argList(argList.begin(), argList.end())
+      , argTypes(argTypes.begin(), argTypes.end())
     {}
 
     CallCandidate* addCandidate(Member* method) {
@@ -194,15 +248,9 @@ namespace tempest::sema::infer {
     //   self.candidates.append(cc)
     //   return cc
 
-    // def formatCallType(self):
-    //   return debug.format(self.callExpr.getArgs()[0]) +\
-    //       '(' + ', '.join(debug.format(ty) for ty in self.argTypes) + ')'
-
-    // def __str__(self):
-    //   return self.format(self.callExpr)
-  };
-
-  class PredicateSet {
+    /** Dynamic casting support. */
+    static bool classof(const CallSite* cs) { return true; }
+    static bool classof(const OverloadSite* cs) { return cs->kind == OverloadKind::CALL; }
   };
 }
 

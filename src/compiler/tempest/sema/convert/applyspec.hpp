@@ -31,7 +31,7 @@ namespace tempest::sema::convert {
     }
 
   private:
-    llvm::BumpPtrAllocator _alloc;
+    tempest::support::BumpPtrAllocator _alloc;
     llvm::ArrayRef<const Type*> _typeArgs;
   };
 }

@@ -17,6 +17,8 @@
   #include "tempest/sema/convert/result.hpp"
 #endif
 
+#include <unordered_set>
+
 namespace tempest::sema::graph {
   class GenericDefn;
 }
@@ -43,30 +45,20 @@ namespace tempest::sema::infer {
       for (auto site : _sites) {
         delete site;
       }
-      for (auto cc : _conversionConstraints) {
-        delete cc;
-      }
       for (auto bc : _bindingConstraints) {
         delete bc;
       }
     }
 
-    llvm::BumpPtrAllocator& alloc() { return _alloc; }
+    tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
     bool empty() const {
-      return _conversionConstraints.empty()
-          && _bindingConstraints.empty()
+      return _bindingConstraints.empty()
           && _sites.empty();
     //   return and len(self.anonFns) == 0
     }
 
     TypeVarRenamer& renamer() { return _renamer; }
-
-    void addAssignment(
-        const source::Location& loc,
-        const Type* dstType,
-        const Type* srcType,
-        Conditions when);
 
     void addBindingConstraint(
         const source::Location& loc,
@@ -75,10 +67,7 @@ namespace tempest::sema::infer {
         BindingConstraint::Restriction restriction,
         Conditions when);
 
-    void addSite(OverloadSite* site) {
-      site->ordinal = _sites.size();
-      _sites.push_back(site);
-    }
+    void addSite(OverloadSite* site);
 
     void run();
     bool failed() const { return _failed; }
@@ -91,22 +80,34 @@ namespace tempest::sema::infer {
     void findBestRankedOverloads();
     void findBestRankedOverloads(const llvm::ArrayRef<OverloadSite*>& sites, size_t index);
 
+    void cullCandidatesBySpecificity();
+
     /** True if a set of conditions has not yet been precluded by overload pruning. */
     bool isViable(const Conditions& cond);
+    bool isSingularSolution() const;
 
   private:
-    llvm::BumpPtrAllocator _alloc;
+    tempest::support::BumpPtrAllocator _alloc;
     TypeVarRenamer _renamer;
     // GenericDefn* _enclosingGeneric;
-    std::vector<ConversionConstraint*> _conversionConstraints;
     std::vector<BindingConstraint*> _bindingConstraints;
     std::vector<OverloadSite*> _sites;
     std::vector<size_t> _currentPermutation;
     std::vector<size_t> _bestPermutation;
+    std::unordered_set<uint32_t> _bestPermutationSet;
+    size_t _bestPermutationCount;
     ConversionRankTotals _bestRankings;
     bool _failed = false;
 
-    void reportConversionError(ConversionConstraint* cct, ConversionResult result);
+    /** Find the best possible conversion for the nth parameter at a call site, checking
+        all remaining viable overloads. */
+    ConversionResult paramConversion(CallSite* site, size_t argIndex);
+    bool rejectErrorCandidates(CallSite* site, size_t argIndex);
+
+    void reportSiteAmbiguities();
+    void reportSiteRejections(OverloadSite* errorSite);
+    void reportCandidateStatus(OverloadSite* site);
+    void reportConversionError(const Type* dst, const Type* src, ConversionResult result);
   };
 }
 

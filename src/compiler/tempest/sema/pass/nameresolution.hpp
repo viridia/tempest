@@ -79,7 +79,7 @@ namespace tempest::sema::pass {
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
-    llvm::BumpPtrAllocator* _alloc = nullptr;
+    tempest::support::BumpPtrAllocator* _alloc = nullptr;
 
     void visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast);
     Expr* createNameRef(
@@ -101,19 +101,6 @@ namespace tempest::sema::pass {
       auto data = static_cast<char*>(_alloc->Allocate(str.size(), 1));
       std::copy(str.begin(), str.end(), data);
       return llvm::StringRef((char*) data, str.size());
-    }
-
-    /** Make a copy of this array within the current alloc. */
-    template<class T> llvm::ArrayRef<T> copyOf(llvm::ArrayRef<T> array) {
-      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
-      std::copy(array.begin(), array.end(), data);
-      return llvm::ArrayRef((T*) data, array.size());
-    }
-
-    template<class T> llvm::ArrayRef<T> copyOf(const llvm::SmallVectorImpl<T>& array) {
-      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
-      std::copy(array.begin(), array.end(), data);
-      return llvm::ArrayRef((T*) data, array.size());
     }
   };
 }

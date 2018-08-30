@@ -9,8 +9,8 @@
   #include "tempest/source/programsource.hpp"
 #endif
 
-#ifndef LLVM_SUPPORT_ALLOCATOR_H
-  #include <llvm/Support/Allocator.h>
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
 #endif
 
 namespace tempest::ast {
@@ -67,10 +67,10 @@ namespace tempest::sema::graph {
     SymbolTable* exportScope() const { return _exportScope.get(); }
 
     /** Allocator used for AST nodes. */
-    llvm::BumpPtrAllocator& astAlloc() { return _astAlloc; }
+    tempest::support::BumpPtrAllocator& astAlloc() { return _astAlloc; }
 
     /** Allocator used for semantic graph. */
-    llvm::BumpPtrAllocator& semaAlloc() { return _semaAlloc; }
+    tempest::support::BumpPtrAllocator& semaAlloc() { return _semaAlloc; }
 
     /** Dynamic casting support. */
     static bool classof(const Module* m) { return true; }
@@ -84,8 +84,8 @@ namespace tempest::sema::graph {
     MemberList _imports;
     std::unique_ptr<SymbolTable> _memberScope;
     std::unique_ptr<SymbolTable> _exportScope;
-    llvm::BumpPtrAllocator _astAlloc;
-    llvm::BumpPtrAllocator _semaAlloc;
+    tempest::support::BumpPtrAllocator _astAlloc;
+    tempest::support::BumpPtrAllocator _semaAlloc;
     // std::unordered_set<SpecializedDefn*> _syntheticFunctions;
   };
 }

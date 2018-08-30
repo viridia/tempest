@@ -37,7 +37,7 @@ namespace tempest::parse {
     PREC_MUL_DIV, // multiply and divide
   };
 
-  Parser::Parser(ProgramSource* source, llvm::BumpPtrAllocator& alloc)
+  Parser::Parser(ProgramSource* source, tempest::support::BumpPtrAllocator& alloc)
     : _alloc(alloc)
     , _lexer(source)
     , _recovering(false)

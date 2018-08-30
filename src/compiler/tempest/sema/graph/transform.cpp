@@ -45,7 +45,7 @@ namespace tempest::sema::graph {
         auto ut = static_cast<const UnionType*>(ty);
         llvm::SmallVector<const Type*, 8> members;
         if (transformArray(members, ut->members)) {
-          return new (_alloc) UnionType(copyOf(members));
+          return new (_alloc) UnionType(_alloc.copyOf(members));
         }
         return ut;
       }
@@ -54,7 +54,7 @@ namespace tempest::sema::graph {
         auto tt = static_cast<const TupleType*>(ty);
         llvm::SmallVector<const Type*, 8> members;
         if (transformArray(members, tt->members)) {
-          return new (_alloc) TupleType(copyOf(members));
+          return new (_alloc) TupleType(_alloc.copyOf(members));
         }
         return tt;
       }
@@ -65,7 +65,7 @@ namespace tempest::sema::graph {
         llvm::SmallVector<const Type*, 8> typeArgs;
         if (transformArray(typeArgs, sd->typeArgs())) {
           auto nsd = new (_alloc) SpecializedDefn(
-              sd->generic(), copyOf(typeArgs), sd->typeParams());
+              sd->generic(), _alloc.copyOf(typeArgs), sd->typeParams());
           return new (_alloc) SpecializedType(nsd);
         }
         return st;
@@ -77,7 +77,7 @@ namespace tempest::sema::graph {
         auto returnType = transform(ft->returnType);
         if (transformArray(paramTypes, ft->paramTypes) || returnType != ft->returnType) {
           return new (_alloc) FunctionType(
-            returnType, copyOf(paramTypes), ft->constSelf, ft->isVariadic);
+            returnType, _alloc.copyOf(paramTypes), ft->constSelf, ft->isVariadic);
         }
         return ft;
       }
@@ -113,7 +113,7 @@ namespace tempest::sema::graph {
       return in;
     }
 
-    return new (_alloc) ContingentType(copyOf(entries));
+    return new (_alloc) ContingentType(_alloc.copyOf(entries));
   }
 
   bool TypeTransform::transformArray(

@@ -73,20 +73,6 @@ namespace tempest::sema::infer {
       }
     }
 
-    bool forArgs(const llvm::ArrayRef<Expr*>& args) {
-      for (auto arg : args) {
-        if (_error != ParamError::NONE) {
-          return false;
-        }
-        // TODO: Keyword args.
-        (void)arg;
-        addPositionalArg();
-        // if (arg->kind == Expr::Kind::KEY)
-      }
-
-      return _error == ParamError::NONE;
-    }
-
     ParamError addPositionalArg() {
       if (_error != ParamError::NONE) {
         return _error;

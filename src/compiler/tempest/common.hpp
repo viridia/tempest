@@ -6,7 +6,6 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Allocator.h>
 #include <llvm/Support/Casting.h>
 #include <ostream>
 #include <algorithm>

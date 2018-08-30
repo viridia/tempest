@@ -43,7 +43,6 @@ namespace {
 }
 
 TEST_CASE("Convert.Assignable", "[sema]") {
-  const Location L;
   CompilationUnit cu;
 
   SECTION("Convert integer types") {
@@ -72,6 +71,10 @@ TEST_CASE("Convert.Assignable", "[sema]") {
         == ConversionResult(ConversionRank::EXACT));
     REQUIRE(isAssignable(&FloatType::F32, &FloatType::F64)
         == ConversionResult(ConversionRank::ERROR, ConversionError::PRECISION_LOSS));
+    REQUIRE(isAssignable(&FloatType::F32, &IntegerType::I32)
+        == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
+    REQUIRE(isAssignable(&FloatType::F64, &IntegerType::I32)
+        == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
     REQUIRE(isAssignable(&FloatType::F32, &BooleanType::BOOL)
         == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
     REQUIRE(isAssignable(&FloatType::F32, &VoidType::VOID)

@@ -4,12 +4,15 @@
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/infer/overload.hpp"
+#include "tempest/sema/infer/types.hpp"
 #include "tempest/error/diagnostics.hpp"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::graph {
   using tempest::error::diag;
+  using tempest::sema::infer::ContingentType;
 
   struct Formatter {
     ::std::ostream& out;
@@ -98,7 +101,7 @@ namespace tempest::sema::graph {
       case Member::Kind::FUNCTION: {
         auto fd = static_cast<const FunctionDefn*>(m);
         out << "fn " << fd->name();
-        if (showType) {
+        if (showType && fd->type()) {
           out << "(";
           auto sep = "";
           for (auto p : fd->params()) {
@@ -311,7 +314,26 @@ namespace tempest::sema::graph {
         break;
       }
 
-      // SINGLETON,      // A type consisting of a single value
+      case Type::Kind::CONTINGENT: {
+        auto ct = static_cast<const ContingentType*>(t);
+        out << "any of (";
+        for (size_t i = 0; i < ct->entries.size(); i += 1) {
+          auto& member = ct->entries[i];
+          if (i > 0) {
+            if (i == ct->entries.size() - 1) {
+              out << " or ";
+            } else {
+              out << ", ";
+            }
+          }
+          if (!member.when->isViable()) {
+            out << "-";
+          }
+          visitType(member.type);
+        }
+        out << ")";
+        break;
+      }
 
       default:
         diag.error() << "Format not implemented: " << int(t->kind);

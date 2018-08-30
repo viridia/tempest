@@ -20,7 +20,7 @@ public:
 };
 
 /** Parse a module definition. */
-std::string parseModuleError(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+std::string parseModuleError(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
   UseMockReporter umr;
   TestSource src(srcText);
   Parser parser(&src, alloc);
@@ -30,7 +30,7 @@ std::string parseModuleError(llvm::BumpPtrAllocator& alloc, const char* srcText)
 }
 
 // /** Parse a member declaration. */
-// Node* parseMemberDeclaration(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+// Node* parseMemberDeclaration(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
 //   UseMockReporter umr;
 //   TestSource src(srcText);
 //   Parser parser(&src, alloc);
@@ -40,7 +40,7 @@ std::string parseModuleError(llvm::BumpPtrAllocator& alloc, const char* srcText)
 // }
 
 /** Parse an expression. */
-std::string parseExprError(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+std::string parseExprError(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
   UseMockReporter umr;
   TestSource src(srcText);
   Parser parser(&src, alloc);
@@ -53,7 +53,7 @@ TEST_CASE("ParserError", "[parse]") {
   const Location L;
 
   SECTION("Module") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
     REQUIRE_THAT(
       parseModuleError(alloc,
         "import { A } from 1;\n"
@@ -72,7 +72,7 @@ TEST_CASE("ParserError", "[parse]") {
   }
 
   // SECTION("Class") {
-  //   llvm::BumpPtrAllocator alloc;
+  //   tempest::support::BumpPtrAllocator alloc;
 
   //   // Basic class declaration
   //   REQUIRE_THAT(
@@ -130,7 +130,7 @@ TEST_CASE("ParserError", "[parse]") {
   // }
 
   // SECTION("Statement") {
-  //   llvm::BumpPtrAllocator alloc;
+  //   tempest::support::BumpPtrAllocator alloc;
 
   //   // Block with multiple statements
   //   REQUIRE_THAT(
@@ -222,7 +222,7 @@ TEST_CASE("ParserError", "[parse]") {
   // }
 
   SECTION("InfixOperators") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
     REQUIRE_THAT(
       parseExprError(alloc, "1 + ;"),
       Catch::Contains("Expression expected"));

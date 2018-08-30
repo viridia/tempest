@@ -2,10 +2,13 @@
 #include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/convert/applyspec.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/infer/types.hpp"
+#include "tempest/sema/infer/overload.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
+  using namespace tempest::sema::infer;
   using namespace llvm;
   using tempest::error::diag;
 
@@ -74,7 +77,7 @@ namespace tempest::sema::convert {
         newEnv.args.push_back(apply.transform(typeArg));
       }
       auto genType = cast<TypeDefn>(sp->spec->generic())->type();
-      return isAssignable(genType, srcMods, newEnv, src, srcMods, srcEnv);
+      return isAssignable(genType, dstMods, newEnv, src, srcMods, srcEnv);
     }
 
 //   if isinstance(src, graph.ModifiedType):
@@ -187,42 +190,33 @@ namespace tempest::sema::convert {
       return result;
     }
 
-//   if isinstance(dst, ContingentType):
-//     # This should not happen here - instead we should decompose at the constraint level.
-//     assert False
-//     with debug.indented():
-//       debug.trace('Ambiguous:')
-//       if isinstance(src, ContingentType):
-//         assert False, 'ambig to ambig'
-//         pass
-//       bestResult = ConversionResult(ConversionRank.UNSET, None, None)
-//       for (aty, when) in dst.types:
-//         debug.fail(aty, when)
-//         if when.isViable():
-//           result = isAssignableEnv(aty, dstConst, dstEnv, src, srcConst, srcEnv)
-//           if result.rank > bestResult.rank:
-//             bestResult = result
-//       if bestResult.rank == ConversionRank.IDENTICAL:
-//         debug.trace('-- exact')
-//         bestResult = ConversionResult(ConversionRank.EXACT, bestResult.error, bestResult.via)
-//       return bestResult
+    if (src->kind == Type::Kind::CONTINGENT) {
+      auto srcCont = static_cast<const ContingentType*>(src);
+      ConversionResult result(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
+      for (auto& entry : srcCont->entries) {
+        if (entry.when->isViable()) {
+          result = result.better(isAssignable(dst, dstMods, dstEnv, entry.type, srcMods, srcEnv));
+          if (result.rank == ConversionRank::IDENTICAL) {
+            break;
+          }
+        }
+      }
+      return result;
+    }
 
-//   if isinstance(src, ContingentType):
-//     # This should not happen here - instead we should decompose at the constraint level.
-//     assert False
-//     with debug.indented():
-//       debug.trace('Ambiguous:')
-//       bestResult = ConversionResult(ConversionRank.UNSET, None, None)
-//       for (aty, when) in dst.getMembers():
-//         assert False, debug.format(aty, when)
-//         if when.isViable():
-//           result = isAssignableEnv(dst, dstConst, dstEnv, aty, srcConst, srcEnv)
-//           if result.rank > bestResult.rank:
-//             bestResult = result
-//       if bestResult.rank == ConversionRank.IDENTICAL:
-//         debug.trace('-- exact')
-//         bestResult = ConversionResult(ConversionRank.EXACT, bestResult.error, bestResult.via)
-//       return bestResult
+    if (dst->kind == Type::Kind::CONTINGENT) {
+      auto dstCont = static_cast<const ContingentType*>(dst);
+      ConversionResult result(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
+      for (auto& entry : dstCont->entries) {
+        if (entry.when->isViable()) {
+          result = result.better(isAssignable(entry.type, dstMods, dstEnv, src, srcMods, srcEnv));
+          if (result.rank == ConversionRank::IDENTICAL) {
+            break;
+          }
+        }
+      }
+      return result;
+    }
 
 //   if isinstance(dst, graph.ModifiedType):
 //     with debug.indented():
@@ -286,7 +280,6 @@ namespace tempest::sema::convert {
         } else {
           return ConversionResult(ConversionRank::IDENTICAL);
         }
-
       }
       return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
     }
@@ -315,7 +308,7 @@ namespace tempest::sema::convert {
         // If src is a subtype of dst then it's OK.
         auto dstClass = static_cast<const UserDefinedType*>(dst);
         auto srcClass = static_cast<const UserDefinedType*>(src);
-        if (isSubtype(dstClass->defn(), dstEnv, srcClass->defn(), srcEnv)) {
+        if (isSubtype(srcClass->defn(), srcEnv, dstClass->defn(), dstEnv)) {
           if (!isCompatibleMods(dstMods, srcMods)) {
             return ConversionResult(ConversionRank::ERROR, ConversionError::QUALIFIER_LOSS);
           }
@@ -335,12 +328,12 @@ namespace tempest::sema::convert {
       if (src->kind == Type::Kind::CLASS) {
         auto srcClass = static_cast<const UserDefinedType*>(src);
         // If src is a subtype of dst then it's OK.
-        if (isSubtype(dstIface->defn(), dstEnv, srcClass->defn(), srcEnv)) {
+        if (isSubtype(srcClass->defn(), srcEnv, dstIface->defn(), dstEnv)) {
           if (!isCompatibleMods(dstMods, srcMods)) {
             return ConversionResult(ConversionRank::ERROR, ConversionError::QUALIFIER_LOSS);
           }
           return ConversionResult(ConversionRank::EXACT);
-        } else if (implementsMembers(dstIface->defn(), dstEnv, srcClass->defn(), srcEnv)) {
+        } else if (implementsMembers(srcClass->defn(), srcEnv, dstIface->defn(), dstEnv)) {
           if (!isCompatibleMods(dstMods, srcMods)) {
             return ConversionResult(ConversionRank::ERROR, ConversionError::QUALIFIER_LOSS);
           }
@@ -351,7 +344,7 @@ namespace tempest::sema::convert {
         auto srcIface = static_cast<const UserDefinedType*>(src);
         // TODO: check extends list or structural typing
         // If src is a subtype of dst then it's OK.
-        if (isSubtype(dstIface->defn(), dstEnv, srcIface->defn(), srcEnv)) {
+        if (isSubtype(srcIface->defn(), srcEnv, dstIface->defn(), dstEnv)) {
           if (!isCompatibleMods(dstMods, srcMods)) {
             return ConversionResult(ConversionRank::ERROR, ConversionError::QUALIFIER_LOSS);
           }

@@ -41,15 +41,20 @@ namespace tempest::sema::convert {
       const Type* dst, uint32_t dstMods, ConversionEnv& dstEnv,
       const Type* src, uint32_t srcMods, ConversionEnv& srcEnv);
 
-  /** Return whether the source type is a subtype of the destination type. */
+  /** Return whether the subtype (st) type is a subtype of the base type (bt). */
   bool isSubtype(
-      const TypeDefn* dst, ConversionEnv& dstEnv,
-      const TypeDefn* src, ConversionEnv& srcEnv);
+      const TypeDefn* st, ConversionEnv& stEnv,
+      const TypeDefn* bt, ConversionEnv& btEnv);
 
-  /** Return whether the source type implements all the members of the destination type. */
+  /** Similar to isSubtype, but takes into account upper and lower bounds on type variables.
+      Returns true if both sides are equally specific. */
+  bool isEqualOrNarrower(const Type* lt, const Type* rt);
+  bool isEqualOrNarrower(const Type* lt, ConversionEnv& lEnv, const Type* rt, ConversionEnv& rEnv);
+
+  /** Return whether the left type implements all the members of the right type. */
   bool implementsMembers(
-      const TypeDefn* dst, ConversionEnv& dstEnv,
-      const TypeDefn* src, ConversionEnv& srcEnv);
+      const TypeDefn* lt, ConversionEnv& lEnv,
+      const TypeDefn* rt, ConversionEnv& rEnv);
 
   /** Return true if the type modifier flags allow a source type to be coerced to a destination
       type. */

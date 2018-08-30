@@ -17,8 +17,8 @@
   #include "tempest/ast/ident.hpp"
 #endif
 
-#ifndef LLVM_SUPPORT_ALLOCATOR_H
-  #include <llvm/Support/Allocator.h>
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
 #endif
 
 #include <unordered_set>
@@ -73,7 +73,7 @@ namespace tempest::parse {
       {}
     };
 
-    OperatorStack(ast::Node* initialExpr, llvm::BumpPtrAllocator& alloc)
+    OperatorStack(ast::Node* initialExpr, tempest::support::BumpPtrAllocator& alloc)
       : _alloc(alloc)
     {
       _entries.push_back(Entry());
@@ -89,14 +89,14 @@ namespace tempest::parse {
       return _entries.front().operand;
     }
   private:
-    llvm::BumpPtrAllocator& _alloc;
+    tempest::support::BumpPtrAllocator& _alloc;
     std::vector<Entry> _entries;
   };
 
   /** Spark source parser. */
   class Parser {
   public:
-    Parser(ProgramSource* source, llvm::BumpPtrAllocator& alloc);
+    Parser(ProgramSource* source, tempest::support::BumpPtrAllocator& alloc);
     Parser(const Parser&) = delete;
 
     bool done() {
@@ -108,7 +108,7 @@ namespace tempest::parse {
     ast::Node* expression();
     ast::Node* typeExpression();
   private:
-    llvm::BumpPtrAllocator& _alloc;
+    tempest::support::BumpPtrAllocator& _alloc;
     Lexer _lexer;
     TokenType _token;
     TokenType _prevToken;

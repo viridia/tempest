@@ -73,7 +73,7 @@ namespace tempest::gen {
     llvm::DICompileUnit* diCompileUnit() { return _diCompileUnit; }
 
     /** Allocator for this module. */
-    llvm::BumpPtrAllocator& alloc() { return _alloc; }
+    tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
     /** List of globals in this module. */
     std::vector<CGGlobal*>& globals() { return _globals; }
@@ -97,7 +97,7 @@ namespace tempest::gen {
     std::unique_ptr<llvm::Module> _irModule;
     llvm::DIBuilder _diBuilder;
     llvm::DICompileUnit* _diCompileUnit;
-    llvm::BumpPtrAllocator _alloc;
+    tempest::support::BumpPtrAllocator _alloc;
     llvm::StringMap<CGStringLiteral*> _stringLiterals;
     std::vector<CGGlobal*> _globals;
     std::vector<CGFunction*> _functions;

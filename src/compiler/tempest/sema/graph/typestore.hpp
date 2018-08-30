@@ -13,6 +13,10 @@
   #include "tempest/sema/graph/defn.hpp"
 #endif
 
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
+#endif
+
 #include <unordered_map>
 #include <unordered_set>
 
@@ -150,8 +154,10 @@ namespace tempest::sema::graph {
   /** A store of canonicalized, uniqued derived types. */
   class TypeStore {
   public:
+    ~TypeStore();
+
     /** TypeStore has its own allocator. */
-    llvm::BumpPtrAllocator& alloc() { return _alloc; }
+    tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
     /** Create an environment object from a set of type mappings. */
     Env createEnv(const Env& env);
@@ -197,7 +203,8 @@ namespace tempest::sema::graph {
       }
     };
 
-    llvm::BumpPtrAllocator _alloc;
+
+    tempest::support::BumpPtrAllocator _alloc;
     std::unordered_map<TypeKey, UnionType*, TypeKeyHash> _unionTypes;
     std::unordered_map<TypeKey, TupleType*, TypeKeyHash> _tupleTypes;
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;

@@ -73,7 +73,7 @@ namespace tempest::sema::pass {
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
-    llvm::BumpPtrAllocator* _alloc = nullptr;
+    tempest::support::BumpPtrAllocator* _alloc = nullptr;
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
@@ -93,19 +93,6 @@ namespace tempest::sema::pass {
 
     Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
     Type* chooseIntegerType(Expr* expr, Type* ty);
-
-    /** Make a copy of this array within the current alloc. */
-    template<class T> llvm::ArrayRef<T> copyOf(llvm::ArrayRef<T> array) {
-      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
-      std::copy(array.begin(), array.end(), data);
-      return llvm::ArrayRef((T*) data, array.size());
-    }
-
-    template<class T> llvm::ArrayRef<T> copyOf(const llvm::SmallVectorImpl<T>& array) {
-      auto data = static_cast<T*>(_alloc->Allocate(array.size(), sizeof (T)));
-      std::copy(array.begin(), array.end(), data);
-      return llvm::ArrayRef((T*) data, array.size());
-    }
   };
 }
 

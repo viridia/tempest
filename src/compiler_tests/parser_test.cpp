@@ -18,7 +18,7 @@ public:
 
 namespace {
   /** Parse a module definition. */
-  Node* parseModule(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+  Node* parseModule(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
     TestSource src(srcText);
     Parser parser(&src, alloc);
     Node* result = parser.module();
@@ -27,7 +27,7 @@ namespace {
   }
 
   /** Parse a member declaration. */
-  Node* parseMemberDeclaration(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+  Node* parseMemberDeclaration(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
     TestSource src(srcText);
     Parser parser(&src, alloc);
     Node* result = parser.declaration(DECL_GLOBAL);
@@ -36,7 +36,7 @@ namespace {
   }
 
   /** Parse an expression. */
-  Node* parseExpr(llvm::BumpPtrAllocator& alloc, const char* srcText) {
+  Node* parseExpr(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
     TestSource src(srcText);
     Parser parser(&src, alloc);
     Node* result = parser.expression();
@@ -49,7 +49,7 @@ TEST_CASE("Parser", "[parse]") {
   const Location L;
 
   SECTION("Module") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
     REQUIRE_THAT(
       parseModule(alloc,
         "import { A } from b.c;\n"
@@ -84,7 +84,7 @@ TEST_CASE("Parser", "[parse]") {
   }
 
   SECTION("Class") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
 
     // Basic class declaration
     REQUIRE_THAT(
@@ -145,7 +145,7 @@ TEST_CASE("Parser", "[parse]") {
   }
 
   SECTION("Statement") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
 
     // Block with multiple statements
     REQUIRE_THAT(
@@ -237,7 +237,7 @@ TEST_CASE("Parser", "[parse]") {
   }
 
   SECTION("InfixOperators") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
     REQUIRE_THAT(
       parseExpr(alloc, "1 + 2"),
       ASTEQ(
@@ -290,7 +290,7 @@ TEST_CASE("Parser", "[parse]") {
   }
 
   SECTION("Terminals") {
-    llvm::BumpPtrAllocator alloc;
+    tempest::support::BumpPtrAllocator alloc;
     CHECK_THAT(parseExpr(alloc, "true"), ASTEQ("true\n"));
     CHECK_THAT(parseExpr(alloc, "false"), ASTEQ("false\n"));
     CHECK_THAT(parseExpr(alloc, "self"), ASTEQ("#SELF\n"));

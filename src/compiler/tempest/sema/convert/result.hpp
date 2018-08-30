@@ -96,6 +96,15 @@ namespace tempest::sema::convert {
       return false;
     }
 
+    bool equals(const ConversionRankTotals& other) {
+      for (size_t i = 0; i < NUM_RANKS; i += 1) {
+        if (count[i] != other.count[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     bool isError() const {
       return count[int(ConversionRank::ERROR)] > 0 || count[int(ConversionRank::WARNING)] > 0;
     }
@@ -148,6 +157,15 @@ namespace tempest::sema::convert {
     return os;
   }
 
+  inline ::std::ostream& operator<<(::std::ostream& os, const ConversionRankTotals& cr) {
+    os << "[" << cr.count[size_t(ConversionRank::ERROR)];
+    os << ":" << cr.count[size_t(ConversionRank::WARNING)];
+    os << ":" << cr.count[size_t(ConversionRank::INEXACT)];
+    os << ":" << cr.count[size_t(ConversionRank::EXACT)];
+    os << ":" << cr.count[size_t(ConversionRank::IDENTICAL)];
+    os << "]";
+    return os;
+  }
 }
 
 #endif

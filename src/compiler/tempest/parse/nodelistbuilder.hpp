@@ -13,6 +13,10 @@
   #include "tempest/source/location.hpp"
 #endif
 
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
+#endif
+
 namespace tempest::parse {
   using tempest::ast::Node;
   using tempest::source::Location;
@@ -21,7 +25,7 @@ namespace tempest::parse {
   /** Helper for building node lists in an alloc. */
   class NodeListBuilder {
   public:
-    NodeListBuilder(llvm::BumpPtrAllocator& alloc) : _alloc(alloc) {}
+    NodeListBuilder(tempest::support::BumpPtrAllocator& alloc) : _alloc(alloc) {}
     NodeListBuilder& append(Node* n) {
       _nodes.push_back(n);
       return *this;
@@ -55,7 +59,7 @@ namespace tempest::parse {
       return result;
     }
   private:
-    llvm::BumpPtrAllocator& _alloc;
+    tempest::support::BumpPtrAllocator& _alloc;
     llvm::SmallVector<Node*, 8> _nodes;
   };
 }

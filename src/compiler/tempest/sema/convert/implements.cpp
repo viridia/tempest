@@ -14,8 +14,8 @@ namespace tempest::sema::convert {
   using tempest::error::diag;
 
   bool implementsMembers(
-      const TypeDefn* dst, ConversionEnv& dstEnv,
-      const TypeDefn* src, ConversionEnv& srcEnv) {
+      const TypeDefn* src, ConversionEnv& srcEnv,
+      const TypeDefn* dst, ConversionEnv& dstEnv) {
     assert(dst->type()->kind == Type::Kind::INTERFACE || dst->type()->kind == Type::Kind::TRAIT);
     // It must also implement all the members of the base interface or trait
     for (auto base : dst->extends()) {
@@ -29,14 +29,14 @@ namespace tempest::sema::convert {
           newEnv.args.push_back(apply.transform(typeArg));
         }
         if (auto baseDefn = dyn_cast<TypeDefn>(sp->generic())) {
-          if (!implementsMembers(baseDefn, newEnv, src, srcEnv)) {
+          if (!implementsMembers(src, srcEnv, baseDefn, newEnv)) {
             return false;
           }
         } else {
           assert(false && "Invalid base type");
         }
       } else if (auto baseDefn = dyn_cast<TypeDefn>(base)) {
-        if (!implementsMembers(baseDefn, dstEnv, src, srcEnv)) {
+        if (!implementsMembers(src, srcEnv, baseDefn, dstEnv)) {
           return false;
         }
       } else {

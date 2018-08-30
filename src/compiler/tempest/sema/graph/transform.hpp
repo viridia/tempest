@@ -13,6 +13,10 @@
   #include "tempest/sema/infer/types.hpp"
 #endif
 
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
+#endif
+
 namespace tempest::sema::graph {
   using tempest::sema::graph::Type;
 
@@ -20,7 +24,7 @@ namespace tempest::sema::graph {
       where all type variables have been replaced. */
   class TypeTransform {
   public:
-    TypeTransform(llvm::BumpPtrAllocator& alloc) : _alloc(alloc) {}
+    TypeTransform(tempest::support::BumpPtrAllocator& alloc) : _alloc(alloc) {}
 
     const Type* transform(const Type* in);
     virtual const Type* transformTypeVar(const TypeVar* in) { return in; }
@@ -30,13 +34,7 @@ namespace tempest::sema::graph {
     bool transformArray(llvm::SmallVectorImpl<const Type*>& out, const TypeArray& in);
 
   private:
-    template<class T> llvm::ArrayRef<T> copyOf(const llvm::SmallVectorImpl<T>& array) {
-      auto data = static_cast<T*>(_alloc.Allocate(array.size(), sizeof (T)));
-      std::copy(array.begin(), array.end(), data);
-      return llvm::ArrayRef((T*) data, array.size());
-    }
-
-    llvm::BumpPtrAllocator& _alloc;
+    tempest::support::BumpPtrAllocator& _alloc;
   };
 }
 

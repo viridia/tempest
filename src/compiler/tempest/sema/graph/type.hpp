@@ -113,7 +113,7 @@ namespace tempest::sema::graph {
   class UnionType : public Type {
   public:
     /** Array of members of this union or tuple. */
-    const llvm::SmallVector<const Type*, 4> members;
+    const llvm::ArrayRef<const Type*> members;
 
     UnionType(const TypeArray& members)
       : Type(Kind::UNION)
@@ -128,7 +128,7 @@ namespace tempest::sema::graph {
   class TupleType : public Type {
   public:
     /** Array of members of this union or tuple. */
-    const llvm::SmallVector<const Type*, 4> members;
+    const llvm::ArrayRef<const Type*> members;
 
     TupleType(const TypeArray& members)
       : Type(Kind::TUPLE)
@@ -145,7 +145,7 @@ namespace tempest::sema::graph {
     const Type* returnType;
 
     /** The type of this function's parameters. */
-    const llvm::SmallVector<const Type*, 4> paramTypes;
+    const llvm::ArrayRef<const Type*> paramTypes;
 
     /** True if this function cannot modify its context. */
     const bool constSelf;
@@ -240,23 +240,6 @@ namespace tempest::sema::graph {
     static bool classof(const Type* t) { return t->kind == Kind::SPECIALIZED; }
   };
 
-  /** A type + type arguments. Only used when we know nothing about the base type. */
-  // class TypeWithArgs : public Type {
-  // public:
-  //   /** Type being specializd; most likely a UserDefinedType. */
-  //   const Type* base;
-  //   const llvm::SmallVector<Type*, 4> typeArgs;
-
-  //   TypeWithArgs(Type* base, llvm::ArrayRef<Type*>& typeArgs)
-  //     : Type(Kind::WITH_ARGS)
-  //     , base(base)
-  //     , typeArgs(typeArgs.begin(), typeArgs.end())
-  //   {}
-
-  //   /** Dynamic casting support. */
-  //   static bool classof(const TypeWithArgs* t) { return true; }
-  //   static bool classof(const Type* t) { return t->kind == Kind::WITH_ARGS; }
-  // };
   inline ::std::ostream& operator<<(::std::ostream& os, const Type* t) {
     format(os, t);
     return os;

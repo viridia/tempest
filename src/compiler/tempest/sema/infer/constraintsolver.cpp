@@ -2,48 +2,23 @@
 #include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/infer/constraintsolver.hpp"
 
+namespace std {
+  inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<size_t>& perm) {
+    os << "{";
+    auto sep = "";
+    for (auto i : perm) {
+      os << sep << i;
+      sep = ", ";
+    }
+    os << "}";
+    return os;
+  }
+}
+
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   using namespace tempest::sema::convert;
   using tempest::error::diag;
-
-  void ConstraintSolver::addAssignment(
-      const source::Location& loc,
-      const Type* dstType,
-      const Type* srcType,
-      Conditions when) {
-    // diag.debug() << "Assignment: " << srcType << " -> " << dstType;
-
-    if (Type::isError(srcType) || Type::isError(dstType)) {
-      return;
-    }
-
-    assert(srcType->kind != Type::Kind::NOT_EXPR);
-    assert(dstType->kind != Type::Kind::NOT_EXPR);
-    assert(srcType->kind != Type::Kind::NEVER);
-    assert(dstType->kind != Type::Kind::NEVER);
-
-    if (dstType != srcType) {
-      _conversionConstraints.push_back(new ConversionConstraint(when, dstType, srcType));
-    }
-//     if (srcType->kind == Type::Kind::CONTINGENT) {
-//       // This expands contingent types into separate constraints with their own when-lists.
-//       // However, it doesn't help the case where the types contain type variables which
-//       // might also be ambiguous.
-//       auto contingent = static_cast<const ContingentType*>(srcType);
-//       for (auto entry : contingent->entries) {
-//         Conditions entryConditions(entry.when->site->ordinal, entry.when->ordinal);
-//         addAssignment(loc, dstType, entry.type, entryConditions);
-//       }
-// //     elif isinstance(srcType, graph.PhiType):
-// //       for ty in srcType.getTypes():
-// //         self.addAssignment(location, dstType, ty, *when)
-//     } else {
-//       if (dstType != srcType) {
-//         _conversionConstraints.push_back(new ConversionConstraint(when, dstType, srcType));
-//       }
-//     }
-  }
 
   void ConstraintSolver::addBindingConstraint(
       const source::Location& loc,
@@ -51,6 +26,11 @@ namespace tempest::sema::infer {
       const Type* srcType,
       BindingConstraint::Restriction restriction,
       Conditions when) {
+  }
+
+  void ConstraintSolver::addSite(OverloadSite* site) {
+    site->ordinal = _sites.size();
+    _sites.push_back(site);
   }
 
   void ConstraintSolver::run() {
@@ -70,10 +50,22 @@ namespace tempest::sema::infer {
     if (_failed) {
       return;
     }
-    findBestRankedOverloads();
-    if (_failed) {
-      return;
+
+    if (!isSingularSolution()) {
+      findBestRankedOverloads();
+      if (_failed) {
+        return;
+      }
     }
+
+    if (!isSingularSolution()) {
+      cullCandidatesBySpecificity();
+    }
+
+    if (!isSingularSolution()) {
+      reportSiteAmbiguities();
+    }
+
 //     self.conversionConstraints = set([ct for ct in self.conversionConstraints if not ct.isIdentity()])
 //     self.originalConversionConstraints = self.conversionConstraints
 //     self.tvarConstraints.update(self.equivalenceConstraints)
@@ -192,61 +184,190 @@ namespace tempest::sema::infer {
     );
   }
 
+  bool ConstraintSolver::isSingularSolution() const {
+    for (auto site : _sites) {
+      if (!site->isSingular()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   void ConstraintSolver::findRankUpperBound() {
     // Set up pruning flags
     for (auto site : _sites) {
       site->pruneAll(false);
     }
-    _bestRankings.clear();
-    ConversionConstraint* worst = nullptr;
-    ConversionResult worstResult;
-    for (auto cct : _conversionConstraints) {
-      if (!isViable(cct->when)) {
-        continue;
-      }
-      auto result = isAssignable(cct->dstType, cct->srcType);
-      if (result.rank == ConversionRank::ERROR || result.rank == ConversionRank::WARNING) {
-        if (!worst || worstResult.rank > result.rank) {
-          worst = cct;
-          worstResult = result;
+
+    // Attempt to remove all candidates from consideration that would result in a conversion
+    // error.
+    for (;;) {
+      bool rejection = false;
+      for (auto site : _sites) {
+        if (site->kind == OverloadKind::CALL) {
+          auto callSite = static_cast<CallSite*>(site);
+          for (size_t i = 0; i < callSite->argTypes.size(); i += 1) {
+            rejection = rejection || rejectErrorCandidates(callSite, i);
+          }
+        } else {
+          assert(false && "Implement overload kind");
+        }
+
+        if (site->allRejected()) {
+          _failed = true;
+          reportSiteRejections(site);
+          return;
         }
       }
-      // diag.debug() << "isAssignable: " << cct->srcType << " -> " << cct->dstType
-      //     << ": " << result;
-      _bestRankings.count[int(result.rank)] += 1;
+
+      if (!rejection) {
+        break;
+      }
     }
-    if (worst) {
-      diag.error(location) << "Type conversion error:";
-      reportConversionError(worst, worstResult);
-      _failed = true;
+
+    // For each individual arg -> param assignment, find the best possible conversion rank.
+    _bestRankings.clear();
+    for (auto site : _sites) {
+      if (site->kind == OverloadKind::CALL) {
+        auto callSite = static_cast<CallSite*>(site);
+        for (size_t i = 0; i < callSite->argTypes.size(); i += 1) {
+          ConversionResult resultForArg = paramConversion(callSite, i);
+          _bestRankings.count[int(resultForArg.rank)] += 1;
+        }
+      } else {
+        assert(false && "Implement overload kind");
+      }
     }
   }
 
   void ConstraintSolver::findBestRankedOverloads() {
     // Set up pruning flags
+    _currentPermutation.resize(_sites.size());
+    _bestPermutationCount = 0;
+    _bestPermutation.resize(_sites.size());
+    _bestRankings.setToWorst();
     for (auto site : _sites) {
       site->pruneAll(true);
     }
-    _currentPermutation.resize(_sites.size());
-    _bestPermutation.resize(_sites.size());
-    _bestRankings.setToWorst();
     findBestRankedOverloads(_sites, 0);
+    for (auto site : _sites) {
+      site->pruneAll(false);
+    }
+
+    // diag.debug() << "Best permutation count: " << _bestPermutationCount;
     if (_bestRankings.isError()) {
       _failed = true;
       diag.error(location) << "Unable to find a type solution for expression.";
-      diag.info() << "Best overload candidates are:";
+      // diag.info() << "Best overload candidates are:";
+      // TODO: Need error test
       // Set up pruning flags and also list best overload
+      // for (auto site : _sites) {
+      //   Member* member = site->candidates[_bestPermutation[site->ordinal]]->getMember();
+      //   diag.info(unwrapSpecialization(member)->getLocation()) << member;
+      //   site->pruneAllExcept(_bestPermutation[site->ordinal]);
+      // }
+    } else {
+      // Go through and reject any candidate that wasn't part of a 'best' solution.
       for (auto site : _sites) {
-        Member* member = site->candidates[_bestPermutation[site->ordinal]]->getMember();
-        diag.info(unwrapSpecialization(member)->getLocation()) << member;
-        site->pruneAllExcept(_bestPermutation[site->ordinal]);
-      }
-
-      for (auto cct : _conversionConstraints) {
-        if (isViable(cct->when)) {
-          auto result = isAssignable(cct->dstType, cct->srcType);
-          reportConversionError(cct, result);
+        for (auto oc : site->candidates) {
+          if (!_bestPermutationSet.count((site->ordinal << 16) | oc->ordinal)) {
+            oc->rejection.reason = Rejection::NOT_BEST;
+          }
         }
+      }
+    }
+  }
+
+  void ConstraintSolver::cullCandidatesBySpecificity() {
+    for (auto site : _sites) {
+      if (site->kind == OverloadKind::CALL) {
+        SmallVector<CallCandidate*, 8> preserved;
+        SmallVector<CallCandidate*, 8> rejected;
+        SmallVector<CallCandidate*, 8> mostSpecific;
+        for (auto oc : site->candidates) {
+          if (oc->isRejected()) {
+            continue;
+          }
+          CallCandidate* cc = static_cast<CallCandidate*>(oc);
+          bool addNew = true;
+          // Try each candidate against each of the others. Reject any candidate that is
+          // more general than another candidate.
+          for (auto msCandidate : mostSpecific) {
+            // TODO: If the return type is not constrained, then we don't want to consider the
+            // return type when doing the comparison.
+            if (cc->isEqualOrNarrower(msCandidate)) {
+              if (msCandidate->isEqualOrNarrower(cc)) {
+                // They are the same specificity, keep both.
+                preserved.push_back(msCandidate);
+              } else {
+                // cc is better
+                rejected.push_back(msCandidate);
+              }
+            } else {
+              preserved.push_back(msCandidate);
+              if (msCandidate->isEqualOrNarrower(cc)) {
+                // ms is better
+                addNew = false;
+              }
+              // else neither is better, so keep both.
+            }
+          //   spec = candidate.isMoreSpecific(msCandidate)
+          // if spec == typerelation.RelativeSpecificity.LESS:
+          //   addNew = False
+          //   preserved.add(msCandidate)
+          // elif spec != typerelation.RelativeSpecificity.MORE:
+          //   preserved.add(msCandidate)
+          }
+
+          mostSpecific.swap(preserved);
+          preserved.clear();
+          if (addNew) {
+            mostSpecific.push_back(cc);
+          }
+        }
+
+        if (mostSpecific.size() == 1) {
+          for (auto rej : rejected) {
+            rej->rejection.reason = Rejection::NOT_MORE_SPECIALIZED;
+          }
+        }
+
+        // mostSpecific = preserved
+        // if addNew:
+        //   mostSpecific.add(candidate)
+
+//       best = None
+//       if len(mostSpecific) == 1:
+//         best = mostSpecific.pop()
+// #       else:
+// #         debug.writef("## Specificity test failed, {0} most specific", len(mostSpecific))
+
+//         for candidate in site.candidates:
+//           if not candidate.rejection and candidate != best:
+//             candidate.reject(rejection.NotMoreSpecialized())
+//             rejected.add(candidate)
+
+//       if rejected and debug.tracing:
+//         debug.write('candidates rejected because of specificity:')
+//         with debug.indented():
+//           for candidate in rejected:
+//             debug.write(candidate)
+//       if best:
+//         assert site.numViableCandidates() > 0
+//         if debug.tracing:
+//           debug.write('remaining candidates:')
+//           with debug.indented():
+//             debug.write(best)
+
+//     debug.tracing = saveTracing
+
+
+          // Is this candidate equal or narrower to all candidates?
+            // Now, remove any candidates that are less narrow than this one.
+          // }
+        // }
+      } else {
+        assert(false && "Implement OC Spec");
       }
     }
   }
@@ -257,6 +378,9 @@ namespace tempest::sema::infer {
       auto site = sites[index];
       for (size_t i = 0; i < site->candidates.size(); i += 1) {
         auto oc = site->candidates[i];
+        if (oc->rejection.reason != Rejection::NONE) {
+          continue;
+        }
         oc->pruned = false;
         _currentPermutation[index] = i;
         findBestRankedOverloads(sites, index + 1);
@@ -264,30 +388,222 @@ namespace tempest::sema::infer {
       }
     } else {
       ConversionRankTotals rankings;
-      for (auto cct : _conversionConstraints) {
-        if (!isViable(cct->when)) {
-          continue;
+      for (auto site : _sites) {
+        assert(site->numViable() == 1);
+        if (site->kind == OverloadKind::CALL) {
+          auto callSite = static_cast<CallSite*>(site);
+          auto cc = static_cast<CallCandidate*>(
+              site->candidates[_currentPermutation[site->ordinal]]);
+          assert(cc->isViable());
+          for (size_t i = 0; i < callSite->argTypes.size(); i += 1) {
+            auto paramIndex = cc->paramAssignments[i];
+            auto result = isAssignable(cc->paramTypes[paramIndex], callSite->argTypes[i]);
+            rankings.count[int(result.rank)] += 1;
+          }
+        } else {
+          assert(false && "Implement overload kind");
         }
-        auto result = isAssignable(cct->dstType, cct->srcType);
-        rankings.count[int(result.rank)] += 1;
       }
 
       if (rankings.isBetterThan(_bestRankings)) {
+        _bestPermutationSet.clear();
         _bestRankings = rankings;
+        _bestPermutationCount = 1;
+        for (size_t i = 0; i < _currentPermutation.size(); i += 1) {
+          _bestPermutationSet.insert((i << 16) | _currentPermutation[i]);
+        }
+      } else if (rankings.equals(_bestRankings)) {
+        _bestPermutationCount += 1;
+        for (size_t i = 0; i < _currentPermutation.size(); i += 1) {
+          _bestPermutationSet.insert((i << 16) | _currentPermutation[i]);
+        }
       }
     }
   }
 
-  void ConstraintSolver::reportConversionError(ConversionConstraint* cct, ConversionResult result) {
+  ConversionResult ConstraintSolver::paramConversion(CallSite* site, size_t argIndex) {
+    ConversionResult paramResult;
+    for (auto oc : site->candidates) {
+      if (oc->isViable()) {
+        auto cc = static_cast<CallCandidate*>(oc);
+        auto paramIndex = cc->paramAssignments[argIndex];
+        auto result = isAssignable(cc->paramTypes[paramIndex], site->argTypes[argIndex]);
+        paramResult = paramResult.better(result);
+      }
+    }
+    return paramResult;
+  }
+
+  bool ConstraintSolver::rejectErrorCandidates(CallSite* site, size_t argIndex) {
+    bool rejection = false;
+    for (auto oc : site->candidates) {
+      if (oc->isViable()) {
+        auto cc = static_cast<CallCandidate*>(oc);
+        auto paramIndex = cc->paramAssignments[argIndex];
+        auto result = isAssignable(cc->paramTypes[paramIndex], site->argTypes[argIndex]);
+        if (result.rank == ConversionRank::ERROR) {
+          rejection = true;
+          if (result.error == ConversionError::QUALIFIER_LOSS) {
+            cc->rejection.reason = Rejection::Reason::QUALIFIER_LOSS;
+          } else {
+            cc->rejection.reason = Rejection::Reason::CONVERSION_FAILURE;
+          }
+          cc->rejection.argIndex = argIndex;
+        }
+      }
+    }
+    return rejection;
+  }
+
+  void ConstraintSolver::reportSiteAmbiguities() {
+    for (auto site : _sites) {
+      if (site->allRejected()) {
+        if (site->kind == OverloadKind::CALL) {
+          auto callSite = static_cast<CallSite*>(site);
+          diag.error(callSite->location) << "No suitable method for call:";
+          diag.info() << "Possible methods are:";
+          reportCandidateStatus(site);
+        }
+      } else if (!site->isSingular()) {
+        if (site->kind == OverloadKind::CALL) {
+          auto callSite = static_cast<CallSite*>(site);
+          diag.error(callSite->location) << "Ambiguous overloaded method:";
+          diag.info() << "Possible methods are:";
+          reportCandidateStatus(site);
+        }
+      }
+    }
+  }
+
+  void ConstraintSolver::reportSiteRejections(OverloadSite* site) {
+    if (site->kind == OverloadKind::CALL) {
+      auto callSite = static_cast<CallSite*>(site);
+      diag.error(callSite->location) << "No method found for input arguments:";
+      diag.info() << "Possible methods are:";
+      reportCandidateStatus(site);
+    } else {
+      assert(false && "Support other site types");
+    }
+  }
+
+  void ConstraintSolver::reportCandidateStatus(OverloadSite* site) {
+    if (site->kind == OverloadKind::CALL) {
+      auto callSite = static_cast<CallSite*>(site);
+      for (auto oc : callSite->candidates) {
+        auto cc = static_cast<CallCandidate*>(oc);
+        auto method = cast<FunctionDefn>(unwrapSpecialization(cc->method));
+        switch (oc->rejection.reason) {
+          case Rejection::NONE:
+            diag.info(method->location()) << cc->method;
+            break;
+
+          case Rejection::NOT_ENOUGH_ARGS: {
+            size_t lastRequiredParam = 0;
+            for (; lastRequiredParam < method->params().size(); ++lastRequiredParam) {
+              auto p = method->params()[lastRequiredParam];
+              if (p->init() != nullptr || p->isVariadic() || p->isKeywordOnly()) {
+                break;
+              }
+            }
+
+            if (oc->rejection.argIndex == 0) {
+              diag.info(method->location()) << cc->method << ": requires at least "
+                  << lastRequiredParam << " arguments, none were supplied.";
+
+            } else if (oc->rejection.argIndex == 1) {
+              diag.info(method->location()) << cc->method << ": requires at least "
+                  << lastRequiredParam << " arguments, only 1 was supplied.";
+            } else {
+              diag.info(method->location()) << cc->method << ": requires at least "
+                  << lastRequiredParam << " arguments, only " << oc->rejection.argIndex
+                  << " were supplied.";
+            }
+            break;
+          }
+
+          case Rejection::TOO_MANY_ARGS: {
+            size_t lastPositionalParam = 0;
+            for (; lastPositionalParam < method->params().size(); ++lastPositionalParam) {
+              auto p = method->params()[lastPositionalParam];
+              if (p->isVariadic() || p->isKeywordOnly()) {
+                break;
+              }
+            }
+
+            diag.info(method->location()) << cc->method << ": expects no more than "
+                << lastPositionalParam << " arguments, " << oc->rejection.argIndex
+                << " were supplied.";
+            break;
+          }
+
+          case Rejection::KEYWORD_NOT_FOUND:
+            diag.info(method->location()) << cc->method << ": keyword not found.";
+            break;
+
+          case Rejection::KEYWORD_IN_USE:
+            diag.info(method->location()) << cc->method << ": keyword already used.";
+            break;
+
+          case Rejection::KEYWORD_ONLY_ARG:
+            diag.info(method->location()) << cc->method << ": keyword only arg.";
+            break;
+
+          case Rejection::CONVERSION_FAILURE: {
+            auto paramIndex = cc->paramAssignments[oc->rejection.argIndex];
+            auto srcType = callSite->argTypes[oc->rejection.argIndex];
+            auto dstType = cc->paramTypes[paramIndex];
+            diag.info(method->location()) << cc->method << ": cannot convert argument "
+                << (oc->rejection.argIndex + 1) << " from " << srcType
+                << " to " << dstType << ".";
+            break;
+          }
+
+          case Rejection::QUALIFIER_LOSS: {
+            auto paramIndex = cc->paramAssignments[oc->rejection.argIndex];
+            auto srcType = callSite->argTypes[oc->rejection.argIndex];
+            auto dstType = cc->paramTypes[paramIndex];
+            diag.info(method->location()) << cc->method << ": conversion of argument "
+                << (oc->rejection.argIndex + 1) << " from " << srcType
+                << " to " << dstType << " would lose qualifiers.";
+            break;
+          }
+
+          // Type inference rejections
+          // UNIFICATION_ERROR,
+          // UNSATISFIED_REQIREMENT,
+          // UNSATISFIED_TYPE_CONSTRAINT,
+          // INCONSISTENT, // Contradictory constraints
+          // NOT_MORE_SPECIALIZED,
+
+          case Rejection::NOT_MORE_SPECIALIZED:
+            diag.info(method->location()) << cc->method
+                << ": matches less strictly than other candidates.";
+            break;
+
+          case Rejection::NOT_BEST:
+            diag.info(method->location()) << cc->method
+                << ": rejected because other choices produce fewer type conversionss.";
+            break;
+
+          default:
+            assert(false && "Format reason");
+        }
+      }
+    }
+  }
+
+  void ConstraintSolver::reportConversionError(
+      const Type* dst,
+      const Type* src,
+      ConversionResult result) {
     if (result.rank == ConversionRank::ERROR) {
       switch (result.error) {
         case ConversionError::INCOMPATIBLE:
-          diag.error() << "Can't convert from " << cct->srcType << " to " << cct->dstType << ".";
+          diag.error() << "Can't convert from " << src << " to " << dst << ".";
           break;
 
         case ConversionError::QUALIFIER_LOSS:
-          diag.error() << "Loss of qualifiers converting from " << cct->srcType << " to "
-              << cct->dstType << ".";
+          diag.error() << "Loss of qualifiers converting from " << src << " to " << dst << ".";
           break;
 
         default:
@@ -296,18 +612,16 @@ namespace tempest::sema::infer {
     } else if (result.rank == ConversionRank::WARNING) {
       switch (result.error) {
         case ConversionError::TRUNCATION:
-          diag.error() << "Truncation of value converting from " << cct->srcType << " to "
-              << cct->dstType << ".";
+          diag.error() << "Truncation of value converting from " << src << " to " << dst << ".";
           break;
 
         case ConversionError::SIGNED_UNSIGNED:
-          diag.error() << "Signed / unsigned mismatch converting from " << cct->srcType
-              << " to " << cct->dstType << ".";
+          diag.error() << "Signed / unsigned mismatch converting from " << src
+              << " to " << dst << ".";
           break;
 
         case ConversionError::PRECISION_LOSS:
-          diag.error() << "Loss of precision converting from " << cct->srcType
-              << " to " << cct->dstType << ".";
+          diag.error() << "Loss of precision converting from " << src << " to " << dst << ".";
           break;
 
         default:

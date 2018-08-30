@@ -760,7 +760,7 @@ namespace tempest::sema::pass {
           return fn;
         }
 
-        return new (*_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fn, copyOf(args));
+        return new (*_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fn, _alloc->copyOf(args));
       }
 
       // FLUENT_MEMBER,
@@ -787,7 +787,7 @@ namespace tempest::sema::pass {
           result = visitExpr(&localScope, block->result);
         }
 
-        return new (*_alloc) BlockStmt(node->location, copyOf(stmts), result);
+        return new (*_alloc) BlockStmt(node->location, _alloc->copyOf(stmts), result);
       }
 
       case ast::Node::Kind::LOCAL_CONST:
@@ -1092,16 +1092,14 @@ namespace tempest::sema::pass {
           diag.error(loc) << "Conflicting definitions for '" << m->name() << "'.";
         } else {
           auto tref = new (*_alloc) MemberListExpr(
-              Expr::Kind::TYPE_REF_OVERLOAD, loc, result[0]->name());
+              Expr::Kind::TYPE_REF_OVERLOAD, loc, result[0]->name(), _alloc->copyOf(types));
           tref->stem = stem;
-          tref->members = copyOf(types);
           return tref;
         }
       } else {
         auto mref = new (*_alloc) MemberListExpr(
-            Expr::Kind::FUNCTION_REF_OVERLOAD, loc, result[0]->name());
+            Expr::Kind::FUNCTION_REF_OVERLOAD, loc, result[0]->name(), _alloc->copyOf(functions));
         mref->stem = stem;
-        mref->members = copyOf(functions);
         return mref;
       }
     }

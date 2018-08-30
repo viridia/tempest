@@ -19,6 +19,7 @@ namespace tempest::sema::infer {
   using tempest::sema::graph::Expr;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeVar;
+
   /** Base class for constraints to be solved. */
   class Constraint {
   public:
@@ -32,22 +33,6 @@ namespace tempest::sema::infer {
 
     Constraint() {}
     Constraint(Conditions when) : when(std::move(when)), originalWhen(when) {}
-  };
-
-  /** Constraint representing an assignment of a value from one type to another. */
-  class ConversionConstraint : public Constraint {
-  public:
-    /** The type of whatever it's being assigned to. */
-    const Type* dstType;
-
-    /** The type of the source expression. */
-    const Type* srcType;
-
-    ConversionConstraint(Conditions when, const Type* dstType, const Type* srcType)
-      : Constraint(when)
-      , dstType(dstType)
-      , srcType(srcType)
-    {}
   };
 
   /** Constraint representing whether a value can be bound to a given type parameter.

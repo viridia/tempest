@@ -1,3 +1,4 @@
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/expr.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
@@ -7,6 +8,7 @@
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::graph {
+  using tempest::error::diag;
 
   /** A hashable expression for singletons. */
   bool SingletonKey::equals(const SingletonKey& sk) const {
@@ -67,9 +69,21 @@ namespace tempest::sema::graph {
     return hash;
   }
 
+  TypeStore::~TypeStore() {
+    // Clear out all of the maps before the allocator goes away.
+    _unionTypes.clear();
+    _tupleTypes.clear();
+    _functionTypes.clear();
+    _modifiedTypes.clear();
+    _singletonTypes.clear();
+    _specs.clear();
+    _addressTypes.clear();
+    _alloc.Reset();
+  }
+
   UnionType* TypeStore::createUnionType(const TypeArray& members) {
     // Sort members by pointer. This makes the type key hash independent of order.
-    llvm::SmallVector<const Type*, 4> sortedMembers(members.begin(), members.end());
+    llvm::SmallVector<const Type*, 8> sortedMembers(members.begin(), members.end());
     std::sort(sortedMembers.begin(), sortedMembers.end(), TypeOrder());
 
     // Return matching union instance if already exists.
@@ -80,9 +94,9 @@ namespace tempest::sema::graph {
     }
 
     // Allocate type arrays of both the original and sorted orders.
-    auto membersCopy = new (_alloc) TypeArray(sortedMembers.begin(), sortedMembers.end());
-    auto ut = new (_alloc) UnionType(*membersCopy);
-    _unionTypes[TypeKey(ut->members)] = ut;
+    auto membersCopy = _alloc.copyOf(sortedMembers);
+    auto ut = new (_alloc) UnionType(membersCopy);
+    _unionTypes[TypeKey(membersCopy)] = ut;
     return ut;
   }
 
@@ -93,9 +107,9 @@ namespace tempest::sema::graph {
       return it->second;
     }
 
-    auto keyCopy = new (_alloc) TypeArray(key.begin(), key.end());
-    auto tt = new (_alloc) TupleType(*keyCopy);
-    _tupleTypes[TypeKey(tt->members)] = tt;
+    auto keyCopy = _alloc.copyOf(members);
+    auto tt = new (_alloc) TupleType(keyCopy);
+    _tupleTypes[TypeKey(keyCopy)] = tt;
     return tt;
   }
 
@@ -127,7 +141,7 @@ namespace tempest::sema::graph {
       const Type* returnType,
       const TypeArray& paramTypes,
       bool isVariadic) {
-    std::vector<const Type*> signature;
+    llvm::SmallVector<const Type*, 8> signature;
     signature.reserve(paramTypes.size() + 1);
     signature.push_back(returnType);
     signature.insert(signature.end(), paramTypes.begin(), paramTypes.end());
@@ -136,23 +150,12 @@ namespace tempest::sema::graph {
     if (it != _functionTypes.end()) {
       return it->second;
     }
-    auto paramTypesCopy = new (_alloc) TypeArray(paramTypes);
-    auto signatureCopy = new (_alloc) TypeArray(signature);
-    auto ft = new (_alloc) FunctionType(returnType, *paramTypesCopy, false, isVariadic);
-    _functionTypes[TypeKey(*signatureCopy)] = ft;
+    auto paramTypesCopy = _alloc.copyOf(paramTypes);
+    auto signatureCopy = _alloc.copyOf(signature);
+    auto ft = new (_alloc) FunctionType(returnType, paramTypesCopy, false, isVariadic);
+    _functionTypes[TypeKey(signatureCopy)] = ft;
     return ft;
   }
-
-  // FunctionType* TypeStore::createFunctionType(
-  //     Type* returnType,
-  //     const llvm::ArrayRef<ParameterDefn*>& params) {
-  //   std::vector<Type*> paramTypes;
-  //   paramTypes.reserve(params.size());
-  //   for (auto param : params) {
-  //     paramTypes.push_back(param->type());
-  //   }
-  //   return createFunctionType(returnType, paramTypes);
-  // }
 
   /** Specialize a generic definition. */
   SpecializedDefn* TypeStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
@@ -162,11 +165,12 @@ namespace tempest::sema::graph {
       return it->second;
     }
 
-    auto spec = new (_alloc) SpecializedDefn(base, typeArgs, base->allTypeParams());
+    auto spec = new (_alloc) SpecializedDefn(base, _alloc.copyOf(typeArgs), base->allTypeParams());
     if (auto typeDefn = llvm::dyn_cast<TypeDefn>(base)) {
       spec->setType(new (_alloc) SpecializedType(spec));
     }
-    _specs[key] = spec;
+    SpecializationKey newKey(base, _alloc.copyOf(typeArgs));
+    _specs[newKey] = spec;
     return spec;
   }
 }

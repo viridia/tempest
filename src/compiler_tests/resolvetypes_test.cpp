@@ -136,6 +136,113 @@ TEST_CASE("ResolveTypes", "[sema]") {
           "}\n"
           "fn y(i: i32) => i;\n"
       ),
-      Catch::Contains("Can't convert from"));
+      Catch::Contains("cannot convert argument 1 from f64 to i32"));
+
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x() {\n"
+          "  let result = y(1, 2);\n"
+          "  result\n"
+          "}\n"
+          "fn y(i: i32) => i;\n"
+      ),
+      Catch::Contains("expects no more than 1 arguments, 2 were supplied"));
+
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x() {\n"
+          "  let result = y(1);\n"
+          "  result\n"
+          "}\n"
+          "fn y(i: i32, j: i32) => i;\n"
+      ),
+      Catch::Contains("requires at least 2 arguments, only 1 was supplied"));
+  }
+
+  SECTION("Resolve overloaded function with parameter") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1);\n"
+        "  result\n"
+        "}\n"
+        "fn y(i: i32) => i;\n"
+        "fn y(i: f32) => i;\n"
+        "fn y(i: bool) => i;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Multi-site overloads") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(z(1));\n"
+        "  result\n"
+        "}\n"
+        "fn y(i: i32) => i;\n"
+        "fn y(i: f32) => i;\n"
+        "fn y(i: bool) => i;\n"
+        "fn z(i: i32) => i;\n"
+        "fn z(i: f32) => i;\n"
+        "fn z(i: bool) => i;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Nested overloads") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(y(y(y(1))));\n"
+        "  result\n"
+        "}\n"
+        "fn y(i: i32) => i;\n"
+        "fn y(i: f32) => i;\n"
+        "fn y(i: bool) => i;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Multi-argument overloads") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1, true, 1);\n"
+        "  result\n"
+        "}\n"
+        "fn y(a: bool, b: i32, c: i32) => b;\n"
+        "fn y(a: i32, b: bool, c: i32) => b;\n"
+        "fn y(a: i32, b: i32, c: bool) => b;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("bool"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
+  SECTION("Specificity overloads") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1, 1);\n"
+        "  result\n"
+        "}\n"
+        "fn y(a: i64, b: i64) => a;\n"
+        "fn y(a: i32, b: i32) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
   }
 }

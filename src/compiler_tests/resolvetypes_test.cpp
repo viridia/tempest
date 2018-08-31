@@ -6,6 +6,7 @@
 #include "tempest/parse/lexer.hpp"
 #include "tempest/parse/parser.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
+#include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
@@ -246,6 +247,12 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+    auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    auto fnRef = cast<DefnRef>(callExpr->function);
+    REQUIRE(fnRef->kind == Expr::Kind::FUNCTION_REF);
+    REQUIRE(fnRef->defn->name() == "y");
+    auto fn = cast<FunctionDefn>(fnRef->defn);
+    REQUIRE_THAT(fn->type(), TypeEQ("fn (i32, i32) -> i32"));
   }
 
   SECTION("Ambiguous overloads") {

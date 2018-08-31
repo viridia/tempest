@@ -59,6 +59,7 @@ namespace tempest::sema::infer {
     }
 
     TypeVarRenamer& renamer() { return _renamer; }
+    const std::vector<OverloadSite*>& sites() const { return _sites; }
 
     void addBindingConstraint(
         const source::Location& loc,

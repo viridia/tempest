@@ -18,10 +18,12 @@ namespace tempest::sema::pass {
   using tempest::error::diag;
   using namespace llvm;
   using namespace tempest::sema::graph;
+  using tempest::sema::infer::CallCandidate;
   using tempest::sema::infer::CallSite;
   using tempest::sema::infer::Conditions;
   using tempest::sema::infer::ContingentType;
   using tempest::sema::infer::OverloadCandidate;
+  using tempest::sema::infer::OverloadKind;
   using tempest::sema::infer::ParameterAssignmentsBuilder;
   using tempest::sema::infer::ParamError;
   using tempest::sema::infer::SolutionTransform;
@@ -248,24 +250,6 @@ namespace tempest::sema::pass {
 //       paramType = self.assignTypes(param.getInit(), paramType)
 //       assert paramType, param.getName()
 
-//   @accept(spark.graph.defn.Property)
-//   def visitProperty(self, prop):
-//     '@type prop: spark.graph.graph.Property'
-//     if prop in self.membersVisited:
-//       return
-//     self.visitAttributes(prop)
-//     for param in prop.getParams():
-//       self.visit(param)
-//     self.membersVisited.add(prop)
-//     self.visitList(prop.getMembers())
-
-//   def visitAttributes(self, m):
-//     '@type var: spark.graph.graph.Defn'
-//     if len(m.getAttributes()) > 0:
-//       objectType = self.typeStore.getEssentialTypes()['object'].getType()
-//       for attr in m.getAttributes():
-//         self.assignTypes(attr, objectType)
-
   void ResolveTypesPass::visitAttributes(Defn* defn) {
     for (auto attr : defn->attributes()) {
       assignTypes(attr, intrinsic::IntrinsicDefns::get()->objectClass.get()->type());
@@ -477,7 +461,7 @@ namespace tempest::sema::pass {
 //     assert False
 
   Type* ResolveTypesPass::visitCallName(
-      Expr* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs) {
+      ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs) {
 
     // Gather the types of all arguments.
     SmallVector<Type*, 8> argTypes;
@@ -531,7 +515,7 @@ namespace tempest::sema::pass {
   }
 
   Type* ResolveTypesPass::addCallSite(
-      Expr* callExpr,
+      ApplyFnOp* callExpr,
       Expr* fn,
       const ArrayRef<Member*>& methodList,
       const ArrayRef<Expr*>& args,
@@ -723,11 +707,6 @@ namespace tempest::sema::pass {
 //         returnType = self.canonicalize.traverseType(returnType, environ.Env(renamedMappedVars))
 
       returnTypes.push_back({ cc, returnType });
-
-//       for argIndex, paramIndex in enumerate(cc.paramAssignments.paramIndex):
-//         argType = argTypes[argIndex]
-//         paramType = params[paramIndex].getType()
-//         cs.addAssignment(args[argIndex].getLocation(), paramType, argType, cc)
     }
 
     // Compute the combined return type
@@ -928,9 +907,6 @@ namespace tempest::sema::pass {
 
 //     return cc.returnType
 
-
-
-
   Type* ResolveTypesPass::visitVarName(DefnRef* expr, ConstraintSolver& cs) {
     auto vd = cast<ValueDefn>(expr->defn);
     if (!vd->type()) {
@@ -968,6 +944,7 @@ namespace tempest::sema::pass {
 //       debug.tracing = False
 //       if cs.checkSolution():
 //         solutionEnv = cs.createSolutionEnv()
+    applySolution(cs);
 //         self.applySolution(cs, expr, solutionEnv)
 //         if exprType:
 //           finalExprType = typesubstitution.ApplyEnv(solutionEnv).traverseType(exprType)
@@ -996,11 +973,14 @@ namespace tempest::sema::pass {
     // assert(false && "Implement");
   }
 
+  void ResolveTypesPass::applySolution(ConstraintSolver& cs) {
 //   def applySolution(self, cs, root, solutionEnv):
 //     nonContextualTypeVars = cs.renamer.getNonContextualTypeVars()
 
 //     if solutionEnv:
 //       solutionTransform = typesubstitution.ApplyEnv(solutionEnv)
+
+    for (auto site : cs.sites()) {
 
 //     for site in cs.sites:
 //       if not isinstance(site, callsite.CallSite):
@@ -1059,6 +1039,10 @@ namespace tempest::sema::pass {
 // #         candidate.paramList = transform.traverseParamList(candidate.paramList)
 //         candidate.paramTypes = solutionTransform.traverseTypeList(candidate.paramTypes)
 //         renamer.EnsureAllTypeVarsAreNormalized().traverseTypeList(candidate.paramTypes)
+        if (site->kind == OverloadKind::CALL) {
+          CallSite* c = static_cast<CallSite*>(site);
+          updateCallSite(cs, c);
+        }
 //       mlist = site.callExpr.getArgs()[0]
 //       if method:
 //         assert isinstance(method, graph.Member), debug.write(method)
@@ -1100,6 +1084,26 @@ namespace tempest::sema::pass {
 
 //           mlist.setBase(base)
 //           renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(mlist.getBase())
+      }
+    }
+
+    void ResolveTypesPass::updateCallSite(ConstraintSolver& cs, CallSite* site) {
+      auto candidate = static_cast<CallCandidate*>(site->singularCandidate());
+      auto method = unwrapSpecialization(candidate->method);
+      auto callExpr = static_cast<ApplyFnOp*>(site->callExpr);
+
+      // Patch the call expression with a new callable
+      if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
+        auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
+        callExpr->function =
+            new (*_alloc) DefnRef(Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem);
+      } else {
+        assert(false && "Implement other callable types");
+      }
+
+      // TODO: re-order calling arguments.
+      // Build vararg lists.
+    }
 //       self.reorderCallingArgs(site.callExpr, candidate, transform, replaceMethods)
 
 // #     if leftOverVars:

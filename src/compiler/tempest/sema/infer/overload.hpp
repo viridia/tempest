@@ -25,6 +25,10 @@
   #include <llvm/Support/Casting.h>
 #endif
 
+namespace tempest::sema::graph {
+  class ApplyFnOp;
+}
+
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   using tempest::sema::convert::ConversionRankTotals;
@@ -222,13 +226,13 @@ namespace tempest::sema::infer {
   /** An overload site for a method call. */
   class CallSite : public OverloadSite {
   public:
-    Expr* callExpr;
+    ApplyFnOp* callExpr;
     llvm::SmallVector<Expr*, 8> argList;
     const llvm::SmallVector<Type*, 8> argTypes;
 
     CallSite(
         const source::Location& location,
-        Expr* callExpr,
+        ApplyFnOp* callExpr,
         const llvm::ArrayRef<Expr*> &argList,
         llvm::ArrayRef<Type*> argTypes)
       : OverloadSite(OverloadKind::CALL, location)

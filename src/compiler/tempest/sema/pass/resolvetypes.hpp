@@ -19,11 +19,13 @@ namespace tempest::sema::graph {
 
 namespace tempest::sema::infer {
   class ConstraintSolver;
+  class CallSite;
 }
 
 namespace tempest::sema::pass {
   using tempest::compiler::CompilationUnit;
   using tempest::sema::graph::Module;
+  using tempest::sema::infer::CallSite;
   using tempest::sema::infer::ConstraintSolver;
   using namespace tempest::sema::graph;
 
@@ -79,9 +81,9 @@ namespace tempest::sema::pass {
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
     Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
     Type* visitCallName(
-        Expr* callExpr, Expr* fn, const llvm::ArrayRef<Expr*>& args, ConstraintSolver& cs);
+        ApplyFnOp* callExpr, Expr* fn, const llvm::ArrayRef<Expr*>& args, ConstraintSolver& cs);
     Type* addCallSite(
-        Expr* callExpr,
+        ApplyFnOp* callExpr,
         Expr* fn,
         const llvm::ArrayRef<Member*>& methodList,
         const llvm::ArrayRef<Expr*>& args,
@@ -92,6 +94,8 @@ namespace tempest::sema::pass {
     Type* visitTypeName(DefnRef* expr, ConstraintSolver& cs);
 
     Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
+    void applySolution(ConstraintSolver& cs);
+    void updateCallSite(ConstraintSolver& cs, CallSite* site);
     Type* chooseIntegerType(Expr* expr, Type* ty);
   };
 }

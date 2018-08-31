@@ -54,6 +54,7 @@ namespace tempest::sema::infer {
     }
 
     if (!isSingularSolution()) {
+      _failed = true;
       reportSiteAmbiguities();
     }
 

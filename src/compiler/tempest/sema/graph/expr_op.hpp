@@ -11,17 +11,14 @@ namespace tempest::sema::graph {
   class UnaryOp : public Expr {
   public:
     Expr* arg;
-    Type* type;
 
     UnaryOp(Kind kind, Location location, Expr* arg, Type* type = nullptr)
-      : Expr(kind, location)
+      : Expr(kind, location, type)
       , arg(arg)
-      , type(type)
     {}
     UnaryOp(Kind kind, Expr* arg, Type* type = nullptr)
-      : Expr(kind, Location())
+      : Expr(kind, Location(), type)
       , arg(arg)
-      , type(type)
     {}
 
     /** Dynamic casting support. */
@@ -37,66 +34,52 @@ namespace tempest::sema::graph {
   };
 
   /** Infix operator. */
-  class InfixOp : public Expr {
+  class BinaryOp : public Expr {
   public:
     Expr* lhs;
     Expr* rhs;
-    Type* type;
 
-    InfixOp(
+    BinaryOp(
           Kind kind,
           Location location,
           Expr* lhs,
           Expr* rhs,
           Type* type = nullptr)
-      : Expr(kind, location)
+      : Expr(kind, location, type)
       , lhs(lhs)
       , rhs(rhs)
-      , type(type)
     {}
-    InfixOp(Kind kind, Expr* lhs, Expr* rhs, Type* type = nullptr)
-      : Expr(kind, Location())
+    BinaryOp(Kind kind, Expr* lhs, Expr* rhs, Type* type = nullptr)
+      : Expr(kind, Location(), type)
       , lhs(lhs)
       , rhs(rhs)
-      , type(type)
     {}
 
     /** Dynamic casting support. */
-    static bool classof(const InfixOp* e) { return true; }
+    static bool classof(const BinaryOp* e) { return true; }
     static bool classof(const Expr* e) {
       return e->kind >= Kind::INFIX_START && e->kind <= Kind::INFIX_END;
     }
   };
 
-  /** Relational operator. */
-  class RelationalOp : public Expr {
+  /** Operator with a variable number of arguments. */
+  class MultiOp : public Expr {
   public:
-    Expr* lhs;
-    Expr* rhs;
-    Type* type;
+    llvm::ArrayRef<Expr*> args;
 
-    RelationalOp(
+    MultiOp(
           Kind kind,
           Location location,
-          Expr* lhs,
-          Expr* rhs,
+          llvm::ArrayRef<Expr*> args,
           Type* type = nullptr)
-      : Expr(kind, location)
-      , lhs(lhs)
-      , rhs(rhs)
-      , type(type)
-    {}
-    RelationalOp(Kind kind, Expr* lhs, Expr* rhs, Type* type = nullptr)
-      : Expr(kind, Location())
-      , lhs(lhs)
-      , rhs(rhs)
-      , type(type)
+      : Expr(kind, location, type)
+      , args(args)
     {}
 
     /** Dynamic casting support. */
-    static bool classof(const InfixOp* e) { return true; }
+    static bool classof(const BinaryOp* e) { return true; }
     static bool classof(const Expr* e) {
-      return e->kind >= Kind::RELATIONAL_START && e->kind <= Kind::RELATIONAL_END;
+      return e->kind == Kind::REST_ARGS || e->kind == Kind::ARRAY_LITERAL;
     }
   };
 
@@ -105,7 +88,6 @@ namespace tempest::sema::graph {
   public:
     Expr* function;
     llvm::ArrayRef<Expr*> args;
-    Type* type;
 
     ApplyFnOp(
           Kind kind,
@@ -113,14 +95,13 @@ namespace tempest::sema::graph {
           Expr* function,
           llvm::ArrayRef<Expr*> args,
           Type* type = nullptr)
-      : Expr(kind, location)
+      : Expr(kind, location, type)
       , function(function)
       , args(args)
-      , type(type)
     {}
 
     /** Dynamic casting support. */
-    static bool classof(const InfixOp* e) { return true; }
+    static bool classof(const BinaryOp* e) { return true; }
     static bool classof(const Expr* e) {
       return e->kind == Kind::CALL;
     }

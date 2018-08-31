@@ -478,7 +478,6 @@ namespace tempest::sema::graph {
       , _keywordOnly(false)
       , _selfParam(false)
       , _classParam(false)
-      , _variadic(false)
       , _expansion(false)
     {}
 
@@ -494,10 +493,6 @@ namespace tempest::sema::graph {
     /** Indicates a keyword-only parameter. */
     bool isKeywordOnly() const { return _keywordOnly; }
     void setKeywordOnly(bool keywordOnly) { _keywordOnly = keywordOnly; }
-
-    /** Indicates this parameter accepts a list of values. */
-    bool isVariadic() const { return _variadic; }
-    void setVariadic(bool variadic) { _variadic = variadic; }
 
     /** Indicates this parameter's type is actually an expansion of a variadic template param. */
     bool isExpansion() const { return _expansion; }
@@ -524,7 +519,6 @@ namespace tempest::sema::graph {
     bool _selfParam;
     bool _classParam;
   //   bool _mutable;
-    bool _variadic;
     bool _expansion;
 
   //  explicit: bool = 3;           # No type conversion - type must be exact

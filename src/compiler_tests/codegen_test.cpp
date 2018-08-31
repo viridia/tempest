@@ -71,7 +71,7 @@ TEST_CASE("CodeGen", "[gen]") {
   SECTION("Function with expression") {
     IntegerLiteral intLit(1, &IntegerType::I32);
     IntegerLiteral intLit1(2, &IntegerType::I32);
-    InfixOp add(Expr::Kind::ADD, &intLit, &intLit1, &IntegerType::I32);
+    BinaryOp add(Expr::Kind::ADD, &intLit, &intLit1, &IntegerType::I32);
     ReturnStmt ret(&add);
     BlockStmt block(loc, {}, &ret);
     FunctionDefn fdef(loc, "testReturn");

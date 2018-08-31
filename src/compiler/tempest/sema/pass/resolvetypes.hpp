@@ -19,12 +19,14 @@ namespace tempest::sema::graph {
 
 namespace tempest::sema::infer {
   class ConstraintSolver;
+  class CallCandidate;
   class CallSite;
 }
 
 namespace tempest::sema::pass {
   using tempest::compiler::CompilationUnit;
   using tempest::sema::graph::Module;
+  using tempest::sema::infer::CallCandidate;
   using tempest::sema::infer::CallSite;
   using tempest::sema::infer::ConstraintSolver;
   using namespace tempest::sema::graph;
@@ -96,6 +98,8 @@ namespace tempest::sema::pass {
     Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
     void applySolution(ConstraintSolver& cs);
     void updateCallSite(ConstraintSolver& cs, CallSite* site);
+    void reorderCallingArgs(
+        ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc);
     Type* chooseIntegerType(Expr* expr, Type* ty);
   };
 }

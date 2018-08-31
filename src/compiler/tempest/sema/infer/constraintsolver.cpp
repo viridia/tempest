@@ -450,9 +450,11 @@ namespace tempest::sema::infer {
 
           case Rejection::NOT_ENOUGH_ARGS: {
             size_t lastRequiredParam = 0;
-            for (; lastRequiredParam < method->params().size(); ++lastRequiredParam) {
+            size_t numParams =
+                cc->isVariadic ? method->params().size() - 1 : method->params().size();
+            for (; lastRequiredParam < numParams; ++lastRequiredParam) {
               auto p = method->params()[lastRequiredParam];
-              if (p->init() != nullptr || p->isVariadic() || p->isKeywordOnly()) {
+              if (p->init() != nullptr || p->isKeywordOnly()) {
                 break;
               }
             }
@@ -476,13 +478,13 @@ namespace tempest::sema::infer {
             size_t lastPositionalParam = 0;
             for (; lastPositionalParam < method->params().size(); ++lastPositionalParam) {
               auto p = method->params()[lastPositionalParam];
-              if (p->isVariadic() || p->isKeywordOnly()) {
+              if (p->isKeywordOnly()) {
                 break;
               }
             }
 
             diag.info(method->location()) << cc->method << ": expects no more than "
-                << lastPositionalParam << " arguments, " << oc->rejection.argIndex
+                << lastPositionalParam << " arguments, " << callSite->argList.size()
                 << " were supplied.";
             break;
           }

@@ -107,6 +107,7 @@ namespace tempest::sema::graph {
 
     //   # Evaluations and Invocations
       CALL,                         // Function call
+      REST_ARGS,                    // Varargs list
 
     // Member references
       VAR_REF,                      // Reference to a variable
@@ -173,9 +174,7 @@ namespace tempest::sema::graph {
     //   CAST_OP,
 
       INFIX_START = ADD,
-      INFIX_END = RSHIFT,
-      RELATIONAL_START = EQ,
-      RELATIONAL_END = GE,
+      INFIX_END = REF_EQ,
     };
 
     const Kind kind;
@@ -183,6 +182,7 @@ namespace tempest::sema::graph {
     Type* type = nullptr;
 
     Expr(Kind kind, Location location) : kind(kind), location(location) {}
+    Expr(Kind kind, Location location, Type* type) : kind(kind), location(location), type(type) {}
     Expr() = delete;
     Expr(const Expr& src) = delete;
 

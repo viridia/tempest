@@ -462,6 +462,16 @@ TEST_CASE("NameResolution.FunctionBody", "[sema]") {
     REQUIRE_THAT(fn->body(), ExprEQ("{ c(1, 2) }"));
   }
 
+  SECTION("Varargs function") {
+    auto mod = compile(cu,
+      "fn c(a: i32, b: i32...) -> void {}\n"
+    );
+    auto fn = cast<FunctionDefn>(mod->members().front());
+    REQUIRE(fn->kind == Defn::Kind::FUNCTION);
+    REQUIRE(fn->isVariadic());
+    REQUIRE(fn->type()->isVariadic);
+  }
+
   SECTION("Basic function name not found") {
     REQUIRE_THAT(
       compileError(cu,

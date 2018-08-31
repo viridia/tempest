@@ -267,4 +267,52 @@ TEST_CASE("ResolveTypes", "[sema]") {
       ),
       Catch::Contains("Ambiguous overloaded method"));
   }
+
+  SECTION("Varargs assignments") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1, 2, 3, 4);\n"
+        "}\n"
+        "fn y(a: i32, b: i32...) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    REQUIRE(callExpr->args.size() == 2);
+    REQUIRE_THAT(callExpr, ExprEQ("y(1, [2, 3, 4])"));
+  }
+
+  SECTION("Varargs assignments with no args") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1);\n"
+        "}\n"
+        "fn y(a: i32, b: i32...) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    REQUIRE(callExpr->args.size() == 2);
+    REQUIRE_THAT(callExpr, ExprEQ("y(1, [])"));
+  }
+
+  SECTION("Default param values") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1);\n"
+        "}\n"
+        "fn y(a: i32, b: i32 = 3) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    REQUIRE(callExpr->args.size() == 2);
+    REQUIRE_THAT(callExpr, ExprEQ("y(1, 3)"));
+  }
 }

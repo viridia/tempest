@@ -667,8 +667,9 @@ namespace tempest::sema::pass {
       cc->returnType = returnType;
       cc->params = params;
       cc->paramTypes = paramTypes;
+      cc->isVariadic = function->type()->isVariadic;
 
-      ParameterAssignmentsBuilder builder(cc->paramAssignments, cc->params);
+      ParameterAssignmentsBuilder builder(cc->paramAssignments, cc->params, cc->isVariadic);
       size_t argIndex = 0;
       for (auto arg : args) {
         if (builder.error() != ParamError::NONE) {
@@ -1039,10 +1040,10 @@ namespace tempest::sema::pass {
 // #         candidate.paramList = transform.traverseParamList(candidate.paramList)
 //         candidate.paramTypes = solutionTransform.traverseTypeList(candidate.paramTypes)
 //         renamer.EnsureAllTypeVarsAreNormalized().traverseTypeList(candidate.paramTypes)
-        if (site->kind == OverloadKind::CALL) {
-          CallSite* c = static_cast<CallSite*>(site);
-          updateCallSite(cs, c);
-        }
+      if (site->kind == OverloadKind::CALL) {
+        CallSite* c = static_cast<CallSite*>(site);
+        updateCallSite(cs, c);
+      }
 //       mlist = site.callExpr.getArgs()[0]
 //       if method:
 //         assert isinstance(method, graph.Member), debug.write(method)
@@ -1084,26 +1085,25 @@ namespace tempest::sema::pass {
 
 //           mlist.setBase(base)
 //           renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(mlist.getBase())
-      }
+    }
+  }
+
+  void ResolveTypesPass::updateCallSite(ConstraintSolver& cs, CallSite* site) {
+    auto candidate = static_cast<CallCandidate*>(site->singularCandidate());
+    auto method = unwrapSpecialization(candidate->method);
+    auto callExpr = static_cast<ApplyFnOp*>(site->callExpr);
+
+    // Patch the call expression with a new callable
+    if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
+      auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
+      callExpr->function =
+          new (*_alloc) DefnRef(Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem);
+    } else {
+      assert(false && "Implement other callable types");
     }
 
-    void ResolveTypesPass::updateCallSite(ConstraintSolver& cs, CallSite* site) {
-      auto candidate = static_cast<CallCandidate*>(site->singularCandidate());
-      auto method = unwrapSpecialization(candidate->method);
-      auto callExpr = static_cast<ApplyFnOp*>(site->callExpr);
-
-      // Patch the call expression with a new callable
-      if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
-        auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
-        callExpr->function =
-            new (*_alloc) DefnRef(Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem);
-      } else {
-        assert(false && "Implement other callable types");
-      }
-
-      // TODO: re-order calling arguments.
-      // Build vararg lists.
-    }
+    reorderCallingArgs(cs, callExpr, site, candidate);
+  }
 //       self.reorderCallingArgs(site.callExpr, candidate, transform, replaceMethods)
 
 // #     if leftOverVars:
@@ -1168,50 +1168,44 @@ namespace tempest::sema::pass {
 // #     typesubstitution.ApplyEnv(solutionEnv).traverseExpr(root)
 //     renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(root)
 
-//   def reorderCallingArgs(self, callExpr, candidate, transform, replaceMethods):
-//     args = callExpr.getArgs()[1:]
-//     numParams = len(candidate.paramTypes)
-//     if numParams == 0:
-//       return
-//     varargs = None
-//     newArgs = [None] * numParams
-//     for argIndex, paramIndex in enumerate(candidate.paramAssignments.paramIndex):
-//       arg = args[argIndex]
-//       if isinstance(arg, graph.KeywordArg):
-//         arg = arg.getArg()
-// #       arg = genTransform.traverseExpr(arg)
-//       renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(arg)
-//       paramType = candidate.paramTypes[paramIndex]
-//       if graphtools.isVariadicParam(paramType):
-//         if newArgs[paramIndex] is None:
-//           # TODO: Should this be a different kind of collection than Array? A cheaper kind, perhaps?
-//           elementType = types.stripVariadic(paramType)
-//           varargs = self.typeStore.createArrayLiteral(arg.getLocation(), elementType)
-//           newArgs[paramIndex] = varargs
-//         varargs.getMutableArgs().append(arg)
-//       else:
-//         newArgs[paramIndex] = arg
-//     # Fill in default arguments
-//     for paramIndex, paramType in enumerate(candidate.paramTypes):
-//       if newArgs[paramIndex] is None:
-//         if graphtools.isVariadicParam(paramType):
-//           # Put an empty array here
-//           elementType = types.stripVariadic(paramType)
-//           varargs = self.graphBuilder.createArrayLiteral(callExpr.getLocation(), elementType)
-//           newArgs[paramIndex] = varargs
-//         elif candidate.hasParamInit(paramIndex):
-//           expr = candidate.getParamInit(paramIndex)
-//           if replaceMethods is not None:
-//             expr = replaceMethods.traverseExpr(expr)
-//           if transform is not None:
-//             expr = transform.traverseExpr(expr)
-//           newArgs[paramIndex] = expr
-//         else:
-//           assert False, 'parameter with no assignment'
+  void ResolveTypesPass::reorderCallingArgs(
+      ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc) {
+    size_t argIndex = 0;
+    SmallVector<Expr*, 8> argList;
+    SmallVector<Expr*, 8> varArgList;
+    argList.resize(cc->params.size(), nullptr);
 
-//     callExpr.getArgs()[1:] = newArgs
-// #     debug.write('reorder', callExpr)
+    // Assign explicit arguments
+    for (auto arg : site->argList) {
+      size_t paramIndex = cc->paramAssignments[argIndex++];
+      if (cc->isVariadic && paramIndex == cc->paramTypes.size() - 1) {
+        varArgList.push_back(arg);
+      } else {
+        argList[paramIndex] = arg;
+      }
+    }
 
+    // Handle rest args
+    if (cc->isVariadic) {
+      MultiOp* restArgs = new (*_alloc) MultiOp(
+          Expr::Kind::REST_ARGS, callExpr->location, _alloc->copyOf(varArgList),
+          const_cast<Type*>(cc->paramTypes.back()));
+      argList[cc->paramTypes.size() - 1] = restArgs;
+    }
+
+    // Now, fill in defaults
+    for (size_t i = 0; i < cc->params.size(); i += 1) {
+      if (!argList[i]) {
+        auto param = cc->params[i];
+        if (param->init()) {
+          // TODO: Transform
+          argList[i] = param->init();
+        }
+      }
+    }
+
+    callExpr->args = _alloc->copyOf(argList);
+  }
 
   // Utilities
 

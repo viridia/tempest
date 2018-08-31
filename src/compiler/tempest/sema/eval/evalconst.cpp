@@ -89,7 +89,7 @@ namespace tempest::sema::eval {
       case Expr::Kind::LT:
       case Expr::Kind::GE:
       case Expr::Kind::GT: {
-        auto op = static_cast<const InfixOp*>(e);
+        auto op = static_cast<const BinaryOp*>(e);
         EvalResult lhsResult;
         EvalResult rhsResult;
         if (!evalConstExpr(op->lhs, lhsResult) || !evalConstExpr(op->rhs, rhsResult)) {

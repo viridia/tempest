@@ -588,35 +588,35 @@ namespace tempest::sema::pass {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::ADD, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::ADD, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::SUB: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::SUBTRACT, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::SUBTRACT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::MUL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::MULTIPLY, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::MULTIPLY, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::DIV: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::DIVIDE, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::DIVIDE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::MOD: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(
+        return new (*_alloc) BinaryOp(
             Expr::Kind::REMAINDER, lhs->location | rhs->location, lhs, rhs);
       }
 
@@ -624,91 +624,91 @@ namespace tempest::sema::pass {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::BIT_AND, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::BIT_AND, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::BIT_OR: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::BIT_OR, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::BIT_OR, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::BIT_XOR: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::BIT_XOR, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::BIT_XOR, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::RSHIFT: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::RSHIFT, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::RSHIFT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::LSHIFT: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::LSHIFT, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::LSHIFT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::EQ, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::EQ, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::NOT_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::NE, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::NE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::GREATER_THAN: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::GT, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::GT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::GREATER_THAN_OR_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::GE, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::GE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::LESS_THAN: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::LT, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::LT, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::LESS_THAN_OR_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::LE, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::LE, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::REF_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::REF_EQ, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::REF_EQ, lhs->location | rhs->location, lhs, rhs);
       }
 
       case ast::Node::Kind::REF_NOT_EQUAL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::REF_NE, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::REF_NE, lhs->location | rhs->location, lhs, rhs);
       }
 
       // IS_SUB_TYPE,
@@ -718,7 +718,7 @@ namespace tempest::sema::pass {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) InfixOp(Expr::Kind::ASSIGN, lhs->location | rhs->location, lhs, rhs);
+        return new (*_alloc) BinaryOp(Expr::Kind::ASSIGN, lhs->location | rhs->location, lhs, rhs);
       }
 
       // ASSIGN_ADD,

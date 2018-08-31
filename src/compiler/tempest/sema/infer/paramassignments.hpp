@@ -38,9 +38,11 @@ namespace tempest::sema::infer {
   public:
     ParameterAssignmentsBuilder(
         llvm::SmallVectorImpl<size_t>& output,
-        const llvm::ArrayRef<ParameterDefn*> &params)
+        const llvm::ArrayRef<ParameterDefn*> &params,
+        bool isVariadic)
       : _output(output)
       , _params(params)
+      , _isVariadic(isVariadic)
     {
       _inUse.resize(_params.size());
     }
@@ -97,7 +99,7 @@ namespace tempest::sema::infer {
       _output.push_back(_nextPositionalParam);
       _inUse[_nextPositionalParam] = true;
 
-      if (!param->isVariadic()) {
+      if (!_isVariadic || _nextPositionalParam < _params.size() - 1) {
         _nextPositionalParam += 1;
       }
 
@@ -138,10 +140,11 @@ namespace tempest::sema::infer {
         return _error;
       }
 
-      for (size_t paramIndex = 0; paramIndex < _params.size(); ++paramIndex) {
+      size_t numParams = _isVariadic ? _params.size() - 1 : _params.size();
+      for (size_t paramIndex = 0; paramIndex < numParams; ++paramIndex) {
         if (!_inUse[paramIndex]) {
           auto param = _params[paramIndex];
-          if (!param->init() && !param->isVariadic()) {
+          if (!param->init()) {
             _error = ParamError::NOT_ENOUGH_ARGS;
             return _error;
           }
@@ -151,15 +154,6 @@ namespace tempest::sema::infer {
       return ParamError::NONE;
     }
 
-//   def forArgs(self, argList):
-//     for arg in argList:
-//       if isinstance(arg, graph.KeywordArg):
-//         if not self.addKeywordArg(arg.getKeyword()):
-//           return False
-//       elif not self.addPositionalArg():
-//         return False
-//     return self.checkUnboundParams()
-
   private:
     llvm::SmallVectorImpl<size_t>& _output;
     const llvm::ArrayRef<ParameterDefn*> &_params;
@@ -167,6 +161,7 @@ namespace tempest::sema::infer {
     size_t _nextPositionalParam = 0;
     ParamError _error = ParamError::NONE;
     bool _keywordsAdded = false;
+    bool _isVariadic = false;
   };
 
   /** Similar to the above when all we have is a function type.

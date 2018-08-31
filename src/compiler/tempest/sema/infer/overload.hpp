@@ -124,6 +124,9 @@ namespace tempest::sema::infer {
     /** The type that is returned from the function. */
     const Type* returnType = nullptr;
 
+    /** Whether the last parameter is variadic. */
+    bool isVariadic = false;
+
     /** Indices that map argument lots to parameter slots. */
     llvm::SmallVector<size_t, 8> paramAssignments;
 

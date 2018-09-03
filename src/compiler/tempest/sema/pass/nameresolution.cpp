@@ -353,30 +353,25 @@ namespace tempest::sema::pass {
     // resolverequirements.ResolveRequirements(
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, func).run()
 
+    TypeParamScope tpScope(scope, fd);
     Type* returnType = nullptr;
     if (fd->ast()->returnType) {
-      returnType = resolveType(scope, fd->ast()->returnType);
+      returnType = resolveType(&tpScope, fd->ast()->returnType);
     } else if (!fd->ast()->body) {
       diag.error(fd) << "No function body, function return type cannot be inferred.";
     }
 
-    // if func.astReturnType:
-    //   returnType = self.resolveTypes.visit(func.astReturnType)
-    //   func.getMutableType().setReturnType(returnType)
-    // else:
-    //   func.getMutableType().setReturnType(primitivetypes.VOID)
-
     SmallVector<Type*, 8> paramTypes;
     for (auto param : fd->params()) {
-      visitAttributes(scope, param, param->ast());
+      visitAttributes(&tpScope, param, param->ast());
       if (param->ast()->type) {
-        param->setType(resolveType(scope, param->ast()->type));
+        param->setType(resolveType(&tpScope, param->ast()->type));
         paramTypes.push_back(param->type());
       } else {
         diag.error(param) << "Parameter type is required";
       }
       if (param->ast()->init) {
-        param->setInit(visitExpr(scope, param->ast()->init));
+        param->setInit(visitExpr(&tpScope, param->ast()->init));
       }
     }
 

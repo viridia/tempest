@@ -210,6 +210,11 @@ namespace tempest::sema::infer {
       return result;
     }
 
+    Conditions& operator=(const Conditions& src) {
+      _conjuncts = src._conjuncts;
+      return *this;
+    }
+
   private:
     Conjuncts _conjuncts;
   };

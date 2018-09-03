@@ -26,6 +26,7 @@
 #endif
 
 namespace tempest::sema::names {
+  using tempest::sema::graph::GenericDefn;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Member;
@@ -66,6 +67,18 @@ namespace tempest::sema::names {
     void forEach(const NameCallback& nameFn);
     Member* subject() const {
       return nullptr;
+    }
+  };
+
+  /** A lookup scope representing an enclosing type definition. */
+  struct TypeParamScope : public LookupScope {
+    GenericDefn* generic;
+
+    TypeParamScope(LookupScope* prev, GenericDefn* generic) : LookupScope(prev), generic(generic) {}
+    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    void forEach(const NameCallback& nameFn);
+    Member* subject() const {
+      return generic;
     }
   };
 

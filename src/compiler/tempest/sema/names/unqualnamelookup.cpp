@@ -26,6 +26,21 @@ namespace tempest::sema::names {
     }
   }
 
+  void TypeParamScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+    auto resultSize = result.size();
+    generic->typeParamScope()->lookupName(name, result);
+    if (result.size() <= resultSize && prev) {
+      prev->lookup(name, result);
+    }
+  }
+
+  void TypeParamScope::forEach(const NameCallback& nameFn) {
+    generic->typeParamScope()->forAllNames(nameFn);
+    if (prev) {
+      prev->forEach(nameFn);
+    }
+  }
+
   void TypeDefnScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
     auto resultSize = result.size();
     typeDefn->memberScope()->lookupName(name, result);
@@ -73,17 +88,19 @@ namespace tempest::sema::names {
   void FunctionScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
     auto resultSize = result.size();
     funcDefn->paramScope()->lookupName(name, result);
-    if (result.size() > resultSize) {
-      // If we found a member with that name, return
-      return;
+
+    if (result.size() <= resultSize && !funcDefn->typeParams().empty()) {
+      funcDefn->typeParamScope()->lookupName(name, result);
     }
-    if (result.empty() && prev) {
+
+    if (result.size() <= resultSize && prev) {
       prev->lookup(name, result);
     }
   }
 
   void FunctionScope::forEach(const NameCallback& nameFn) {
     funcDefn->paramScope()->forAllNames(nameFn);
+    funcDefn->typeParamScope()->forAllNames(nameFn);
     if (prev) {
       prev->forEach(nameFn);
     }

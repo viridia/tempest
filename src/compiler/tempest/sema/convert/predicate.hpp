@@ -16,6 +16,11 @@ namespace tempest::sema::convert {
   struct ConversionEnv {
     llvm::ArrayRef<TypeParameter*> params;
     llvm::SmallVector<const Type*, 4> args;
+
+    /** True if this type variable is included in the environment. */
+    bool has(const TypeVar* tvar) {
+      return std::find(params.begin(), params.end(), tvar->param) != params.end();
+    }
   };
 
   /** Return whether the source type is assignable to the destination type. */

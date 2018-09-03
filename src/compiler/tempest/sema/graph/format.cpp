@@ -247,7 +247,7 @@ namespace tempest::sema::graph {
 
       case Type::Kind::TYPE_VAR: {
         auto tv = static_cast<const TypeVar*>(t);
-        out << "enum " << tv->param->name();
+        out << "type parameter " << tv->param->name();
         break;
       }
 

@@ -107,6 +107,12 @@ namespace tempest::sema::graph {
         return exprOrder(sLhs->value, sRhs->value);
       }
 
+      case Type::Kind::TYPE_VAR: {
+        auto tvLhs = static_cast<const TypeVar*>(lhs);
+        auto tvRhs = static_cast<const TypeVar*>(rhs);
+        return memberOrder(tvLhs->param, tvRhs->param);
+      }
+
       default:
         assert(false && "Unsupported type kind");
     }

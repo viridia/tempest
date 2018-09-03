@@ -1,10 +1,10 @@
 # TODOs
 
-* Apply overload solution
 * Type inference for generic function parameters
   * Include outer generic params
   * Apply generic solution
 * Type inference for constructor calls
+* Unify structural typing
 * Expression callables
 * Calls of explicitly specialized methods
 * Private / Protected visibility tests

@@ -45,6 +45,10 @@ namespace tempest::sema::convert {
       }
     }
 
+    if (dst->kind == Type::Kind::INVALID || src->kind == Type::Kind::INVALID) {
+      return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
+    }
+
     if (dst->kind == Type::Kind::ALIAS) {
       // TODO: Convert identical to exact?
       dst = static_cast<const UserDefinedType*>(dst)->defn()->aliasTarget();
@@ -86,6 +90,22 @@ namespace tempest::sema::convert {
 //         srcConst = True
 //       return isAssignableEnv(dst, dstConst, dstEnv, src.getBase(), srcConst, srcEnv)
 
+    if (dst->kind == Type::Kind::TYPE_VAR) {
+      auto dstTypeVar = static_cast<const TypeVar*>(dst);
+      if (size_t(dstTypeVar->index()) < dstEnv.args.size()) {
+        ConversionEnv newEnv;
+        assert(dstEnv.has(dstTypeVar));
+        return isAssignable(
+            dstEnv.args[dstTypeVar->index()], dstMods, newEnv,
+            src, srcMods, srcEnv);
+      }
+      auto dstParam = dstTypeVar->param;
+      if (!dstParam->subtypeConstraints().empty()) {
+        assert(false && "Implement subtype constraints");
+      }
+      return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
+    }
+
 //   if isinstance(dst, graph.TypeVar):
 //     if dstEnv:
 //       env, *envList = dstEnv
@@ -115,6 +135,22 @@ namespace tempest::sema::convert {
 //     elif not isinstance(src, graph.TypeVar):
 //       debug.trace('-- incompatible')
 //       return ConversionResult(ConversionRank.ERROR, ConversionError.INCOMPATIBLE, None)
+
+    if (src->kind == Type::Kind::TYPE_VAR) {
+      auto srcTypeVar = static_cast<const TypeVar*>(src);
+      if (size_t(srcTypeVar->index()) < srcEnv.args.size()) {
+        ConversionEnv newEnv;
+        assert(srcEnv.has(srcTypeVar));
+        return isAssignable(
+            dst, dstMods, dstEnv,
+            srcEnv.args[srcTypeVar->index()], srcMods, newEnv);
+      }
+      auto srcParam = srcTypeVar->param;
+      if (!srcParam->subtypeConstraints().empty()) {
+        assert(false && "Implement subtype constraints");
+      }
+      return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
+    }
 
 //   if isinstance(src, graph.TypeVar):
 //     if srcEnv:

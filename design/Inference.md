@@ -102,3 +102,24 @@ ConstraintSet:
     Constraint:
         Conditions:
 
+## Unification:
+
+* S -> T
+* [S] -> T
+* S -> [T]
+* [S] -> [T]
+* Map[A, B] -> C
+* A -> Map[B, C]
+
+Result of a unification is usually an empty list.
+
+However, it an also be a list of bindings:
+
+  * the inferred variable being bound to
+  * what type of binding:
+    * equal
+    * subtype
+    * supertype
+    * assignable-to
+    * assignable-from
+  * the overloads upon which this type binding depends

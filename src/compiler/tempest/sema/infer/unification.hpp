@@ -9,16 +9,17 @@
   #include "tempest/sema/infer/conditions.hpp"
 #endif
 
-namespace tempest::sema::convert {
-  struct ConversionEnv;
+namespace tempest::support {
+  class BumpPtrAllocator;
 }
 
 namespace tempest::sema::graph {
+  struct Env;
   class TypeParameter;
 }
 
 namespace tempest::sema::infer {
-  using tempest::sema::convert::ConversionEnv;
+  using tempest::sema::convert::Env;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeParameter;
 
@@ -75,8 +76,8 @@ namespace tempest::sema::infer {
     BindingPredicate predicate, tempest::support::BumpPtrAllocator& alloc);
   bool unify(
     std::vector<UnificationResult>& result,
-    const Type* lt, ConversionEnv& ltEnv,
-    const Type* rt, ConversionEnv& rtEnv,
+    const Type* lt, Env& ltEnv,
+    const Type* rt, Env& rtEnv,
     Conditions& when,
     BindingPredicate predicate,
     tempest::support::BumpPtrAllocator& alloc);

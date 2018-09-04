@@ -61,8 +61,6 @@ namespace tempest::sema::infer {
 //     self.conversionConstraints = set([ct for ct in self.conversionConstraints if not ct.isIdentity()])
 //     self.originalConversionConstraints = self.conversionConstraints
 //     self.tvarConstraints.update(self.equivalenceConstraints)
-//     for ct in self.tvarConstraints:
-//       assert self.renamer.hasTypeVar(ct.typeVar)
 //     self.unifyConstraints()
 //     self.combineRejections()
 //     self.chooseIntegerSizesForConstraints()

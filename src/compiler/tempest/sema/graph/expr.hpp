@@ -120,7 +120,6 @@ namespace tempest::sema::graph {
     //   PRIVATE_NAME,                 # Reference to private member (.a)
     //   FLUENT_MEMBER,                # Sticky reference to member (a.{b;c;d})
     //   TEMP_VAR,                     # Reference to an anonymous, temporary variable.
-    //   EXPLICIT_SPECIALIZE,          # An explicit specialization that could not be resolved at name-lookup time.
 
       // Statements
       BLOCK,                        // Block statement

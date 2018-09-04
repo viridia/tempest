@@ -1,9 +1,9 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
-#include "tempest/sema/convert/applyspec.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/infer/types.hpp"
 #include "tempest/sema/infer/overload.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
@@ -11,16 +11,17 @@ namespace tempest::sema::convert {
   using namespace tempest::sema::infer;
   using namespace llvm;
   using tempest::error::diag;
+  using tempest::sema::transform::ApplySpecialization;
 
   ConversionResult isAssignable(const Type* dst, const Type* src) {
-    ConversionEnv srcEnv;
-    ConversionEnv dstEnv;
+    Env srcEnv;
+    Env dstEnv;
     return isAssignable(dst, 0, dstEnv, src, 0, srcEnv);
   }
 
   ConversionResult isAssignable(
-    const Type* dst, uint32_t dstMods, ConversionEnv& dstEnv,
-    const Type* src, uint32_t srcMods, ConversionEnv& srcEnv) {
+    const Type* dst, uint32_t dstMods, Env& dstEnv,
+    const Type* src, uint32_t srcMods, Env& srcEnv) {
 
     if (src == dst && srcMods == dstMods) {
       if (isa<PrimitiveType>(src) ||
@@ -61,7 +62,7 @@ namespace tempest::sema::convert {
     if (src->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(src);
       ApplySpecialization apply(srcEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];
@@ -74,7 +75,7 @@ namespace tempest::sema::convert {
     if (dst->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(dst);
       ApplySpecialization apply(dstEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];
@@ -93,7 +94,7 @@ namespace tempest::sema::convert {
     if (dst->kind == Type::Kind::TYPE_VAR) {
       auto dstTypeVar = static_cast<const TypeVar*>(dst);
       if (size_t(dstTypeVar->index()) < dstEnv.args.size()) {
-        ConversionEnv newEnv;
+        Env newEnv;
         assert(dstEnv.has(dstTypeVar));
         return isAssignable(
             dstEnv.args[dstTypeVar->index()], dstMods, newEnv,
@@ -139,7 +140,7 @@ namespace tempest::sema::convert {
     if (src->kind == Type::Kind::TYPE_VAR) {
       auto srcTypeVar = static_cast<const TypeVar*>(src);
       if (size_t(srcTypeVar->index()) < srcEnv.args.size()) {
-        ConversionEnv newEnv;
+        Env newEnv;
         assert(srcEnv.has(srcTypeVar));
         return isAssignable(
             dst, dstMods, dstEnv,
@@ -464,7 +465,7 @@ namespace tempest::sema::convert {
       return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
     }
 
-    diag.fatal() << "isAssignable not handled: " << int(src->kind) << " : " << int(dst->kind);
+    diag.fatal() << "isAssignable not handled: " << src->kind << " : " << dst->kind;
     assert(false && "isAssignable not handled");
     return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
   }

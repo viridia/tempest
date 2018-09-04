@@ -78,6 +78,7 @@ namespace tempest::sema::pass {
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
+    GenericDefn* _subject = nullptr;
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
@@ -101,6 +102,12 @@ namespace tempest::sema::pass {
     void reorderCallingArgs(
         ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc);
     Type* chooseIntegerType(Expr* expr, Type* ty);
+
+    GenericDefn* setSubject(GenericDefn* subject) {
+      auto prevSubject = _subject;
+      _subject = subject;
+      return prevSubject;
+    }
   };
 }
 

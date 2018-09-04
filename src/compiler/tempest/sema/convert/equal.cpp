@@ -1,23 +1,24 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
-#include "tempest/sema/convert/applyspec.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
   using namespace llvm;
   using tempest::error::diag;
+  using tempest::sema::transform::ApplySpecialization;
 
   bool isEqual(const Type* dst, const Type* src) {
-    ConversionEnv srcEnv;
-    ConversionEnv dstEnv;
+    Env srcEnv;
+    Env dstEnv;
     return isEqual(dst, 0, dstEnv, src, 0, srcEnv);
   }
 
   bool isEqual(
-    const Type* dst, uint32_t dstMods, ConversionEnv& dstEnv,
-    const Type* src, uint32_t srcMods, ConversionEnv& srcEnv) {
+    const Type* dst, uint32_t dstMods, Env& dstEnv,
+    const Type* src, uint32_t srcMods, Env& srcEnv) {
 
     if (src == dst && srcMods == dstMods) {
       if (isa<PrimitiveType>(src) ||
@@ -52,7 +53,7 @@ namespace tempest::sema::convert {
     if (src->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(src);
       ApplySpecialization apply(srcEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];
@@ -64,7 +65,7 @@ namespace tempest::sema::convert {
     if (dst->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(dst);
       ApplySpecialization apply(dstEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];

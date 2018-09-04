@@ -213,6 +213,12 @@ namespace tempest::sema::graph {
     //   return _interceptScopes;
     // }
 
+    /** Return true if this definition, or one of it's enclosing definitions, has a specific
+        type parameter. */
+    bool hasTypeParam(TypeParameter* param) {
+      return std::find(_allTypeParams.begin(), _allTypeParams.end(), param) != _allTypeParams.end();
+    }
+
     /** Dynamic casting support. */
     static bool classof(const GenericDefn* m) { return true; }
     static bool classof(const Member* m) {

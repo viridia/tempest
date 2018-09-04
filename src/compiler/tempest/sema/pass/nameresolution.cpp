@@ -743,19 +743,24 @@ namespace tempest::sema::pass {
       // CALL,
       case ast::Node::Kind::CALL: {
         auto op = static_cast<const ast::Oper*>(node);
-        llvm::SmallVector<Expr*, 8> args;
         auto fn = visitExpr(scope, op->op);
+        if (Expr::isError(fn)) {
+          return fn;
+        }
+
+        llvm::SmallVector<Expr*, 8> args;
         for (auto arg : op->operands) {
           auto argExpr = visitExpr(scope, arg);
           if (!Expr::isError(argExpr)) {
             args.push_back(argExpr);
           }
         }
-        if (Expr::isError(fn)) {
-          return fn;
-        }
 
         return new (*_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fn, _alloc->copyOf(args));
+      }
+
+      case ast::Node::Kind::SPECIALIZE: {
+        return visitSpecialize(scope, static_cast<const ast::Oper*>(node));
       }
 
       // FLUENT_MEMBER,
@@ -859,6 +864,43 @@ namespace tempest::sema::pass {
         diag.error(node) << "Invalid expression type: " << ast::Node::KindName(node->kind);
         assert(false && "Invalid node kind");
     }
+  }
+
+  Expr* NameResolutionPass::visitSpecialize(LookupScope* scope, const ast::Oper* node) {
+    auto base = visitExpr(scope, node->op);
+    if (Expr::isError(base)) {
+      return &Expr::ERROR;
+    }
+    if (base->kind != Expr::Kind::FUNCTION_REF_OVERLOAD &&
+        base->kind != Expr::Kind::TYPE_REF_OVERLOAD) {
+      diag.error(node) << "Expression cannot be specialized";
+      return &Expr::ERROR;
+    }
+
+    llvm::SmallVector<Type*, 8> args;
+    if (node->operands.empty()) {
+      diag.error(node) << "Missing type arguments";
+      return &Expr::ERROR;
+    }
+
+    for (auto arg : node->operands) {
+      auto argType = resolveType(scope, arg);
+      if (Type::isError(argType)) {
+        return &Expr::ERROR;
+      }
+      args.push_back(argType);
+    }
+
+    auto argArray = _alloc->copyOf(args);
+    auto baseRef = static_cast<MemberListExpr*>(base);
+    llvm::SmallVector<Member*, 8> specMembers;
+    specMembers.resize(baseRef->members.size());
+    std::transform(baseRef->members.begin(), baseRef->members.end(), specMembers.begin(),
+        [argArray, this](auto m) {
+          auto generic = cast<GenericDefn>(m);
+          return new (*_alloc) SpecializedDefn(m, argArray, generic->typeParams());
+        });
+    return new (*_alloc) MemberListExpr(base->kind, base->location, baseRef->name, specMembers);
   }
 
   Type* NameResolutionPass::resolveType(LookupScope* scope, const ast::Node* node) {

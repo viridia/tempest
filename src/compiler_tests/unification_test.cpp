@@ -200,8 +200,8 @@ TEST_CASE("Unification.composite", "[sema]") {
     auto clsB = cast<TypeDefn>(mod->members()[1])->type();
 
     auto typeDefA = cast<UserDefinedType>(clsA)->defn();
-    ConversionEnv env;
-    ConversionEnv empty;
+    Env env;
+    Env empty;
     env.params = typeDefA->typeParams();
     InferredType a(env.params[0], nullptr, nullptr);
     env.args.push_back(&a);
@@ -239,8 +239,8 @@ TEST_CASE("Unification.composite", "[sema]") {
     auto clsB = cast<TypeDefn>(mod->members()[1])->type();
 
     auto typeDefA = cast<UserDefinedType>(clsA)->defn();
-    ConversionEnv env;
-    ConversionEnv empty;
+    Env env;
+    Env empty;
     env.params = typeDefA->typeParams();
     InferredType a(env.params[0], nullptr, nullptr);
     env.args.push_back(&a);
@@ -275,7 +275,7 @@ TEST_CASE("Unification.derived", "[sema]") {
   CompilationUnit cu;
   std::vector<UnificationResult> result;
   Conditions conditions;
-  ConversionEnv empty;
+  Env empty;
   tempest::support::BumpPtrAllocator alloc;
 
   SECTION("Unify tuple") {
@@ -290,7 +290,7 @@ TEST_CASE("Unification.derived", "[sema]") {
     auto argA = typeA->paramTypes[0];
     auto argB = typeB->paramTypes[0];
 
-    ConversionEnv env;
+    Env env;
     env.params = fnA->typeParams();
     InferredType a(env.params[0], nullptr, nullptr);
     env.args.push_back(&a);
@@ -335,17 +335,17 @@ TEST_CASE("Unification.derived", "[sema]") {
     auto typeE = fnE->type()->paramTypes[0];
     auto typeF = fnF->type()->paramTypes[0];
 
-    ConversionEnv envA;
+    Env envA;
     envA.params = fnA->typeParams();
     InferredType a(envA.params[0], nullptr, nullptr);
     envA.args.push_back(&a);
 
-    ConversionEnv envB;
+    Env envB;
     envB.params = fnB->typeParams();
     InferredType b(envB.params[0], nullptr, nullptr);
     envB.args.push_back(&b);
 
-    ConversionEnv envC;
+    Env envC;
     envC.params = fnC->typeParams();
     InferredType cs(envC.params[0], nullptr, nullptr);
     InferredType ct(envC.params[1], nullptr, nullptr);
@@ -459,7 +459,7 @@ TEST_CASE("Unification.derived", "[sema]") {
     auto typeB = fnB->type()->paramTypes[0];
     auto typeC = fnC->type()->paramTypes[0];
 
-    ConversionEnv envA;
+    Env envA;
     envA.params = fnA->typeParams();
     InferredType a(envA.params[0], nullptr, nullptr);
     envA.args.push_back(&a);

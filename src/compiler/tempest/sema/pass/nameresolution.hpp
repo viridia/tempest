@@ -17,6 +17,7 @@ namespace tempest::ast {
   class Defn;
   class TypeDefn;
   class FunctionDefn;
+  class Oper;
   class ValueDefn;
 }
 
@@ -61,6 +62,7 @@ namespace tempest::sema::pass {
     // Exprs
 
     Expr* visitExpr(LookupScope* scope, const ast::Node* in);
+    Expr* visitSpecialize(LookupScope* scope, const ast::Oper* node);
 
     // Types
 

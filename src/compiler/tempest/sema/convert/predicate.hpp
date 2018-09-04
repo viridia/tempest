@@ -5,6 +5,10 @@
   #include "tempest/sema/graph/type.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_ENV_HPP
+  #include "tempest/sema/graph/env.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_CONVERT_RESULT_HPP
   #include "tempest/sema/convert/result.hpp"
 #endif
@@ -12,29 +16,18 @@
 namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
 
-  /** Class used to temporarily contain a mapping from type parameter to type argument. */
-  struct ConversionEnv {
-    llvm::ArrayRef<TypeParameter*> params;
-    llvm::SmallVector<const Type*, 4> args;
-
-    /** True if this type variable is included in the environment. */
-    bool has(const TypeVar* tvar) {
-      return std::find(params.begin(), params.end(), tvar->param) != params.end();
-    }
-  };
-
   /** Return whether the source type is assignable to the destination type. */
   ConversionResult isAssignable(const Type* dst, const Type* src);
 
   /** Return whether the source type is assignable to the destination type. */
   ConversionResult isAssignable(
-      const Type* dst, uint32_t dstMods, ConversionEnv& dstEnv,
-      const Type* src, uint32_t srcMods, ConversionEnv& srcEnv);
+      const Type* dst, uint32_t dstMods, Env& dstEnv,
+      const Type* src, uint32_t srcMods, Env& srcEnv);
 
   /** Return whether the source type is assignable to the destination type. */
   inline ConversionResult isAssignable(
-      const Type* dst, ConversionEnv& dstEnv,
-      const Type* src, ConversionEnv& srcEnv) {
+      const Type* dst, Env& dstEnv,
+      const Type* src, Env& srcEnv) {
     return isAssignable(dst, 0, dstEnv, src, 0, srcEnv);
   }
 
@@ -43,23 +36,23 @@ namespace tempest::sema::convert {
 
   /** Return whether the source type is equal to the destination type. */
   bool isEqual(
-      const Type* dst, uint32_t dstMods, ConversionEnv& dstEnv,
-      const Type* src, uint32_t srcMods, ConversionEnv& srcEnv);
+      const Type* dst, uint32_t dstMods, Env& dstEnv,
+      const Type* src, uint32_t srcMods, Env& srcEnv);
 
   /** Return whether the subtype (st) type is a subtype of the base type (bt). */
   bool isSubtype(
-      const TypeDefn* st, ConversionEnv& stEnv,
-      const TypeDefn* bt, ConversionEnv& btEnv);
+      const TypeDefn* st, Env& stEnv,
+      const TypeDefn* bt, Env& btEnv);
 
   /** Similar to isSubtype, but takes into account upper and lower bounds on type variables.
       Returns true if both sides are equally specific. */
   bool isEqualOrNarrower(const Type* lt, const Type* rt);
-  bool isEqualOrNarrower(const Type* lt, ConversionEnv& lEnv, const Type* rt, ConversionEnv& rEnv);
+  bool isEqualOrNarrower(const Type* lt, Env& lEnv, const Type* rt, Env& rEnv);
 
   /** Return whether the left type implements all the members of the right type. */
   bool implementsMembers(
-      const TypeDefn* lt, ConversionEnv& lEnv,
-      const TypeDefn* rt, ConversionEnv& rEnv);
+      const TypeDefn* lt, Env& lEnv,
+      const TypeDefn* rt, Env& rEnv);
 
   /** Return true if the type modifier flags allow a source type to be coerced to a destination
       type. */

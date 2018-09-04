@@ -13,6 +13,7 @@
 namespace tempest::sema::graph {
   using tempest::error::diag;
   using tempest::sema::infer::ContingentType;
+  using tempest::sema::infer::InferredType;
 
   struct Formatter {
     ::std::ostream& out;
@@ -335,8 +336,14 @@ namespace tempest::sema::graph {
         break;
       }
 
+      case Type::Kind::INFERRED: {
+        auto it = static_cast<const InferredType*>(t);
+        out << "inferred " << it->typeParam->name();
+        break;
+      }
+
       default:
-        diag.error() << "Format not implemented: " << int(t->kind);
+        diag.error() << "Format not implemented: " << t->kind;
         assert(false && "Format not implemented.");
     }
   }

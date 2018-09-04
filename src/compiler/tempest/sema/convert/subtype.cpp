@@ -1,17 +1,17 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
-#include "tempest/sema/convert/applyspec.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
-#include "llvm/Support/Casting.h"
+#include "tempest/sema/transform/applyspec.hpp"
 
 namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
   using namespace llvm;
   using tempest::error::diag;
+  using tempest::sema::transform::ApplySpecialization;
 
   bool isSubtype(
-      const TypeDefn* st, ConversionEnv& stEnv,
-      const TypeDefn* bt, ConversionEnv& btEnv) {
+      const TypeDefn* st, Env& stEnv,
+      const TypeDefn* bt, Env& btEnv) {
     if (bt == st) {
       if (btEnv.args.size() != stEnv.args.size()) {
         return false;
@@ -38,7 +38,7 @@ namespace tempest::sema::convert {
       if (base->kind == Defn::Kind::SPECIALIZED) {
         auto sp = static_cast<const SpecializedDefn*>(base);
         ApplySpecialization apply(stEnv.args);
-        ConversionEnv newEnv;
+        Env newEnv;
         newEnv.params = sp->typeParams();
         for (auto param : newEnv.params) {
           auto typeArg = sp->typeArgs()[param->index()];

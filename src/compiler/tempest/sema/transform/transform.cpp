@@ -1,5 +1,5 @@
 #include "tempest/sema/graph/defn.hpp"
-#include "tempest/sema/graph/transform.hpp"
+#include "tempest/sema/transform/transform.hpp"
 
 namespace tempest::sema::graph {
   using tempest::sema::infer::InferredType;

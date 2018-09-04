@@ -64,6 +64,9 @@ namespace tempest::sema::graph {
 
     const Kind kind;
 
+    // Return the name of the specified kind.
+    static const char* KindName(Kind kind);
+
     /** Return true if this type is an error sentinel. */
     static bool isError(const Type* t) {
       return t == nullptr || t->kind == Kind::INVALID;
@@ -242,6 +245,11 @@ namespace tempest::sema::graph {
 
   inline ::std::ostream& operator<<(::std::ostream& os, const Type* t) {
     format(os, t);
+    return os;
+  }
+
+  inline ::std::ostream& operator<<(::std::ostream& os, Type::Kind kind) {
+    os << Type::KindName(kind);
     return os;
   }
 }

@@ -316,16 +316,16 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(callExpr, ExprEQ("y(1, 3)"));
   }
 
-  // SECTION("Generic function with explicit parameter") {
-  //   auto mod = compile(cu,
-  //       "fn x() {\n"
-  //       "  let result = y(1);\n"
-  //       "}\n"
-  //       "fn y[T](a: T) => a;\n"
-  //   );
-  //   auto fd = cast<FunctionDefn>(mod->members().front());
-  //   auto body = cast<BlockStmt>(fd->body());
-  //   auto letSt = cast<LocalVarStmt>(body->stmts[0]);
-  //   REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
-  // }
+  SECTION("Generic function with explicit parameter") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y[i32](1);\n"
+        "}\n"
+        "fn y[T](a: T) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+  }
 }

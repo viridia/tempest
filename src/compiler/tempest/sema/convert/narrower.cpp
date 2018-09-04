@@ -1,22 +1,23 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
-#include "tempest/sema/convert/applyspec.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
   using namespace llvm;
   using tempest::error::diag;
+  using tempest::sema::transform::ApplySpecialization;
 
   bool isEqualOrNarrower(const Type* l, const Type* r) {
-    ConversionEnv emptyEnv;
+    Env emptyEnv;
     return isEqualOrNarrower(l, emptyEnv, r, emptyEnv);
   }
 
   bool isEqualOrNarrower(
-      const Type* l, ConversionEnv& lEnv,
-      const Type* r, ConversionEnv& rEnv) {
+      const Type* l, Env& lEnv,
+      const Type* r, Env& rEnv) {
 
     // Types that are the same are equally specific regardless of type arguments.
     // So Foo[i32] is just as narrow as Foo[i64]
@@ -34,7 +35,7 @@ namespace tempest::sema::convert {
     if (l->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(l);
       ApplySpecialization apply(lEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];
@@ -47,7 +48,7 @@ namespace tempest::sema::convert {
     if (r->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(r);
       ApplySpecialization apply(rEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];

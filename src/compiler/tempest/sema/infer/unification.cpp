@@ -1,14 +1,16 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/graph/defn.hpp"
-#include "tempest/sema/convert/applyspec.hpp"
+#include "tempest/sema/graph/env.hpp"
 #include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/infer/unification.hpp"
 #include "tempest/sema/infer/types.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
 
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   using namespace tempest::sema::convert;
   using tempest::error::diag;
+  using tempest::sema::transform::ApplySpecialization;
 
   bool isNonGeneric(const Type* t) {
     return (t->kind >= Type::Kind::VOID && t->kind <= Type::Kind::FLOAT) ||
@@ -17,7 +19,7 @@ namespace tempest::sema::infer {
 
   bool separateInferredMembers(
       llvm::SmallVectorImpl<const Type*>& members,
-      ConversionEnv& env,
+      Env& env,
       const InferredType*& inferred) {
     for (auto it = members.begin(); it != members.end(); ) {
       auto m = *it;
@@ -43,8 +45,8 @@ namespace tempest::sema::infer {
   // Unify a union type with a non-union type
   bool unifyUnion(
     std::vector<UnificationResult>& result,
-    const UnionType* lt, ConversionEnv& ltEnv,
-    const Type* rt, ConversionEnv& rtEnv,
+    const UnionType* lt, Env& ltEnv,
+    const Type* rt, Env& rtEnv,
     Conditions& when,
     BindingPredicate predicate,
     tempest::support::BumpPtrAllocator& alloc) {
@@ -99,15 +101,15 @@ namespace tempest::sema::infer {
     std::vector<UnificationResult>& result, const Type* lt, const Type* rt, Conditions& when,
     BindingPredicate predicate, tempest::support::BumpPtrAllocator& alloc)
   {
-    ConversionEnv ltEnv;
-    ConversionEnv rtEnv;
+    Env ltEnv;
+    Env rtEnv;
     return unify(result, lt, ltEnv, rt, rtEnv, when, predicate, alloc);
   }
 
   bool unify(
     std::vector<UnificationResult>& result,
-    const Type* lt, ConversionEnv& ltEnv,
-    const Type* rt, ConversionEnv& rtEnv,
+    const Type* lt, Env& ltEnv,
+    const Type* rt, Env& rtEnv,
     Conditions& when,
     BindingPredicate predicate,
     tempest::support::BumpPtrAllocator& alloc)
@@ -130,7 +132,7 @@ namespace tempest::sema::infer {
       }
       auto ltTypeVar = static_cast<const TypeVar*>(lt);
       if (size_t(ltTypeVar->index()) < ltEnv.args.size()) {
-        ConversionEnv newEnv;
+        Env newEnv;
         assert(ltEnv.has(ltTypeVar));
         return unify(
             result, ltEnv.args[ltTypeVar->index()], newEnv, rt, rtEnv, when, predicate, alloc);
@@ -145,7 +147,7 @@ namespace tempest::sema::infer {
     if (rt->kind == Type::Kind::TYPE_VAR) {
       auto rtTypeVar = static_cast<const TypeVar*>(rt);
       if (size_t(rtTypeVar->index()) < rtEnv.args.size()) {
-        ConversionEnv newEnv;
+        Env newEnv;
         assert(rtEnv.has(rtTypeVar));
         return unify(
             result, lt, ltEnv, rtEnv.args[rtTypeVar->index()], newEnv, when, predicate, alloc);
@@ -161,7 +163,7 @@ namespace tempest::sema::infer {
     if (lt->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(lt);
       ApplySpecialization apply(ltEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];
@@ -174,7 +176,7 @@ namespace tempest::sema::infer {
     if (rt->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(rt);
       ApplySpecialization apply(rtEnv.args);
-      ConversionEnv newEnv;
+      Env newEnv;
       newEnv.params = sp->spec->typeParams();
       for (auto param : newEnv.params) {
         auto typeArg = sp->spec->typeArgs()[param->index()];
@@ -260,7 +262,6 @@ namespace tempest::sema::infer {
 //         assert right not in rightEnvs[0], debug.format(left, leftEnvs, right, rightEnvs)
 //         return []
 //       rightParam = right.getParam()
-//       assert self.renamer.hasTypeVar(right)
 //       if self.occurs(left, rightParam):
 //         return []
 //       if isinstance(left, (graph.PrimitiveType, graph.Enum)):
@@ -532,7 +533,7 @@ namespace tempest::sema::infer {
 // #     return UnificationError(left, right)
 //     assert False, debug.format(left, '<==>', right, type(left), type(right))
 
-    diag.fatal() << "Unify not handled: " << int(lt->kind) << " : " << int(rt->kind);
+    diag.fatal() << "Unify not handled: " << lt->kind << " : " << rt->kind;
     assert(false && "Unify not handled");
     return false;
   }

@@ -23,7 +23,7 @@
 namespace tempest::sema::graph {
   using tempest::sema::graph::Type;
 
-  class Env;
+  struct Env;
   class Member;
   class ParameterDefn;
 

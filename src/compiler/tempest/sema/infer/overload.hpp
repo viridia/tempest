@@ -67,6 +67,10 @@ namespace tempest::sema::infer {
     /** Summary of conversion results for this candidate. */
     ConversionRankTotals conversionResults;
 
+    /** Type arguments for generic overload. During inferencing, this will includes inferred
+        types. */
+    llvm::SmallVector<const Type*, 4> typeArgs;
+
     OverloadCandidate(OverloadKind kind, size_t ordinal, OverloadSite* site)
       : kind(kind)
       , ordinal(ordinal)

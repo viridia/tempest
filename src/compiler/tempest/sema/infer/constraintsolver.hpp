@@ -9,12 +9,12 @@
   #include "tempest/sema/infer/overload.hpp"
 #endif
 
-#ifndef TEMPEST_SEMA_INFER_RENAMER_HPP
-  #include "tempest/sema/infer/renamer.hpp"
-#endif
-
 #ifndef TEMPEST_SEMA_CONVERT_RESULT_HPP
   #include "tempest/sema/convert/result.hpp"
+#endif
+
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
 #endif
 
 #include <unordered_set>
@@ -37,7 +37,6 @@ namespace tempest::sema::infer {
         // GenericDefn* enclosingGeneric
         )
       : location(location)
-      , _renamer(*this)
       // , _enclosingGeneric(enclosingGeneric)
     {}
 
@@ -58,7 +57,6 @@ namespace tempest::sema::infer {
     //   return and len(self.anonFns) == 0
     }
 
-    TypeVarRenamer& renamer() { return _renamer; }
     const std::vector<OverloadSite*>& sites() const { return _sites; }
 
     void addBindingConstraint(
@@ -89,7 +87,6 @@ namespace tempest::sema::infer {
 
   private:
     tempest::support::BumpPtrAllocator _alloc;
-    TypeVarRenamer _renamer;
     // GenericDefn* _enclosingGeneric;
     std::vector<BindingConstraint*> _bindingConstraints;
     std::vector<OverloadSite*> _sites;

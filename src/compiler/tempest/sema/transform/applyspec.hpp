@@ -1,15 +1,15 @@
-#ifndef TEMPEST_SEMA_CONVERT_APPLYSPEC_HPP
-#define TEMPEST_SEMA_CONVERT_APPLYSPEC_HPP 1
+#ifndef TEMPEST_SEMA_TRANSFORM_APPLYSPEC_HPP
+#define TEMPEST_SEMA_TRANSFORM_APPLYSPEC_HPP 1
 
 #ifndef TEMPEST_SEMA_GRAPH_TYPE_HPP
   #include "tempest/sema/graph/type.hpp"
 #endif
 
-#ifndef TEMPEST_SEMA_GRAPH_TRANSFORM_HPP
-  #include "tempest/sema/graph/transform.hpp"
+#ifndef TEMPEST_SEMA_TRANSFORM_TRANSFORM_HPP
+  #include "tempest/sema/transform/transform.hpp"
 #endif
 
-namespace tempest::sema::convert {
+namespace tempest::sema::transform {
   using namespace tempest::sema::graph;
 
   /** Helper class that accepts a type and returns that type with all type variables replaced

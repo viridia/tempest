@@ -1,9 +1,9 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
-#include "tempest/sema/convert/applyspec.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/sema/names/membernamelookup.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
@@ -12,17 +12,18 @@ namespace tempest::sema::convert {
   using namespace tempest::sema::pass;
   using namespace llvm;
   using tempest::error::diag;
+  using tempest::sema::transform::ApplySpecialization;
 
   bool implementsMembers(
-      const TypeDefn* src, ConversionEnv& srcEnv,
-      const TypeDefn* dst, ConversionEnv& dstEnv) {
+      const TypeDefn* src, Env& srcEnv,
+      const TypeDefn* dst, Env& dstEnv) {
     assert(dst->type()->kind == Type::Kind::INTERFACE || dst->type()->kind == Type::Kind::TRAIT);
     // It must also implement all the members of the base interface or trait
     for (auto base : dst->extends()) {
       if (base->kind == Defn::Kind::SPECIALIZED) {
         auto sp = static_cast<const SpecializedDefn*>(base);
         ApplySpecialization apply(dstEnv.args);
-        ConversionEnv newEnv;
+        Env newEnv;
         newEnv.params = sp->typeParams();
         for (auto param : newEnv.params) {
           auto typeArg = sp->typeArgs()[param->index()];

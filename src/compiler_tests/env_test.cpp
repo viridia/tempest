@@ -4,11 +4,12 @@
 #include <memory>
 
 using tempest::sema::graph::Env;
-using tempest::sema::graph::SmallEnv;
+// using tempest::sema::graph::SmallEnv;
 using tempest::sema::graph::Type;
 using tempest::sema::graph::TypeVar;
 using tempest::sema::graph::TypeParameter;
 
+#if 0
 TEST_CASE("Environments", "[env]") {
   Env env;
   SmallEnv<4> smEnv;
@@ -42,3 +43,4 @@ TEST_CASE("Environments", "[env]") {
     REQUIRE(smEnv != smEnv3);
   }
 }
+#endif

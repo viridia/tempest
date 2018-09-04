@@ -6,7 +6,7 @@
 #endif
 
 #ifndef TEMPEST_SEMA_GRAPH_TRANSFORM_HPP
-  #include "tempest/sema/graph/transform.hpp"
+  #include "tempest/sema/transform/transform.hpp"
 #endif
 
 #ifndef LLVM_ADT_STRINGMAP_H

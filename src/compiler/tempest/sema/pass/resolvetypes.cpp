@@ -1,5 +1,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/intrinsic/defns.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
+#include "tempest/sema/graph/env.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
@@ -10,6 +12,7 @@
 #include "tempest/sema/infer/solution.hpp"
 #include "tempest/sema/infer/types.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
+#include "tempest/sema/transform/applyspec.hpp"
 #include "llvm/Support/Casting.h"
 #include <assert.h>
 
@@ -22,11 +25,13 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::CallSite;
   using tempest::sema::infer::Conditions;
   using tempest::sema::infer::ContingentType;
+  using tempest::sema::infer::InferredType;
   using tempest::sema::infer::OverloadCandidate;
   using tempest::sema::infer::OverloadKind;
   using tempest::sema::infer::ParameterAssignmentsBuilder;
   using tempest::sema::infer::ParamError;
   using tempest::sema::infer::SolutionTransform;
+  using tempest::sema::transform::ApplySpecialization;
 
   void ResolveTypesPass::run() {
     while (_sourcesProcessed < _cu.sourceModules().size()) {
@@ -112,6 +117,7 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::visitTypeDefn(TypeDefn* td) {
+    auto prevSubject = setSubject(td);
     visitAttributes(td);
     if (td->type()->kind == Type::Kind::ALIAS) {
       // Should be already resolved.
@@ -120,6 +126,7 @@ namespace tempest::sema::pass {
     } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
       visitCompositeDefn(td);
     }
+    setSubject(prevSubject);
   }
 
   void ResolveTypesPass::visitCompositeDefn(TypeDefn* td) {
@@ -131,6 +138,7 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::visitFunctionDefn(FunctionDefn* fd) {
+    auto prevSubject = setSubject(fd);
 //   @accept(spark.graph.defn.Function)
 //   def visitFunction(self, func):
 //     '@type func: spark.graph.graph.Function'
@@ -182,6 +190,7 @@ namespace tempest::sema::pass {
 //       assert func.hasSelfType(), debug.format(func, func.getType())
 //     self.tempVarTypes = savedTempVars
 //     self.nameLookup.setSubject(savedSubject)
+    setSubject(prevSubject);
   }
 
   void ResolveTypesPass::visitValueDefn(ValueDefn* vd) {
@@ -530,44 +539,69 @@ namespace tempest::sema::pass {
 
 //     # For each possible function that could have been called.
     for (auto method : methodList) {
-
-//     for method in methodList:
-
-//       #@type cc: CallCandidate
       auto cc = site->addCandidate(method);
-      cs.renamer().setContext(cc);
-      // diag.debug() << "Method kind:" << size_t(method->kind);
 
-      // Three kinds of type arguments
-      // * explicitTypeArgs - type arguments that are explicitly provided by specialization.
-      // * inferredTypeArgs - type arguments that need to be deduced by type solver
-      // * outerTypeParams - type parameters that should not be bound, because they are
-      //     part of the enclosing template context of the current function.
-
-//       # If the method is an explicit instantiation, then relabel any type variables in the mapping,
-//       # either keys or values.
-//       mappedVars = environ.EMPTY
-//       if isinstance(method, graph.InstantiatedMember):
-//         mappedVars = method.getEnv()
-//         method = method.getBase()
-// #       if method not in self.membersVisited:
-// #         self.visit(method)
-
-        auto function = cast<FunctionDefn>(method);
-        auto params = function->params();
-        if (!function->type()) {
-          if (!resolve(function)) {
-            return &Type::ERROR;
+      // Collect explicit type arguments
+      std::unordered_map<TypeParameter*, const Type*> explicitTypeArgs;
+      if (method->kind == Member::Kind::SPECIALIZED) {
+        auto sp = static_cast<SpecializedDefn*>(method);
+        for (size_t i = 0; i < sp->typeParams().size(); i += 1) {
+          auto arg = sp->typeArgs()[i];
+          auto param = sp->typeParams()[i];
+          if (arg) {
+            explicitTypeArgs[param] = arg;
           }
         }
-        assert(function->type() && "Need eager resolve");
-        auto paramTypes = function->type()->paramTypes;
-        auto returnType = function->type()->returnType;
+        method = sp->generic();
+      }
 
-//       # Locate any type parameters in m that need to be inferred in the current context.
-//       # Also include parameters in enclosing scopes which don't need to be inferred (because
-//       # they are considered concrete types for purposes of inference).
-//       inferredParams, outerParams = cs.getInferredTypeParamsForMember(method)
+      // Make sure function type is resolved.
+      auto function = cast<FunctionDefn>(method);
+      auto params = function->params();
+      if (!function->type()) {
+        if (!resolve(function)) {
+          return &Type::ERROR;
+        }
+      }
+      auto returnType = function->type()->returnType;
+
+      // If it's a generic
+      if (function->allTypeParams().size() > 0) {
+        // Make an environment and map the function type through it.
+        // Three kinds of type arguments
+        // * explicit - type arguments that are explicitly provided by specialization.
+        // * inferred - type arguments that need to be deduced by type solver
+        // * outer - type parameters that should not be bound, because they are
+        //     part of the enclosing template context of the current function.
+        cc->typeArgs.resize(function->allTypeParams().size(), nullptr);
+        for (size_t i = 0; i < cc->typeArgs.size(); i += 1) {
+          auto typeParam = function->allTypeParams()[i];
+          auto it = explicitTypeArgs.find(typeParam);
+          if (it != explicitTypeArgs.end()) {
+            // Argument was already explicitly mapped.
+            cc->typeArgs[i] = it->second;
+          } else if (!_subject || !_subject->hasTypeParam(typeParam)) {
+            // Don't infer params from the enclosing scope.
+            auto inferred = new (cs.alloc()) InferredType(typeParam, &cs, cc);
+            cc->typeArgs[i] = inferred;
+          }
+        }
+
+        Env env;
+        env.params = function->allTypeParams();
+        env.args = cc->typeArgs;
+        // diag.debug() << "Type args:";
+        // for (auto arg : cc->typeArgs) {
+        //   diag.info() << "  " << arg;
+        // }
+        llvm::SmallVector<const Type*, 8> mappedParamTypes;
+        ApplySpecialization transform(env.args);
+        transform.transformArray(mappedParamTypes, function->type()->paramTypes);
+        cc->paramTypes = mappedParamTypes;
+        returnType = transform.transform(returnType);
+      } else {
+        cc->paramTypes = function->type()->paramTypes;
+      }
 
 //       # Why is super.T not inferred?
 //       # We're calling the method 'new' from the superclass, whose first argument is type T.
@@ -662,11 +696,8 @@ namespace tempest::sema::pass {
 //       cs.renamer.renamerChecker.traverseParamList(params)
 //       cs.renamer.renamerChecker.traverseType(returnType)
 
-      cs.renamer().setContext(nullptr);
-
-      cc->returnType = returnType;
       cc->params = params;
-      cc->paramTypes = paramTypes;
+      cc->returnType = returnType;
       cc->isVariadic = function->type()->isVariadic;
 
       ParameterAssignmentsBuilder builder(cc->paramAssignments, cc->params, cc->isVariadic);

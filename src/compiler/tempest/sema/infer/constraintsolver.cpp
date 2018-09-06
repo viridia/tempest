@@ -1,6 +1,8 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/infer/constraintsolver.hpp"
+#include "tempest/sema/infer/unification.hpp"
+#include "llvm/ADT/EquivalenceClasses.h"
 
 namespace std {
   inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<size_t>& perm) {
@@ -37,6 +39,8 @@ namespace tempest::sema::infer {
 //     if self.typeChoices:
 // #       debug.write(list(self.typeChoices.values()))
 //       self.sites.extend(self.typeChoices.values())
+    unifyConstraints();
+
     findRankUpperBound();
     if (_failed) {
       return;
@@ -56,6 +60,10 @@ namespace tempest::sema::infer {
     if (!isSingularSolution()) {
       _failed = true;
       reportSiteAmbiguities();
+    }
+
+    if (!_failed) {
+      computeUniqueValueForTypeVars();
     }
 
 //     self.conversionConstraints = set([ct for ct in self.conversionConstraints if not ct.isIdentity()])
@@ -98,6 +106,37 @@ namespace tempest::sema::infer {
 //     self.removeNonViableConstraints()
 //     self.computeUniqueValueForTypeVars()
 //     callsite.Choice.tracing = False
+  }
+
+  void ConstraintSolver::unifyConstraints() {
+    for (auto site : _sites) {
+      if (auto callSite = dyn_cast<CallSite>(site)) {
+        for (auto oc : site->candidates) {
+          auto cc = static_cast<CallCandidate*>(oc);
+          std::vector<UnificationResult> unificationResults;
+          Conditions when;
+          when.add(callSite->ordinal, cc->ordinal);
+          for (size_t i = 0; i < callSite->argTypes.size() && !cc->isRejected(); i += 1) {
+            auto paramIndex = cc->paramAssignments[i];
+            if (!unify(
+                unificationResults,
+                cc->paramTypes[paramIndex],
+                callSite->argTypes[i],
+                when,
+                BindingPredicate::ASSIGNABLE_FROM,
+                _alloc)) {
+              cc->rejection.reason = Rejection::CONVERSION_FAILURE;
+              cc->rejection.argIndex = i;
+            }
+          }
+
+          for (auto& result : unificationResults) {
+            result.param->constraints.push_back(
+                InferredType::Constraint(result.value, result.predicate, result.conditions));
+          }
+        }
+      }
+    }
   }
 
   void ConstraintSolver::updateConversionRanks() {
@@ -578,5 +617,147 @@ namespace tempest::sema::infer {
           assert(false && "Bad conversion error rank");
       }
     }
+  }
+
+  void ConstraintSolver::computeUniqueValueForTypeVars() {
+    llvm::EquivalenceClasses<const InferredType*> ec;
+
+    // Find all type variables that are equivalent.
+    for (auto site : _sites) {
+      auto oc = site->singularCandidate();
+      assert(oc != nullptr);
+      for (auto typeArg : oc->typeArgs) {
+        if (auto inferred = dyn_cast<InferredType>(typeArg)) {
+          inferred->value = nullptr;
+          ec.insert(inferred);
+          for (auto& constraint : inferred->constraints) {
+            if (inferred->isViable(constraint)) {
+              if (auto value = dyn_cast<InferredType>(constraint.value)) {
+                ec.unionSets(inferred, value);
+              }
+            }
+          }
+        }
+      }
+
+      // For each equivalent set, find all of the constraints
+      for (auto it = ec.begin(); it != ec.end(); ++it) {
+        // const Type* equivalent = nullptr;
+        // const Type* subtypeOf = nullptr;
+        // const Type* supertypeOf = nullptr;
+        llvm::SmallVector<InferredType::Constraint*, 8> constraints;
+        for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
+          auto inferred = *mit;
+          for (auto& constraint : inferred->constraints) {
+            if (inferred->isViable(constraint)) {
+              if (constraint.value->kind != Type::Kind::INFERRED) {
+                constraints.push_back(&constraint);
+              }
+            }
+          }
+        }
+
+        if (constraints.size() == 1) {
+          auto value = constraints[0]->value;
+          for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
+            auto inferred = *mit;
+            inferred->value = value;
+          }
+        } else {
+          assert(false && "Implement");
+        }
+      }
+    }
+
+                // switch (constraint.predicate) {
+                //   case BindingPredicate::EQUAL:
+                //     if (equivalent == nullptr) {
+                //       equivalent = constraint.value;
+                //     } else {
+                //       assert(false && "Implment");
+                //     }
+                //     break;
+                //   case BindingPredicate::ASSIGNABLE_FROM:
+                //   case BindingPredicate::ASSIGNABLE_TO:
+                //   case BindingPredicate::SUBTYPE:
+                //   case BindingPredicate::SUPERTYPE:
+                //     assert(false && "Implment");
+                //     break;
+                // }
+  // def computeUniqueValueForTypeVars(self):
+  //   equalTypes = defaultdict(set)
+  //   otherConstraints = defaultdict(set)
+  //   for ct in self.tvarConstraints:
+  //     if ct.isViable():
+  //       varSet = equalTypes[ct.typeVar]
+  //       varSet.add(ct.typeVar)
+  //       if (isinstance(ct, EquivalenceConstraint)
+  //           and isinstance(ct.value, renamer.InferredTypeVar)):
+  //         valSet = equalTypes[ct.value]
+  //         valSet.add(ct.value)
+
+  //         if varSet is not valSet:
+  //           varSet.update(valSet)
+  //           for k in valSet:
+  //             equalTypes[k] = varSet
+  //       else:
+  //         otherConstraints[ct.typeVar].add(ct)
+  //   eqTypeSets = {frozenset(v) for v in equalTypes.values()}
+
+  //   self.solutionMap = {}
+  //   for eqTypes in eqTypeSets:
+  //     constraints = set()
+  //     for t in eqTypes:
+  //       constraints.update(otherConstraints[t])
+  //     if len(constraints) == 0:
+  //       self.diag.errorAtFmt(
+  //           self.location, 'Cannot infer type for parameter: {0}',
+  //           debug.formatter.qualifiedName(eqTypes.pop().getParam()))
+  //     elif len(constraints) == 1:
+  //       (ct,) = constraints
+  //       for t in eqTypes:
+  //         self.solutionMap[t] = ct.value
+  //     else:
+  //       possibleValues = {ct.value for ct in constraints}
+  //       acceptableValues = set()
+  //       for value in possibleValues:
+  //         accepted = True
+  //         for ct in constraints:
+  //           if value is ct.value:
+  //             continue
+  //           if not self.checkConstraint(ct, value):
+  //             accepted = False
+  //             break
+  //         if accepted:
+  //           acceptableValues.add(value)
+
+  //       if not acceptableValues:
+  //         debug.write('No value found for variables', eqTypes,
+  //             'which meets the following constraints:')
+  //         for ct in constraints:
+  //           debug.write('  =>', ct)
+  //         for value in possibleValues:
+  //           for ct in constraints:
+  //             if value is ct.value:
+  //               continue
+  //             if not self.checkConstraint(ct, value):
+  //               debug.write('Value', value, 'does not satisfy constraint:')
+  //               debug.write('  =>', ct)
+  //               break
+  //         assert False
+  //       if len(acceptableValues) == 1:
+  //         (value,) = acceptableValues
+  //         for t in eqTypes:
+  //           self.solutionMap[t] = value
+  //       else:
+  //         debug.write('more than one acceptable type', eqTypes, acceptable=acceptableValues)
+  //         for ct in constraints:
+  //           debug.write('  =>', ct)
+  //         assert False
+
+  //   for typeVar, value in self.solutionMap.items():
+  //     if value in self.outerParamVars:
+  //       assert self.solutionMap[typeVar] is value.getParam().getTypeVar()
+
   }
 }

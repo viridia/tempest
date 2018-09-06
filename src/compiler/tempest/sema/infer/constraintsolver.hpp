@@ -70,7 +70,9 @@ namespace tempest::sema::infer {
 
     void run();
     bool failed() const { return _failed; }
+    void unifyConstraints();
     void updateConversionRanks();
+    void computeUniqueValueForTypeVars();
 
     /** Find the best possible conversion rankings. */
     void findRankUpperBound();

@@ -5,6 +5,17 @@
 namespace tempest::sema::infer {
   using tempest::error::diag;
 
+  OverloadCandidate::~OverloadCandidate() {
+    // Delete any inferred types (and the tables they contain) that got allocated.
+    // Everything else can be left since it's pool-allocated.
+    for (auto type : typeArgs) {
+      if (type->kind == Type::Kind::INFERRED) {
+        delete type;
+      }
+    }
+  }
+
+
   bool CallCandidate::isEqualOrNarrower(CallCandidate* cc) {
     size_t numArgs = cast<CallSite>(site)->argList.size();
     for (size_t i = 0; i < numArgs; i++) {

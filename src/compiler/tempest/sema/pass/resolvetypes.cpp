@@ -480,6 +480,11 @@ namespace tempest::sema::pass {
         return &Type::ERROR;
       }
     }
+    for (size_t i = 0; i < argTypes.size(); i += 1) {
+      if (args[i]->kind == Expr::Kind::INTEGER_LITERAL) {
+        argTypes[i] = chooseIntegerType(args[i], argTypes[i]);
+      }
+    }
 
 //     cs.renamer.renamerChecker.traverseTypeList(argTypes)
 
@@ -530,14 +535,13 @@ namespace tempest::sema::pass {
       const ArrayRef<Expr*>& args,
       const ArrayRef<Type*>& argTypes,
       ConstraintSolver& cs) {
-//   def addCallSite(self, callExpr, func, listType, args, argTypes, cs):
     auto site = new CallSite(callExpr->location, callExpr, args, argTypes);
     cs.addSite(site);
 
     // The return type will depend on which overload type gets chosen.
     SmallVector<ContingentType::Entry, 8> returnTypes;
 
-//     # For each possible function that could have been called.
+    // For each possible function that could have been called.
     for (auto method : methodList) {
       auto cc = site->addCandidate(method);
 
@@ -582,7 +586,7 @@ namespace tempest::sema::pass {
             cc->typeArgs[i] = it->second;
           } else if (!_subject || !_subject->hasTypeParam(typeParam)) {
             // Don't infer params from the enclosing scope.
-            auto inferred = new (cs.alloc()) InferredType(typeParam, &cs, cc);
+            auto inferred = new InferredType(typeParam, &cs);
             cc->typeArgs[i] = inferred;
           }
         }
@@ -590,14 +594,10 @@ namespace tempest::sema::pass {
         Env env;
         env.params = function->allTypeParams();
         env.args = cc->typeArgs;
-        // diag.debug() << "Type args:";
-        // for (auto arg : cc->typeArgs) {
-        //   diag.info() << "  " << arg;
-        // }
         llvm::SmallVector<const Type*, 8> mappedParamTypes;
         ApplySpecialization transform(env.args);
         transform.transformArray(mappedParamTypes, function->type()->paramTypes);
-        cc->paramTypes = mappedParamTypes;
+        cc->paramTypes = cs.alloc().copyOf(mappedParamTypes);
         returnType = transform.transform(returnType);
       } else {
         cc->paramTypes = function->type()->paramTypes;
@@ -971,8 +971,7 @@ namespace tempest::sema::pass {
       return &Type::ERROR;
     }
 
-    SolutionTransform transform(*_alloc, cs);
-    transform.buildSolutionMap();
+    SolutionTransform transform(*_alloc);
 //       debug.tracing = False
 //       if cs.checkSolution():
 //         solutionEnv = cs.createSolutionEnv()

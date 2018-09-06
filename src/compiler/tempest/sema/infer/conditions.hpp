@@ -215,6 +215,11 @@ namespace tempest::sema::infer {
       return *this;
     }
 
+    Conditions& operator=(Conditions&& src) {
+      _conjuncts = std::move(src._conjuncts);
+      return *this;
+    }
+
   private:
     Conjuncts _conjuncts;
   };

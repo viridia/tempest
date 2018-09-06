@@ -40,6 +40,11 @@ namespace tempest::sema::graph {
       return *this;
     }
 
+    TypeKey& operator=(TypeKey&& key) {
+      _members = std::move(key._members);
+      return *this;
+    }
+
     /** Equality comparison. */
     friend bool operator==(const TypeKey& lhs, const TypeKey& rhs) {
       return lhs._members == rhs._members;

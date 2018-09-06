@@ -153,6 +153,36 @@ namespace tempest::sema::convert {
       return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
     }
 
+    if (dst->kind == Type::Kind::INFERRED) {
+      ConversionResult result;
+      auto dstIt = static_cast<const InferredType*>(dst);
+      for (auto& constraint : dstIt->constraints) {
+        if (dstIt->isViable(constraint)) {
+          result = result.better(
+              isAssignable(constraint.value, dstMods, dstEnv, src, srcMods, srcEnv));
+        }
+      }
+      return result;
+    }
+
+    if (src->kind == Type::Kind::INFERRED) {
+      auto srcIt = static_cast<const InferredType*>(src);
+      (void)srcIt;
+      // if (size_t(dstTypeVar->index()) < dstEnv.args.size()) {
+      //   Env newEnv;
+      //   assert(dstEnv.has(dstTypeVar));
+      //   return isAssignable(
+      //       dstEnv.args[dstTypeVar->index()], dstMods, newEnv,
+      //       src, srcMods, srcEnv);
+      // }
+      // auto dstParam = dstTypeVar->param;
+      // if (!dstParam->subtypeConstraints().empty()) {
+      //   assert(false && "Implement subtype constraints");
+      // }
+      // return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
+      assert(false && "Implement");
+    }
+
 //   if isinstance(src, graph.TypeVar):
 //     if srcEnv:
 //       env, *envList = srcEnv

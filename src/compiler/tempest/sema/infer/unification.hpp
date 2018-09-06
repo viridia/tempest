@@ -1,8 +1,8 @@
 #ifndef TEMPEST_SEMA_INFER_UNIFICATION_HPP
 #define TEMPEST_SEMA_INFER_UNIFICATION_HPP 1
 
-#ifndef TEMPEST_SEMA_GRAPH_TYPE_HPP
-  #include "tempest/sema/graph/type.hpp"
+#ifndef TEMPEST_SEMA_INFER_TYPES_HPP
+  #include "tempest/sema/infer/types.hpp"
 #endif
 
 #ifndef TEMPEST_SEMA_INFER_CONDITIONS_HPP
@@ -22,26 +22,6 @@ namespace tempest::sema::infer {
   using tempest::sema::convert::Env;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeParameter;
-
-  class InferredType;
-
-  enum class BindingPredicate {
-    EQUAL,
-    SUBTYPE,
-    SUPERTYPE,
-    ASSIGNABLE_FROM,
-    ASSIGNABLE_TO,
-  };
-
-  inline BindingPredicate inversePredicate(BindingPredicate predicate) {
-    switch (predicate) {
-      case BindingPredicate::EQUAL: return BindingPredicate::EQUAL;
-      case BindingPredicate::SUBTYPE: return BindingPredicate::SUPERTYPE;
-      case BindingPredicate::SUPERTYPE: return BindingPredicate::SUBTYPE;
-      case BindingPredicate::ASSIGNABLE_FROM: return BindingPredicate::ASSIGNABLE_TO;
-      case BindingPredicate::ASSIGNABLE_TO: return BindingPredicate::ASSIGNABLE_FROM;
-    }
-  }
 
   struct UnificationResult {
     UnificationResult(const UnificationResult& src) = default;

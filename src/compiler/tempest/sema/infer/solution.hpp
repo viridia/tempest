@@ -15,19 +15,15 @@ namespace tempest::sema::infer {
   /** Applies the type inference solution to type expressions. */
   class SolutionTransform : public TypeTransform {
   public:
-    SolutionTransform(tempest::support::BumpPtrAllocator& alloc, ConstraintSolver& cs)
+    SolutionTransform(tempest::support::BumpPtrAllocator& alloc)
       : TypeTransform(alloc)
-      , _cs(cs)
     {}
     SolutionTransform(const SolutionTransform&) = delete;
-
-    void buildSolutionMap();
 
     const Type* transformInferredType(const InferredType* ivar);
     const Type* transformContingentType(const ContingentType* contingent);
 
   private:
-    ConstraintSolver& _cs;
     std::unordered_map<const InferredType*, Type*> _solutionMap;
   };
 }

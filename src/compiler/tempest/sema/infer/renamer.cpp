@@ -22,7 +22,7 @@ namespace tempest::sema::infer {
       _nextIndexForName[param->name()] = index;
     }
 
-    auto ivar = new (_cs.alloc()) InferredType(param, &_cs, _context);
+    auto ivar = new (_cs.alloc()) InferredType(param, &_cs);
     ivar->index = index;
     _inferredVars[key] = ivar;
     // self.contextForParamIndex[(param, index)] = context

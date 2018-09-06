@@ -2,8 +2,8 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/env.hpp"
 #include "tempest/sema/convert/predicate.hpp"
-#include "tempest/sema/infer/unification.hpp"
 #include "tempest/sema/infer/types.hpp"
+#include "tempest/sema/infer/unification.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
 
 namespace tempest::sema::infer {

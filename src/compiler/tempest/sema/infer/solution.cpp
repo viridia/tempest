@@ -4,15 +4,9 @@
 
 namespace tempest::sema::infer {
 
-  void SolutionTransform::buildSolutionMap() {
-    // TODO:
-    (void)_cs;
-  }
-
   const Type* SolutionTransform::transformInferredType(const InferredType* ivar) {
-    auto it = _solutionMap.find(ivar);
-    assert(it != _solutionMap.end());
-    return it->second;
+    assert(ivar->value);
+    return ivar->value;
   }
 
   const Type* SolutionTransform::transformContingentType(const ContingentType* contingent) {

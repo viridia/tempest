@@ -75,7 +75,7 @@ namespace tempest::sema::infer {
       : kind(kind)
       , ordinal(ordinal)
       , site(site) {}
-    virtual ~OverloadCandidate() {}
+    virtual ~OverloadCandidate();
 
     virtual Member* getMember() const = 0;
 

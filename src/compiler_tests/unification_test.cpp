@@ -203,7 +203,7 @@ TEST_CASE("Unification.composite", "[sema]") {
     Env env;
     Env empty;
     env.params = typeDefA->typeParams();
-    InferredType a(env.params[0], nullptr, nullptr);
+    InferredType a(env.params[0], nullptr);
     env.args.push_back(&a);
 
     REQUIRE_FALSE(
@@ -242,7 +242,7 @@ TEST_CASE("Unification.composite", "[sema]") {
     Env env;
     Env empty;
     env.params = typeDefA->typeParams();
-    InferredType a(env.params[0], nullptr, nullptr);
+    InferredType a(env.params[0], nullptr);
     env.args.push_back(&a);
 
     REQUIRE_FALSE(
@@ -292,7 +292,7 @@ TEST_CASE("Unification.derived", "[sema]") {
 
     Env env;
     env.params = fnA->typeParams();
-    InferredType a(env.params[0], nullptr, nullptr);
+    InferredType a(env.params[0], nullptr);
     env.args.push_back(&a);
 
     REQUIRE(unify(result, argA, env, argB, empty, conditions, BindingPredicate::EQUAL, alloc));
@@ -337,18 +337,18 @@ TEST_CASE("Unification.derived", "[sema]") {
 
     Env envA;
     envA.params = fnA->typeParams();
-    InferredType a(envA.params[0], nullptr, nullptr);
+    InferredType a(envA.params[0], nullptr);
     envA.args.push_back(&a);
 
     Env envB;
     envB.params = fnB->typeParams();
-    InferredType b(envB.params[0], nullptr, nullptr);
+    InferredType b(envB.params[0], nullptr);
     envB.args.push_back(&b);
 
     Env envC;
     envC.params = fnC->typeParams();
-    InferredType cs(envC.params[0], nullptr, nullptr);
-    InferredType ct(envC.params[1], nullptr, nullptr);
+    InferredType cs(envC.params[0], nullptr);
+    InferredType ct(envC.params[1], nullptr);
     envC.args.push_back(&cs);
     envC.args.push_back(&ct);
 
@@ -461,7 +461,7 @@ TEST_CASE("Unification.derived", "[sema]") {
 
     Env envA;
     envA.params = fnA->typeParams();
-    InferredType a(envA.params[0], nullptr, nullptr);
+    InferredType a(envA.params[0], nullptr);
     envA.args.push_back(&a);
 
     // (i32 | void | T) is not the same as i32.

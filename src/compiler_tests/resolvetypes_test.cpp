@@ -385,4 +385,17 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("f64"));
   }
+
+  SECTION("Generic function with inferred return type") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result: i32 = y();\n"
+        "}\n"
+        "fn y[T]() -> T { 0 }\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+  }
 }

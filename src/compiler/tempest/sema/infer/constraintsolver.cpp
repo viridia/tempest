@@ -158,6 +158,10 @@ namespace tempest::sema::infer {
         _failed = true;
         break;
       }
+      for (auto& result : unificationResults) {
+        result.param->constraints.push_back(
+            InferredType::Constraint(result.value, result.predicate, result.conditions));
+      }
     }
   }
 
@@ -670,7 +674,7 @@ namespace tempest::sema::infer {
       for (auto it = ec.begin(); it != ec.end(); ++it) {
         const Type* equivalent = nullptr;
         const Type* assignableFrom = nullptr;
-        // const Type* assignableTo = nullptr;
+        const Type* assignableTo = nullptr;
         for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
           auto inferred = *mit;
           for (auto& constraint : inferred->constraints) {
@@ -698,22 +702,48 @@ namespace tempest::sema::infer {
                       assignableFrom = constraint.value;
                     }
                   }
+                } else if (constraint.predicate == BindingPredicate::ASSIGNABLE_TO) {
+                  // If there are multiple assignableTos, then pick the more specific one,
+                  // that is, the one that can be assigned to all the others. If they are
+                  // disjoint, that's an error.
+                  if (!assignableTo) {
+                    assignableTo = constraint.value;
+                  } else if (isAssignable(constraint.value, assignableTo).rank ==
+                      ConversionRank::ERROR) {
+                    if (isAssignable(assignableTo, constraint.value) ==
+                        ConversionRank::ERROR) {
+                      assert(false && "Inconsistent");
+                    } else {
+                      assignableTo = constraint.value;
+                    }
+                  }
                 } else {
                   // TODO: other constraint types.
-                  assert(false && "Implement");
-                  // constraints.push_back(&constraint);
+                  assert(false && "Invalid predicate");
                 }
               }
             }
           }
         }
 
-        if (equivalent && assignableFrom) {
-          if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
-            assert(false && "Inconsistent");
+        if (equivalent) {
+          if (assignableFrom) {
+            if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
+              assert(false && "Inconsistent");
+            }
+          }
+          if (assignableTo) {
+            if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
+              assert(false && "Inconsistent");
+            }
           }
         } else if (assignableFrom) {
           equivalent = assignableFrom;
+          if (assignableTo) {
+            assert(false && "Implement");
+          }
+        } else if (assignableTo) {
+          equivalent = assignableTo;
         } else {
           assert(false && "Implement");
         }
@@ -724,96 +754,5 @@ namespace tempest::sema::infer {
         }
       }
     }
-
-                // switch (constraint.predicate) {
-                //   case BindingPredicate::EQUAL:
-                //     if (equivalent == nullptr) {
-                //       equivalent = constraint.value;
-                //     } else {
-                //       assert(false && "Implment");
-                //     }
-                //     break;
-                //   case BindingPredicate::ASSIGNABLE_FROM:
-                //   case BindingPredicate::ASSIGNABLE_TO:
-                //   case BindingPredicate::SUBTYPE:
-                //   case BindingPredicate::SUPERTYPE:
-                //     assert(false && "Implment");
-                //     break;
-                // }
-  // def computeUniqueValueForTypeVars(self):
-  //   equalTypes = defaultdict(set)
-  //   otherConstraints = defaultdict(set)
-  //   for ct in self.tvarConstraints:
-  //     if ct.isViable():
-  //       varSet = equalTypes[ct.typeVar]
-  //       varSet.add(ct.typeVar)
-  //       if (isinstance(ct, EquivalenceConstraint)
-  //           and isinstance(ct.value, renamer.InferredTypeVar)):
-  //         valSet = equalTypes[ct.value]
-  //         valSet.add(ct.value)
-
-  //         if varSet is not valSet:
-  //           varSet.update(valSet)
-  //           for k in valSet:
-  //             equalTypes[k] = varSet
-  //       else:
-  //         otherConstraints[ct.typeVar].add(ct)
-  //   eqTypeSets = {frozenset(v) for v in equalTypes.values()}
-
-  //   self.solutionMap = {}
-  //   for eqTypes in eqTypeSets:
-  //     constraints = set()
-  //     for t in eqTypes:
-  //       constraints.update(otherConstraints[t])
-  //     if len(constraints) == 0:
-  //       self.diag.errorAtFmt(
-  //           self.location, 'Cannot infer type for parameter: {0}',
-  //           debug.formatter.qualifiedName(eqTypes.pop().getParam()))
-  //     elif len(constraints) == 1:
-  //       (ct,) = constraints
-  //       for t in eqTypes:
-  //         self.solutionMap[t] = ct.value
-  //     else:
-  //       possibleValues = {ct.value for ct in constraints}
-  //       acceptableValues = set()
-  //       for value in possibleValues:
-  //         accepted = True
-  //         for ct in constraints:
-  //           if value is ct.value:
-  //             continue
-  //           if not self.checkConstraint(ct, value):
-  //             accepted = False
-  //             break
-  //         if accepted:
-  //           acceptableValues.add(value)
-
-  //       if not acceptableValues:
-  //         debug.write('No value found for variables', eqTypes,
-  //             'which meets the following constraints:')
-  //         for ct in constraints:
-  //           debug.write('  =>', ct)
-  //         for value in possibleValues:
-  //           for ct in constraints:
-  //             if value is ct.value:
-  //               continue
-  //             if not self.checkConstraint(ct, value):
-  //               debug.write('Value', value, 'does not satisfy constraint:')
-  //               debug.write('  =>', ct)
-  //               break
-  //         assert False
-  //       if len(acceptableValues) == 1:
-  //         (value,) = acceptableValues
-  //         for t in eqTypes:
-  //           self.solutionMap[t] = value
-  //       else:
-  //         debug.write('more than one acceptable type', eqTypes, acceptable=acceptableValues)
-  //         for ct in constraints:
-  //           debug.write('  =>', ct)
-  //         assert False
-
-  //   for typeVar, value in self.solutionMap.items():
-  //     if value in self.outerParamVars:
-  //       assert self.solutionMap[typeVar] is value.getParam().getTypeVar()
-
   }
 }

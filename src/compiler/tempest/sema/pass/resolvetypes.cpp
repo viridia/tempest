@@ -288,6 +288,11 @@ namespace tempest::sema::pass {
 
     //   assert exprType.typeId() != graph.TypeKind.BASE, debug.format(expr)
     //   cs.renamer.renamerChecker.traverseType(exprType)
+    if (dstType != nullptr && dstType->kind != Type::Kind::VOID) {
+      if (exprType->kind != Type::Kind::NEVER) {
+        cs.addAssignment(e->location, dstType, exprType);
+      }
+    }
     //   if dstType and exprType is not self.NO_RETURN and dstType is not primitivetypes.VOID:
     //     if exprType is primitivetypes.VOID and not typerelation.isAssignable(dstType, exprType)[0]:
     //       self.errorAt(self.getValueLocation(expr), "Non-void result expected here.")
@@ -298,7 +303,6 @@ namespace tempest::sema::pass {
     //       # that exprType can be converted to.
     //       dstType = self.findCommonDownCastType(expr.getLocation(), dstType, exprType)
     //     dstType = cs.renamer.transformType(dstType)
-    //     cs.renamer.renamerChecker.traverseType(dstType)
     //     cs.addAssignment(None, dstType, exprType)
     if (!cs.empty()) {
       return doTypeInference(e, exprType, cs);
@@ -417,12 +421,10 @@ namespace tempest::sema::pass {
 
   Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
     switch (expr->function->kind) {
-      case Expr::Kind::FUNCTION_REF:
       case Expr::Kind::FUNCTION_REF_OVERLOAD: {
         return visitCallName(expr, expr->function, expr->args, cs);
         break;
       }
-      case Expr::Kind::TYPE_REF:
       case Expr::Kind::TYPE_REF_OVERLOAD: {
         // Construct a type.
         assert(false && "Implement");
@@ -488,10 +490,7 @@ namespace tempest::sema::pass {
 
 //     cs.renamer.renamerChecker.traverseTypeList(argTypes)
 
-    if (fn->kind == Expr::Kind::FUNCTION_REF) {
-      auto fnRef = static_cast<DefnRef*>(fn);
-      return addCallSite(callExpr, fn, { fnRef->defn }, args, argTypes, cs);
-    } else if (fn->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
+    if (fn->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
       auto fnRef = static_cast<MemberListExpr*>(fn);
       return addCallSite(callExpr, fn, fnRef->members, args, argTypes, cs);
     }

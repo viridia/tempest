@@ -40,6 +40,9 @@ namespace tempest::sema::infer {
 // #       debug.write(list(self.typeChoices.values()))
 //       self.sites.extend(self.typeChoices.values())
     unifyConstraints();
+    if (_failed) {
+      return;
+    }
 
     findRankUpperBound();
     if (_failed) {
@@ -115,7 +118,9 @@ namespace tempest::sema::infer {
           auto cc = static_cast<CallCandidate*>(oc);
           std::vector<UnificationResult> unificationResults;
           Conditions when;
-          when.add(callSite->ordinal, cc->ordinal);
+          if (site->candidates.size() > 0) {
+            when.add(callSite->ordinal, cc->ordinal);
+          }
           for (size_t i = 0; i < callSite->argTypes.size() && !cc->isRejected(); i += 1) {
             auto paramIndex = cc->paramAssignments[i];
             if (!unify(
@@ -135,6 +140,23 @@ namespace tempest::sema::infer {
                 InferredType::Constraint(result.value, result.predicate, result.conditions));
           }
         }
+      }
+    }
+
+    for (auto& assign : _assignments) {
+      Conditions when;
+      std::vector<UnificationResult> unificationResults;
+      if (!unify(
+          unificationResults,
+          assign.dstType,
+          assign.srcType,
+          when,
+          BindingPredicate::ASSIGNABLE_FROM,
+          _alloc)) {
+        diag.error(assign.location) << "Cannot convert type " << assign.srcType << " to "
+            << assign.dstType << ".";
+        _failed = true;
+        break;
       }
     }
   }
@@ -392,6 +414,10 @@ namespace tempest::sema::infer {
           assert(false && "Implement overload kind");
         }
       }
+      for (auto& assign : _assignments) {
+        auto result = isAssignable(assign.dstType, assign.srcType);
+        rankings.count[int(result.rank)] += 1;
+      }
 
       if (rankings.isBetterThan(_bestRankings)) {
         _bestPermutationSet.clear();
@@ -642,29 +668,59 @@ namespace tempest::sema::infer {
 
       // For each equivalent set, find all of the constraints
       for (auto it = ec.begin(); it != ec.end(); ++it) {
-        // const Type* equivalent = nullptr;
-        // const Type* subtypeOf = nullptr;
-        // const Type* supertypeOf = nullptr;
-        llvm::SmallVector<InferredType::Constraint*, 8> constraints;
+        const Type* equivalent = nullptr;
+        const Type* assignableFrom = nullptr;
+        // const Type* assignableTo = nullptr;
         for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
           auto inferred = *mit;
           for (auto& constraint : inferred->constraints) {
             if (inferred->isViable(constraint)) {
               if (constraint.value->kind != Type::Kind::INFERRED) {
-                constraints.push_back(&constraint);
+                if (constraint.predicate == BindingPredicate::EQUAL) {
+                  // If there are multiple equal constraints, they must be equal to each other.
+                  if (!equivalent) {
+                    equivalent = constraint.value;
+                  } else if (!isEqual(equivalent, constraint.value)) {
+                    assert(false && "Inconsistent");
+                  }
+                } else if (constraint.predicate == BindingPredicate::ASSIGNABLE_FROM) {
+                  // If there are multiple assignableFroms, then pick the more general one,
+                  // that is, the one that can be assigned from all the others. If they are
+                  // disjoint, that's an error.
+                  if (!assignableFrom) {
+                    assignableFrom = constraint.value;
+                  } else if (isAssignable(assignableFrom, constraint.value).rank ==
+                      ConversionRank::ERROR) {
+                    if (isAssignable(constraint.value, assignableFrom) ==
+                        ConversionRank::ERROR) {
+                      assert(false && "Inconsistent");
+                    } else {
+                      assignableFrom = constraint.value;
+                    }
+                  }
+                } else {
+                  // TODO: other constraint types.
+                  assert(false && "Implement");
+                  // constraints.push_back(&constraint);
+                }
               }
             }
           }
         }
 
-        if (constraints.size() == 1) {
-          auto value = constraints[0]->value;
-          for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
-            auto inferred = *mit;
-            inferred->value = value;
+        if (equivalent && assignableFrom) {
+          if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
+            assert(false && "Inconsistent");
           }
+        } else if (assignableFrom) {
+          equivalent = assignableFrom;
         } else {
           assert(false && "Implement");
+        }
+
+        for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
+          auto inferred = *mit;
+          inferred->value = equivalent;
         }
       }
     }

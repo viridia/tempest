@@ -27,6 +27,12 @@ namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   using tempest::sema::convert::ConversionResult;
 
+  struct AssignmentConstraint {
+    source::Location location;
+    const Type* dstType;
+    const Type* srcType;
+  };
+
   /** Base class for constraints to be solved. */
   class ConstraintSolver {
   public:
@@ -59,6 +65,13 @@ namespace tempest::sema::infer {
 
     const std::vector<OverloadSite*>& sites() const { return _sites; }
 
+    void addAssignment(
+        const source::Location& loc,
+        const Type* dstType,
+        const Type* srcType) {
+      _assignments.push_back({ loc, dstType, srcType });
+    }
+
     void addBindingConstraint(
         const source::Location& loc,
         const Type* dstType,
@@ -90,6 +103,7 @@ namespace tempest::sema::infer {
   private:
     tempest::support::BumpPtrAllocator _alloc;
     // GenericDefn* _enclosingGeneric;
+    std::vector<AssignmentConstraint> _assignments;
     std::vector<BindingConstraint*> _bindingConstraints;
     std::vector<OverloadSite*> _sites;
     std::vector<size_t> _currentPermutation;

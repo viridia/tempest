@@ -107,36 +107,6 @@ namespace tempest::sema::convert {
       return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
     }
 
-//   if isinstance(dst, graph.TypeVar):
-//     if dstEnv:
-//       env, *envList = dstEnv
-//       if dst.getParam().getTypeVar() in env:
-//         with debug.indented():
-//           return isAssignableEnv(
-//               env[dst.getParam().getTypeVar()], dstConst, tuple(envList),
-//               src, srcConst, srcEnv)
-//     if isinstance(dst, renamer.InferredTypeVar):
-//       bestResult = ConversionResult(ConversionRank.UNSET, None, None)
-//       for ct in dst.constraints:
-//         assert ct.typeVar is dst
-//         if not ct.isViable():
-//           continue
-//         with debug.indented():
-//           debug.trace('via dst constraint:', ct)
-//           result = isAssignableEnv(ct.value, dstConst, dstEnv, src, srcConst, srcEnv)
-//           # This is not exactly correct.
-//           # If two results represents two alternative choices, then pick the best one.
-//           # However, if the two results can *both* be chosen, then we need to pick the worst one.
-//           # (Actually, we should pick both, but the API doesn't allow for that.)
-//           if result.rank > bestResult.rank:
-//             bestResult = result
-//             if result.rank == ConversionRank.IDENTICAL:
-//               break
-//       return bestResult
-//     elif not isinstance(src, graph.TypeVar):
-//       debug.trace('-- incompatible')
-//       return ConversionResult(ConversionRank.ERROR, ConversionError.INCOMPATIBLE, None)
-
     if (src->kind == Type::Kind::TYPE_VAR) {
       auto srcTypeVar = static_cast<const TypeVar*>(src);
       if (size_t(srcTypeVar->index()) < srcEnv.args.size()) {
@@ -229,18 +199,6 @@ namespace tempest::sema::convert {
 //       # Special case for unions - the union might have this type var in it
 //       debug.trace('-- incompatible')
 //       return ConversionResult(ConversionRank.ERROR, ConversionError.INCOMPATIBLE, None)
-
-//   if isinstance(src, graph.UnionType):
-//     with debug.indented():
-//       debug.trace('Source Union:')
-//       worstResult = ConversionResult(ConversionRank.IDENTICAL, None, None)
-//       for mty in src.getMembers():
-//         result = isAssignableEnv(dst, dstConst, dstEnv, mty, srcConst, srcEnv)
-//         if result.rank < worstResult.rank:
-//           worstResult = result
-//       if worstResult.rank < ConversionRank.INEXACT and dst == primitivetypes.ANY:
-//         return ConversionResult(ConversionRank.INEXACT, None, None)
-//       return worstResult
 
     if (src->kind == Type::Kind::UNION) {
       // If the source is a union, choose the WORST of all possible conversion results.

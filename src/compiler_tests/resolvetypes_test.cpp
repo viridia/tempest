@@ -255,6 +255,24 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fn->type(), TypeEQ("fn (i32, i32) -> i32"));
   }
 
+  SECTION("Resolve overloads by return type") {
+    auto mod = compile(cu,
+        "fn x() -> i32 {\n"
+        "  let result: i32 = y();\n"
+        "  result\n"
+        "}\n"
+        "fn y() -> i16 { 0 }\n"
+        "fn y() -> i32 { 0 }\n"
+        "fn y() -> i64 { 0 }\n"
+        "fn y() -> f32 { 0. }\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
   SECTION("Ambiguous overloads") {
     REQUIRE_THAT(
       compileError(cu,
@@ -340,5 +358,31 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto body = cast<BlockStmt>(fd->body());
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+  }
+
+  SECTION("Generic function with inferred parameter (2)") {
+    auto mod = compile(cu,
+        "fn x(arg: f32) {\n"
+        "  let result = y(arg);\n"
+        "}\n"
+        "fn y[T](a: T) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("f32"));
+  }
+
+  SECTION("Generic function with inferred parameter having two constraints") {
+    auto mod = compile(cu,
+        "fn x(a0: f32, a1: f64) {\n"
+        "  let result = y(a0, a1);\n"
+        "}\n"
+        "fn y[T](a: T, b: T) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("f64"));
   }
 }

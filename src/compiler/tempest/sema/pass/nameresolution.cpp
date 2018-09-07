@@ -737,10 +737,19 @@ namespace tempest::sema::pass {
       // RETURNS,
       // LAMBDA,
       // EXPR_TYPE,
-      // RETURN,
-      // THROW,
 
-      // CALL,
+      case ast::Node::Kind::RETURN: {
+        auto op = static_cast<const ast::UnaryOp*>(node);
+        auto returnVal = op->arg ? visitExpr(scope, op->arg) : nullptr;
+        return new (*_alloc) UnaryOp(Expr::Kind::RETURN, node->location, returnVal);
+      }
+
+      case ast::Node::Kind::THROW: {
+        auto op = static_cast<const ast::UnaryOp*>(node);
+        auto returnVal = op->arg ? visitExpr(scope, op->arg) : nullptr;
+        return new (*_alloc) UnaryOp(Expr::Kind::THROW, node->location, returnVal);
+      }
+
       case ast::Node::Kind::CALL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto fn = visitExpr(scope, op->op);

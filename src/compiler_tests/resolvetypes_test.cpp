@@ -398,4 +398,17 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
   }
+
+  SECTION("Return statement") {
+    auto mod = compile(cu,
+        "fn x() -> i32 {\n"
+        "  return y();\n"
+        "}\n"
+        "fn y[T]() -> T { 0 }\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto retSt = body->stmts[0];
+    REQUIRE_THAT(retSt->type, TypeEQ("i32"));
+  }
 }

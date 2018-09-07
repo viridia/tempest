@@ -364,6 +364,24 @@ namespace tempest::sema::pass {
       case Expr::Kind::LOCAL_VAR:
         return visitLocalVar(static_cast<LocalVarStmt*>(e), cs);
 
+      case Expr::Kind::RETURN: {
+        auto ret = static_cast<UnaryOp*>(e);
+        auto fd = dyn_cast<FunctionDefn>(_subject);
+        if (ret->arg) {
+          ret->type = assignTypes(ret->arg, fd ? fd->type()->returnType : nullptr);
+        } else {
+          ret->type = &VoidType::VOID;
+        }
+        return &Type::NO_RETURN;
+      }
+
+  // def visitThrow(self, expr, cs):
+  //   '''@type expr: spark.graph.graph.Throw
+  //      @type cs: constraintsolver.ConstraintSolver'''
+  //   if expr.hasArg():
+  //     self.assignTypes(expr.getArg(), self.typeStore.getEssentialTypes()['throwable'].getType())
+  //   return self.NO_RETURN
+
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(e->kind);
         assert(false && "Invalid expression kind");

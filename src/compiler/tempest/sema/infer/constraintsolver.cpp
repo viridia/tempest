@@ -36,9 +36,6 @@ namespace tempest::sema::infer {
   }
 
   void ConstraintSolver::run() {
-//     if self.typeChoices:
-// #       debug.write(list(self.typeChoices.values()))
-//       self.sites.extend(self.typeChoices.values())
     unifyConstraints();
     if (_failed) {
       return;
@@ -68,47 +65,6 @@ namespace tempest::sema::infer {
     if (!_failed) {
       computeUniqueValueForTypeVars();
     }
-
-//     self.conversionConstraints = set([ct for ct in self.conversionConstraints if not ct.isIdentity()])
-//     self.originalConversionConstraints = self.conversionConstraints
-//     self.tvarConstraints.update(self.equivalenceConstraints)
-//     self.unifyConstraints()
-//     self.combineRejections()
-//     self.chooseIntegerSizesForConstraints()
-//     self.validateConstraints(self.tvarConstraints)
-
-//     self.removeIdentityConstraints()
-
-//     self.propagateConstraints()
-//     self.combineConstraints()
-
-//     self.removeAlwaysTrueConditions()
-//     self.removeNonViableConstraints()
-//     self.combineConstraints()
-
-//     # TODO: This should probably be done in a loop, with convergence detection.
-//     self.cullCandidatesByTypeConstraints()
-//     self.cullCandidatesByRequirements()
-//     if self.checkAmbiguousCallSites():
-//       self.cullCandidatesByConversionRank()
-//     if self.checkAmbiguousCallSites():
-//       self.cullCandidatesBySpecificity()
-//     self.cullCandidatesByRequirements()
-//     self.removeAlwaysTrueConditions()
-//     self.removeNonViableConstraints()
-//     if self.tracing:
-//       self.dump()
-//       for site in self.sites:
-//         self.reportCandidateStatus(site)
-
-//     self.selectFinalCandidates()
-//     self.removeAlwaysTrueConditions()
-//     self.removeNonViableConstraints()
-//     self.propagateConstraints()
-//     self.combineConstraints()
-//     self.removeNonViableConstraints()
-//     self.computeUniqueValueForTypeVars()
-//     callsite.Choice.tracing = False
   }
 
   void ConstraintSolver::unifyConstraints() {
@@ -164,65 +120,6 @@ namespace tempest::sema::infer {
       }
     }
   }
-
-  void ConstraintSolver::updateConversionRanks() {
-    // Reset all conversion results for candidates that have not been eliminated
-  //   for (auto site : _sites) {
-  //     for (auto oc : site->candidates) {
-  //       if (oc->rejection.reason == Rejection::NONE) {
-  //         // oc->
-  // //         cc.detailedConversionResults = {}
-  //       }
-  //     }
-  //   }
-
-    // for (auto cct : _conversionConstraints) {
-    // }
-
-  //   for ac in self.conversionConstraints:
-  //     if ac.isViable() and len(ac.when) > 0:
-  //       self.updateConversionRankingsForConstraint(ac)
-
-  //   # Collate results.
-  //   for site in sites:
-  //     for cc in site.candidates:
-  //       cc.conversionResults.clear()
-  //       for ac, result in cc.detailedConversionResults.items():
-  //         # This algorithm is bogus but it works for the moment. Replace with something better.
-  //         if len(ac.when) == 1:
-  //           cc.conversionResults[result.rank] += 10
-  //         else:
-  //           # What we want to know is, is there any other assignmentConstraint that occupies
-  //           # the same set of call sites as this one, but has a better conversion ranking?
-  //           cc.conversionResults[result.rank] += 1
-  }
-
-  // def updateConversionRankingsForConstraint(self, ac):
-  //   # Re-evaluate a constraint, and update the conversion rankings for all candidates that
-  //   # support the constraint.
-
-  //   # Disable any competitors to the candidates in this constraint
-  //   for cc in ac.when:
-  //     cc.site.pruneCandidates(True)
-  //     cc.pruned = False
-
-  //   # Compute the conversion result
-  //   saveTracing = debug.tracing
-  //   debug.tracing = False
-  //   result = typerelation.isAssignable(ac.dstType, ac.srcType)
-  //   debug.tracing = saveTracing
-  //   if debug.tracing:
-  //     debug.trace('Conversion rank for:', ac, 'is', result)
-  //     for when in ac.when:
-  //       debug.trace('  =>', when)
-
-  //   # Assign blame to any candidates that this constraint depends on.
-  //   for cc in ac.when:
-  //     cc.detailedConversionResults[ac] = result
-
-  //   # Re-enable candidates
-  //   for cc in ac.when:
-  //     cc.site.pruneCandidates(False)
 
   bool ConstraintSolver::isViable(const Conditions& cond) {
     return std::all_of(

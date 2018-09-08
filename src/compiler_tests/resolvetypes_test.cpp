@@ -427,20 +427,23 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("f32"));
   }
 
-  // SECTION("Generic multi-arg function with type constraint") {
-  //   auto mod = compile(cu,
-  //       "fn x(n: i16, ) {\n"
-  //       "  let result = y(arg);\n"
-  //       "}\n"
-  //       "fn y[T: i64](a: T, b: T) => a;\n"
-  //       "fn y[T: u64](a: T, b: T) => a;\n"
-  //       "fn y[T: f64](a: T, b: T) => a;\n"
-  //   );
-  //   auto fd = cast<FunctionDefn>(mod->members().front());
-  //   auto body = cast<BlockStmt>(fd->body());
-  //   auto letSt = cast<LocalVarStmt>(body->stmts[0]);
-  //   REQUIRE_THAT(letSt->defn->type(), TypeEQ("f32"));
-  // }
+  SECTION("Generic multi-arg function with type constraint") {
+    auto mod = compile(cu,
+        "fn x(pi8: i8, pi16: i16, pi32: i32, pi64: i64) {\n"
+        "  let result1 = y(pi8, pi16);\n"
+        "  let result1 = y(pi16, pi32);\n"
+        "  let result1 = y(pi16, pi64);\n"
+        "}\n"
+        "fn y[T: i64](a: T, b: T) => a;\n"
+        "fn y[T: u64](a: T, b: T) => a;\n"
+        "fn y[T: f64](a: T, b: T) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    REQUIRE_THAT(cast<LocalVarStmt>(body->stmts[0])->defn->type(), TypeEQ("i16"));
+    REQUIRE_THAT(cast<LocalVarStmt>(body->stmts[1])->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(cast<LocalVarStmt>(body->stmts[2])->defn->type(), TypeEQ("i64"));
+  }
 
   SECTION("Type constraint failure") {
     REQUIRE_THAT(

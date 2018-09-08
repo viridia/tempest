@@ -201,7 +201,7 @@ namespace tempest::sema::convert {
         if (lInt->isUnsigned() == rInt->isUnsigned()) {
           return lInt->bits() <= rInt->bits();
         } else {
-          return lInt->bits() < rInt->bits();
+          return false;
         }
       }
       return false;

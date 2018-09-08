@@ -573,9 +573,8 @@ namespace tempest::sema::pass {
           auto typeParam = function->allTypeParams()[i];
           auto typeArg = cc->typeArgs[i];
           for (auto subtype : typeParam->subtypeConstraints()) {
-            cs.addBindingConstraint(
-                site->location, typeArg, transform.transform(subtype),
-                TypeRelation::SUBTYPE, cc);
+            cs.addExplicitConstraint(
+                typeParam, typeArg, transform.transform(subtype), TypeRelation::SUBTYPE, cc);
           }
         }
       } else {

@@ -426,4 +426,31 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("f32"));
   }
+
+  // SECTION("Generic multi-arg function with type constraint") {
+  //   auto mod = compile(cu,
+  //       "fn x(n: i16, ) {\n"
+  //       "  let result = y(arg);\n"
+  //       "}\n"
+  //       "fn y[T: i64](a: T, b: T) => a;\n"
+  //       "fn y[T: u64](a: T, b: T) => a;\n"
+  //       "fn y[T: f64](a: T, b: T) => a;\n"
+  //   );
+  //   auto fd = cast<FunctionDefn>(mod->members().front());
+  //   auto body = cast<BlockStmt>(fd->body());
+  //   auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+  //   REQUIRE_THAT(letSt->defn->type(), TypeEQ("f32"));
+  // }
+
+  SECTION("Type constraint failure") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x(arg: f32) {\n"
+          "  let result = y(arg);\n"
+          "}\n"
+          "fn y[T: i8](a: T) => a;\n"
+          "fn y[T: bool](a: T) => a;\n"
+      ),
+      Catch::Contains("T cannot be bound to type f32, it must be a subtype of i8"));
+  }
 }

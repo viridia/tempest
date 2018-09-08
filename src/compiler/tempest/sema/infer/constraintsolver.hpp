@@ -34,8 +34,11 @@ namespace tempest::sema::infer {
     const Type* srcType;
   };
 
-  struct BindingConstraint {
-    source::Location location;
+  /** Explicit constraints on a type parameter. These must always hold regardless of
+      which overloads are chosen.
+   */
+  struct ExplicitConstraint {
+    TypeParameter* param;
     const Type* dstType;
     const Type* srcType;
     TypeRelation predicate;
@@ -77,13 +80,13 @@ namespace tempest::sema::infer {
       _assignments.push_back({ loc, dstType, srcType });
     }
 
-    void addBindingConstraint(
-        const source::Location& loc,
+    void addExplicitConstraint(
+        TypeParameter* param,
         const Type* dstType,
         const Type* srcType,
         TypeRelation predicate,
         OverloadCandidate* candidate) {
-      _bindings.push_back({ loc, dstType, srcType, predicate, candidate });
+      _bindings.push_back({ param, dstType, srcType, predicate, candidate });
     }
 
     void addSite(OverloadSite* site);
@@ -109,7 +112,7 @@ namespace tempest::sema::infer {
   private:
     tempest::support::BumpPtrAllocator _alloc;
     std::vector<AssignmentConstraint> _assignments;
-    std::vector<BindingConstraint> _bindings;
+    std::vector<ExplicitConstraint> _bindings;
     std::vector<OverloadSite*> _sites;
     std::vector<size_t> _currentPermutation;
     std::vector<size_t> _bestPermutation;
@@ -121,7 +124,7 @@ namespace tempest::sema::infer {
     /** Find the best possible conversion for the nth parameter at a call site, checking
         all remaining viable overloads. */
     ConversionResult paramConversion(CallSite* site, size_t argIndex);
-    bool rejectErrorCandidates(CallSite* site, size_t argIndex);
+    bool rejectByParamAssignment(CallSite* site, size_t argIndex);
 
     void reportSiteAmbiguities();
     void reportSiteRejections(OverloadSite* errorSite);

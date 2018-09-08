@@ -147,11 +147,23 @@ namespace tempest::sema::infer {
     // error.
     for (;;) {
       bool rejection = false;
+      for (auto& constraint : _bindings) {
+        if (constraint.candidate->isViable()) {
+          if (constraint.predicate == TypeRelation::SUBTYPE) {
+            if (!isEqualOrNarrower(constraint.dstType, constraint.srcType)) {
+              constraint.candidate->rejection.reason = Rejection::UNSATISFIED_TYPE_CONSTRAINT;
+              constraint.candidate->rejection.constraint = &constraint;
+              rejection = true;
+            }
+          }
+        }
+      }
+
       for (auto site : _sites) {
         if (site->kind == OverloadKind::CALL) {
           auto callSite = static_cast<CallSite*>(site);
           for (size_t i = 0; i < callSite->argTypes.size(); i += 1) {
-            rejection = rejection || rejectErrorCandidates(callSite, i);
+            rejection = rejection || rejectByParamAssignment(callSite, i);
           }
         } else {
           assert(false && "Implement overload kind");
@@ -182,6 +194,27 @@ namespace tempest::sema::infer {
         assert(false && "Implement overload kind");
       }
     }
+  }
+
+  bool ConstraintSolver::rejectByParamAssignment(CallSite* site, size_t argIndex) {
+    bool rejection = false;
+    for (auto oc : site->candidates) {
+      if (oc->isViable()) {
+        auto cc = static_cast<CallCandidate*>(oc);
+        auto paramIndex = cc->paramAssignments[argIndex];
+        auto result = isAssignable(cc->paramTypes[paramIndex], site->argTypes[argIndex]);
+        if (result.rank == ConversionRank::ERROR) {
+          rejection = true;
+          if (result.error == ConversionError::QUALIFIER_LOSS) {
+            cc->rejection.reason = Rejection::Reason::QUALIFIER_LOSS;
+          } else {
+            cc->rejection.reason = Rejection::Reason::CONVERSION_FAILURE;
+          }
+          cc->rejection.argIndex = argIndex;
+        }
+      }
+    }
+    return rejection;
   }
 
   void ConstraintSolver::findBestRankedOverloads() {
@@ -218,59 +251,6 @@ namespace tempest::sema::infer {
             oc->rejection.reason = Rejection::NOT_BEST;
           }
         }
-      }
-    }
-  }
-
-  void ConstraintSolver::cullCandidatesBySpecificity() {
-    for (auto site : _sites) {
-      if (site->kind == OverloadKind::CALL) {
-        SmallVector<CallCandidate*, 8> preserved;
-        SmallVector<CallCandidate*, 8> rejected;
-        SmallVector<CallCandidate*, 8> mostSpecific;
-        for (auto oc : site->candidates) {
-          if (oc->isRejected()) {
-            continue;
-          }
-          CallCandidate* cc = static_cast<CallCandidate*>(oc);
-          bool addNew = true;
-          // Try each candidate against each of the others. Reject any candidate that is
-          // more general than another candidate.
-          for (auto msCandidate : mostSpecific) {
-            // TODO: If the return type is not constrained, then we don't want to consider the
-            // return type when doing the comparison.
-            if (cc->isEqualOrNarrower(msCandidate)) {
-              if (msCandidate->isEqualOrNarrower(cc)) {
-                // They are the same specificity, keep both.
-                preserved.push_back(msCandidate);
-              } else {
-                // cc is better
-                rejected.push_back(msCandidate);
-              }
-            } else {
-              preserved.push_back(msCandidate);
-              if (msCandidate->isEqualOrNarrower(cc)) {
-                // ms is better
-                addNew = false;
-              }
-              // else neither is better, so keep both.
-            }
-          }
-
-          mostSpecific.swap(preserved);
-          preserved.clear();
-          if (addNew) {
-            mostSpecific.push_back(cc);
-          }
-        }
-
-        if (mostSpecific.size() == 1) {
-          for (auto rej : rejected) {
-            rej->rejection.reason = Rejection::NOT_MORE_SPECIALIZED;
-          }
-        }
-      } else {
-        assert(false && "Implement OC Spec");
       }
     }
   }
@@ -350,25 +330,57 @@ namespace tempest::sema::infer {
     return paramResult;
   }
 
-  bool ConstraintSolver::rejectErrorCandidates(CallSite* site, size_t argIndex) {
-    bool rejection = false;
-    for (auto oc : site->candidates) {
-      if (oc->isViable()) {
-        auto cc = static_cast<CallCandidate*>(oc);
-        auto paramIndex = cc->paramAssignments[argIndex];
-        auto result = isAssignable(cc->paramTypes[paramIndex], site->argTypes[argIndex]);
-        if (result.rank == ConversionRank::ERROR) {
-          rejection = true;
-          if (result.error == ConversionError::QUALIFIER_LOSS) {
-            cc->rejection.reason = Rejection::Reason::QUALIFIER_LOSS;
-          } else {
-            cc->rejection.reason = Rejection::Reason::CONVERSION_FAILURE;
+  void ConstraintSolver::cullCandidatesBySpecificity() {
+    for (auto site : _sites) {
+      if (site->kind == OverloadKind::CALL) {
+        SmallVector<CallCandidate*, 8> preserved;
+        SmallVector<CallCandidate*, 8> rejected;
+        SmallVector<CallCandidate*, 8> mostSpecific;
+        for (auto oc : site->candidates) {
+          if (oc->isRejected()) {
+            continue;
           }
-          cc->rejection.argIndex = argIndex;
+          CallCandidate* cc = static_cast<CallCandidate*>(oc);
+          bool addNew = true;
+          // Try each candidate against each of the others. Reject any candidate that is
+          // more general than another candidate.
+          for (auto msCandidate : mostSpecific) {
+            // TODO: If the return type is not constrained, then we don't want to consider the
+            // return type when doing the comparison.
+            if (cc->isEqualOrNarrower(msCandidate)) {
+              if (msCandidate->isEqualOrNarrower(cc)) {
+                // They are the same specificity, keep both.
+                preserved.push_back(msCandidate);
+              } else {
+                // cc is better
+                rejected.push_back(msCandidate);
+              }
+            } else {
+              preserved.push_back(msCandidate);
+              if (msCandidate->isEqualOrNarrower(cc)) {
+                // ms is better
+                addNew = false;
+              }
+              // else neither is better, so keep both.
+            }
+          }
+
+          mostSpecific.swap(preserved);
+          preserved.clear();
+          if (addNew) {
+            mostSpecific.push_back(cc);
+          }
         }
+
+        if (mostSpecific.size() == 1) {
+          for (auto rej : rejected) {
+            rej->rejection.reason = Rejection::NOT_MORE_SPECIALIZED;
+          }
+        }
+      } else {
+        assert(false && "Implement OC Spec");
       }
     }
-    return rejection;
   }
 
   void ConstraintSolver::reportSiteAmbiguities() {
@@ -394,7 +406,7 @@ namespace tempest::sema::infer {
   void ConstraintSolver::reportSiteRejections(OverloadSite* site) {
     if (site->kind == OverloadKind::CALL) {
       auto callSite = static_cast<CallSite*>(site);
-      diag.error(callSite->location) << "No method found for input arguments:";
+      diag.error(callSite->location) << "No suitable method found for call:";
       diag.info() << "Possible methods are:";
       reportCandidateStatus(site);
     } else {
@@ -486,10 +498,22 @@ namespace tempest::sema::infer {
             break;
           }
 
+          case Rejection::UNSATISFIED_TYPE_CONSTRAINT: {
+            auto constraint = oc->rejection.constraint;
+            auto srcType = constraint->srcType;
+            if (auto srcInferred = dyn_cast<InferredType>(srcType)) {
+              srcType = srcInferred->typeParam->typeVar();
+            }
+            auto dstType = oc->rejection.constraint->dstType;
+            diag.info(method->location()) << cc->method << ": template parameter "
+                << constraint->param->name() << " cannot be bound to type "
+                << ShowConstraints(dstType) << ", it must be a subtype of " << srcType << ".";
+            break;
+          }
+
           // Type inference rejections
           // UNIFICATION_ERROR,
           // UNSATISFIED_REQIREMENT,
-          // UNSATISFIED_TYPE_CONSTRAINT,
           // INCONSISTENT, // Contradictory constraints
 
           case Rejection::NOT_MORE_SPECIALIZED:

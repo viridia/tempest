@@ -58,6 +58,7 @@ namespace tempest::sema::infer {
   /** A type which needs to be inferred. */
   class InferredType : public Type {
   public:
+    // Potential choices for the value of this inferred type.
     struct Constraint {
       const Type* value;
       TypeRelation predicate;
@@ -124,6 +125,14 @@ namespace tempest::sema::infer {
     static bool classof(const InferredType* t) { return true; }
     static bool classof(const Type* t) { return t->kind == Kind::INFERRED; }
   };
+
+  /** Wrapper which tells formatter to expand to the set of constraints. */
+  struct ShowConstraints {
+    const Type* type;
+    ShowConstraints(const Type* type) : type(type) {};
+  };
+
+  ::std::ostream& operator<<(::std::ostream& os, const ShowConstraints& sc);
 }
 
 #endif

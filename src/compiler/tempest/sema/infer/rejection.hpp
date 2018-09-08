@@ -7,7 +7,7 @@
 
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
-  class Constraint;
+  struct ExplicitConstraint;
 
   /** During type inference, it's important to keep track of why a given candidate was
       rejected so that meaningful diagnostics can be shown to the user. */
@@ -40,8 +40,8 @@ namespace tempest::sema::infer {
     size_t argIndex = 0;
 
     /** Some rejections include a constraint that wasn't satisfied. */
-    Constraint* constraint = nullptr;
-    Constraint* otherConstraint = nullptr;
+    ExplicitConstraint* constraint = nullptr;
+    // Constraint* otherConstraint = nullptr;
 
     Rejection() : reason(NONE) {};
     Rejection(Reason reason) : reason(reason) {};

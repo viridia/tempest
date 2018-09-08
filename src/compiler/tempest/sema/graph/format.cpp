@@ -103,6 +103,16 @@ namespace tempest::sema::graph {
         auto fd = static_cast<const FunctionDefn*>(m);
         out << "fn " << fd->name();
         if (showType && fd->type()) {
+          if (fd->typeParams().size() > 0) {
+            out << "[";
+            auto sep = "";
+            for (auto p : fd->typeParams()) {
+              out << sep;
+              sep = ", ";
+              out << p->name();
+            }
+            out << "]";
+          }
           out << "(";
           auto sep = "";
           for (auto p : fd->params()) {
@@ -248,7 +258,10 @@ namespace tempest::sema::graph {
 
       case Type::Kind::TYPE_VAR: {
         auto tv = static_cast<const TypeVar*>(t);
-        out << "type parameter " << tv->param->name();
+        if (showType) {
+          out << "type parameter ";
+        }
+        out << tv->param->name();
         break;
       }
 

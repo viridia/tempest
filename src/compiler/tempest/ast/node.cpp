@@ -132,6 +132,7 @@ namespace tempest::ast {
       case Kind::TYPE_PARAMETER: return "TYPE_PARAMETER";
       case Kind::FUNCTION: return "FUNCTION";
       case Kind::DEFN_END: return "DEFN_END";
+      case Kind::SUPERTYPE_CONSTRAINT: return "SUPERTYPE_CONSTRAINT";
       case Kind::MODULE: return "MODULE";
       case Kind::IMPORT: return "IMPORT";
       case Kind::EXPORT: return "EXPORT";

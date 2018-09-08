@@ -135,14 +135,12 @@ namespace tempest::ast {
 
   class TypeParameter : public Defn {
   public:
-    const Node* type;
     const Node* init;
     bool variadic;
     NodeList constraints;
 
     TypeParameter(const Location& location, const StringRef& name)
       : Defn(Kind::TYPE_PARAMETER, location, name)
-      , type(nullptr)
       , init(nullptr)
       , variadic(false)
     {}

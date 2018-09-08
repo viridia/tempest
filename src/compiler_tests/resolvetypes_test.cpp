@@ -411,4 +411,19 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto retSt = body->stmts[0];
     REQUIRE_THAT(retSt->type, TypeEQ("i32"));
   }
+
+  SECTION("Generic function with type constraint") {
+    auto mod = compile(cu,
+        "fn x(arg: f32) {\n"
+        "  let result = y(arg);\n"
+        "}\n"
+        "fn y[T: i8](a: T) => a;\n"
+        "fn y[T: f32](a: T) => a;\n"
+        "fn y[T: bool](a: T) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("f32"));
+  }
 }

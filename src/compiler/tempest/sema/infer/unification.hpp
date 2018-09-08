@@ -42,7 +42,7 @@ namespace tempest::sema::infer {
     const Type* value;
 
     /** What kind of binding constraint. */
-    BindingPredicate predicate;
+    TypeRelation predicate;
 
     /** When is this binding relevant. */
     Conditions conditions;
@@ -53,13 +53,13 @@ namespace tempest::sema::infer {
       unify calls itself recursively and builds up the result upon successful unifications. */
   bool unify(
     std::vector<UnificationResult>& result, const Type* lt, const Type* rt, Conditions& when,
-    BindingPredicate predicate, tempest::support::BumpPtrAllocator& alloc);
+    TypeRelation predicate, tempest::support::BumpPtrAllocator& alloc);
   bool unify(
     std::vector<UnificationResult>& result,
     const Type* lt, Env& ltEnv,
     const Type* rt, Env& rtEnv,
     Conditions& when,
-    BindingPredicate predicate,
+    TypeRelation predicate,
     tempest::support::BumpPtrAllocator& alloc);
 }
 

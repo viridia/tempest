@@ -164,6 +164,9 @@ namespace tempest::ast {
       FUNCTION,
       DEFN_END,
 
+      // Type parameter constraints
+      SUPERTYPE_CONSTRAINT,
+
       MODULE,
       IMPORT,
       EXPORT,

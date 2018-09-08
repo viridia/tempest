@@ -257,6 +257,24 @@ TEST_CASE("NameResolution.Class", "[sema]") {
       compileError(cu, "class A[T] {} let X: A[i32, i32]"),
       Catch::Contains("Generic definition 'A' requires 1 type arguments, 2 were provided"));
   }
+
+  SECTION("Class with generic type constraint") {
+    auto mod = compile(cu,
+      "class A[T: f32] {}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().front());
+    auto param = td->typeParams().front();
+    REQUIRE(param->subtypeConstraints().size() == 1);
+  }
+
+  SECTION("Class with generic type sum constraint") {
+    auto mod = compile(cu,
+      "class A[T: f32 & i32] {}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().front());
+    auto param = td->typeParams().front();
+    REQUIRE(param->subtypeConstraints().size() == 2);
+  }
 }
 
 TEST_CASE("NameResolution.Enum", "[sema]") {

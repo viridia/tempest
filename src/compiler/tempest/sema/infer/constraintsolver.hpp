@@ -1,8 +1,8 @@
 #ifndef TEMPEST_SEMA_INFER_CONSTRAINTSOLVER_HPP
 #define TEMPEST_SEMA_INFER_CONSTRAINTSOLVER_HPP 1
 
-#ifndef TEMPEST_SEMA_INFER_CONSTRAINT_HPP
-  #include "tempest/sema/infer/constraint.hpp"
+#ifndef TEMPEST_SEMA_INFER_TYPES_HPP
+  #include "tempest/sema/infer/types.hpp"
 #endif
 
 #ifndef TEMPEST_SEMA_INFER_OVERLOAD_HPP
@@ -27,10 +27,19 @@ namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   using tempest::sema::convert::ConversionResult;
 
+  /** Overloads can only be chosen which don't violate a constraint. */
   struct AssignmentConstraint {
     source::Location location;
     const Type* dstType;
     const Type* srcType;
+  };
+
+  struct BindingConstraint {
+    source::Location location;
+    const Type* dstType;
+    const Type* srcType;
+    TypeRelation predicate;
+    OverloadCandidate* candidate;
   };
 
   /** Base class for constraints to be solved. */
@@ -50,16 +59,12 @@ namespace tempest::sema::infer {
       for (auto site : _sites) {
         delete site;
       }
-      for (auto bc : _bindingConstraints) {
-        delete bc;
-      }
     }
 
     tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
     bool empty() const {
-      return _bindingConstraints.empty()
-          && _sites.empty();
+      return _bindings.empty() && _sites.empty();
     //   return and len(self.anonFns) == 0
     }
 
@@ -76,8 +81,10 @@ namespace tempest::sema::infer {
         const source::Location& loc,
         const Type* dstType,
         const Type* srcType,
-        BindingConstraint::Restriction restriction,
-        Conditions when);
+        TypeRelation predicate,
+        OverloadCandidate* candidate) {
+      _bindings.push_back({ loc, dstType, srcType, predicate, candidate });
+    }
 
     void addSite(OverloadSite* site);
 
@@ -101,9 +108,8 @@ namespace tempest::sema::infer {
 
   private:
     tempest::support::BumpPtrAllocator _alloc;
-    // GenericDefn* _enclosingGeneric;
     std::vector<AssignmentConstraint> _assignments;
-    std::vector<BindingConstraint*> _bindingConstraints;
+    std::vector<BindingConstraint> _bindings;
     std::vector<OverloadSite*> _sites;
     std::vector<size_t> _currentPermutation;
     std::vector<size_t> _bestPermutation;

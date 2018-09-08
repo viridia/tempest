@@ -48,7 +48,7 @@ namespace tempest::sema::infer {
     const UnionType* lt, Env& ltEnv,
     const Type* rt, Env& rtEnv,
     Conditions& when,
-    BindingPredicate predicate,
+    TypeRelation predicate,
     tempest::support::BumpPtrAllocator& alloc) {
 
     llvm::SmallVector<const Type*, 8> members(lt->members.begin(), lt->members.end());
@@ -67,8 +67,8 @@ namespace tempest::sema::infer {
       members.erase(part);
     }
 
-    if (predicate == BindingPredicate::ASSIGNABLE_FROM ||
-        predicate == BindingPredicate::SUPERTYPE) {
+    if (predicate == TypeRelation::ASSIGNABLE_FROM ||
+        predicate == TypeRelation::SUPERTYPE) {
       // In order for a union to be assignable from X, at least one member of the union
       // must be able to unify with X.
       for (auto member : members) {
@@ -77,8 +77,8 @@ namespace tempest::sema::infer {
         }
       }
       return false;
-    } else if (predicate == BindingPredicate::ASSIGNABLE_TO ||
-        predicate == BindingPredicate::SUBTYPE) {
+    } else if (predicate == TypeRelation::ASSIGNABLE_TO ||
+        predicate == TypeRelation::SUBTYPE) {
       // In order for a union to be assignable to X, all members of the union
       // must be able to unify with X.
       std::vector<UnificationResult> memberResult;
@@ -99,7 +99,7 @@ namespace tempest::sema::infer {
 
   bool unify(
     std::vector<UnificationResult>& result, const Type* lt, const Type* rt, Conditions& when,
-    BindingPredicate predicate, tempest::support::BumpPtrAllocator& alloc)
+    TypeRelation predicate, tempest::support::BumpPtrAllocator& alloc)
   {
     Env ltEnv;
     Env rtEnv;
@@ -111,7 +111,7 @@ namespace tempest::sema::infer {
     const Type* lt, Env& ltEnv,
     const Type* rt, Env& rtEnv,
     Conditions& when,
-    BindingPredicate predicate,
+    TypeRelation predicate,
     tempest::support::BumpPtrAllocator& alloc)
   {
     // Modified types - merely strip the modifier. Const and immutable don't prevent unification,
@@ -196,7 +196,7 @@ namespace tempest::sema::infer {
     if (rt->kind == Type::Kind::INFERRED) {
       auto infType = static_cast<const InferredType*>(rt);
       result.push_back({
-          const_cast<InferredType*>(infType), lt, inversePredicate(predicate), when });
+          const_cast<InferredType*>(infType), lt, inverseRelation(predicate), when });
       return true;
     }
 
@@ -210,15 +210,15 @@ namespace tempest::sema::infer {
       }
 
       switch (predicate) {
-        case BindingPredicate::EQUAL:
+        case TypeRelation::EQUAL:
           return isEqual(lt, 0, ltEnv, rt, 0, rtEnv);
-        case BindingPredicate::ASSIGNABLE_FROM:
+        case TypeRelation::ASSIGNABLE_FROM:
           return isAssignable(lt, 0, ltEnv, rt, 0, rtEnv).rank > ConversionRank::ERROR;
-        case BindingPredicate::ASSIGNABLE_TO:
+        case TypeRelation::ASSIGNABLE_TO:
           return isAssignable(rt, 0, rtEnv, lt, 0, ltEnv).rank > ConversionRank::ERROR;
-        case BindingPredicate::SUBTYPE:
+        case TypeRelation::SUBTYPE:
           return isEqualOrNarrower(lt, ltEnv, rt, rtEnv);
-        case BindingPredicate::SUPERTYPE:
+        case TypeRelation::SUPERTYPE:
           return isEqualOrNarrower(rt, rtEnv, lt, ltEnv);
       }
     }
@@ -326,19 +326,19 @@ namespace tempest::sema::infer {
             if (ltMembers.size() == 1) {
               memberResult.push_back({
                   const_cast<InferredType*>(rtInferred), ltMembers[0],
-                  inversePredicate(predicate), when });
+                  inverseRelation(predicate), when });
             } else {
               auto tempUnion = new (alloc) UnionType(alloc.copyOf(ltMembers));
               memberResult.push_back({
                   const_cast<InferredType*>(rtInferred), tempUnion,
-                  inversePredicate(predicate), when });
+                  inverseRelation(predicate), when });
             }
             ltMembers.clear();
           }
         } else if (rtInferred && (
-            predicate == BindingPredicate::EQUAL ||
-            predicate == BindingPredicate::ASSIGNABLE_FROM ||
-            predicate == BindingPredicate::SUPERTYPE)) {
+            predicate == TypeRelation::EQUAL ||
+            predicate == TypeRelation::ASSIGNABLE_FROM ||
+            predicate == TypeRelation::SUPERTYPE)) {
           // Right hand inferred type member is unknown
           return false;
         }
@@ -356,26 +356,26 @@ namespace tempest::sema::infer {
             rtMembers.clear();
           }
         } else if (ltInferred && (
-            predicate == BindingPredicate::EQUAL ||
-            predicate == BindingPredicate::ASSIGNABLE_TO ||
-            predicate == BindingPredicate::SUBTYPE)) {
+            predicate == TypeRelation::EQUAL ||
+            predicate == TypeRelation::ASSIGNABLE_TO ||
+            predicate == TypeRelation::SUBTYPE)) {
           // Left hand inferred type member is unknown
           return false;
         }
 
         // If there's anything remaining on the left side:
         if (!ltMembers.empty() && (
-            predicate == BindingPredicate::ASSIGNABLE_TO ||
-            predicate == BindingPredicate::SUBTYPE ||
-            predicate == BindingPredicate::EQUAL)) {
+            predicate == TypeRelation::ASSIGNABLE_TO ||
+            predicate == TypeRelation::SUBTYPE ||
+            predicate == TypeRelation::EQUAL)) {
           return false;
         }
 
         // If there's anything remaining on the right side:
         if (!rtMembers.empty() && (
-            predicate == BindingPredicate::ASSIGNABLE_FROM ||
-            predicate == BindingPredicate::SUPERTYPE ||
-            predicate == BindingPredicate::EQUAL)) {
+            predicate == TypeRelation::ASSIGNABLE_FROM ||
+            predicate == TypeRelation::SUPERTYPE ||
+            predicate == TypeRelation::EQUAL)) {
           return false;
         }
 
@@ -383,7 +383,7 @@ namespace tempest::sema::infer {
         return true;
       }
 
-      if (predicate == BindingPredicate::EQUAL) {
+      if (predicate == TypeRelation::EQUAL) {
         return false;
       } else {
         return unifyUnion(result, ltUnion, ltEnv, rt, rtEnv, when, predicate, alloc);
@@ -391,12 +391,12 @@ namespace tempest::sema::infer {
     }
 
     if (rt->kind == Type::Kind::UNION) {
-      if (predicate == BindingPredicate::EQUAL) {
+      if (predicate == TypeRelation::EQUAL) {
         return false;
       } else {
         auto rtUnion = static_cast<const UnionType*>(rt);
         return unifyUnion(
-            result, rtUnion, rtEnv, lt, ltEnv, when, inversePredicate(predicate), alloc);
+            result, rtUnion, rtEnv, lt, ltEnv, when, inverseRelation(predicate), alloc);
       }
     }
 
@@ -408,9 +408,9 @@ namespace tempest::sema::infer {
         if (ltTuple->members.size() == rtTuple->members.size()) {
           std::vector<UnificationResult> memberResult;
           auto memberPredicate = predicate;
-          if (memberPredicate == BindingPredicate::SUBTYPE ||
-              memberPredicate == BindingPredicate::SUPERTYPE) {
-            memberPredicate = BindingPredicate::EQUAL;
+          if (memberPredicate == TypeRelation::SUBTYPE ||
+              memberPredicate == TypeRelation::SUPERTYPE) {
+            memberPredicate = TypeRelation::EQUAL;
           }
           for (size_t i = 0; i < ltTuple->members.size(); i += 1) {
             if (!unify(memberResult,
@@ -444,7 +444,7 @@ namespace tempest::sema::infer {
         for (auto param : td->allTypeParams()) {
           if (!unify(paramResult,
               param->typeVar(), ltEnv,
-              param->typeVar(), rtEnv, when, BindingPredicate::EQUAL, alloc)) {
+              param->typeVar(), rtEnv, when, TypeRelation::EQUAL, alloc)) {
             return false;
           }
         }
@@ -459,8 +459,8 @@ namespace tempest::sema::infer {
           rt->kind == Type::Kind::STRUCT ||
           rt->kind == Type::Kind::INTERFACE ||
           rt->kind == Type::Kind::TRAIT) {
-        if (predicate == BindingPredicate::SUBTYPE ||
-            predicate == BindingPredicate::ASSIGNABLE_TO) {
+        if (predicate == TypeRelation::SUBTYPE ||
+            predicate == TypeRelation::ASSIGNABLE_TO) {
           auto udt = static_cast<const UserDefinedType*>(lt);
           auto td = udt->defn();
           // Keep results from first match
@@ -479,8 +479,8 @@ namespace tempest::sema::infer {
             }
           }
         }
-        if (predicate == BindingPredicate::SUPERTYPE ||
-            predicate == BindingPredicate::ASSIGNABLE_FROM) {
+        if (predicate == TypeRelation::SUPERTYPE ||
+            predicate == TypeRelation::ASSIGNABLE_FROM) {
           auto udt = static_cast<const UserDefinedType*>(rt);
           auto td = udt->defn();
           // Keep results from first match

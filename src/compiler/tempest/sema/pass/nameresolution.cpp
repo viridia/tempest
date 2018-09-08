@@ -177,7 +177,7 @@ namespace tempest::sema::pass {
 
   void NameResolutionPass::visitTypeDefn(LookupScope* scope, TypeDefn* td) {
     visitAttributes(scope, td, td->ast());
-    // self.nameLookup.scopeStack.push(typeDefn.getTypeParamScope())
+    visitTypeParams(scope, td);
     // resolverequirements.ResolveRequirements(
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, typeDefn).run()
     // typeDefn.setFriends(self.visitList(typeDefn.getFriends()))
@@ -188,9 +188,6 @@ namespace tempest::sema::pass {
     } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
       visitCompositeDefn(scope, td);
     }
-    // else:
-    // self.visitDefn(typeDefn) # Visits members and attrs
-    // self.nameLookup.setSubject(savedSubject)
   }
 
   void NameResolutionPass::visitCompositeDefn(LookupScope* scope, TypeDefn* td) {
@@ -347,13 +344,11 @@ namespace tempest::sema::pass {
     }
 
     visitAttributes(scope, fd, fd->ast());
-    // savedSubject = self.nameLookup.setSubject(func)
-    // if func.hasTypeParamScope():
-    //   self.nameLookup.scopeStack.push(func.getTypeParamScope())
+    visitTypeParams(scope, fd);
     // resolverequirements.ResolveRequirements(
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, func).run()
 
-    TypeParamScope tpScope(scope, fd);
+    TypeParamScope tpScope(scope, fd); // Scope used in resolving param types only.
     Type* returnType = nullptr;
     if (fd->ast()->returnType) {
       returnType = resolveType(&tpScope, fd->ast()->returnType);
@@ -386,17 +381,6 @@ namespace tempest::sema::pass {
       fd->setType(_cu.types().createFunctionType(returnType, paramTypes, fd->isVariadic()));
     }
 
-    // self.visitDefn(func) # Visits members and attrs
-    // if func.hasTypeParamScope():
-    //   self.nameLookup.scopeStack.pop()
-    // self.nameLookup.setSubject(savedSubject)
-
-    // if len(func.getParams()) > 0:
-    //   paramTypes = [param.getType() for param in func.getParams()]
-    //   func.getMutableType().setParamTypes(paramTypes)
-
-    // funcType = func.getMutableType()
-    // assert func.hasDefinedIn(), func
     // if defns.isGlobalDefn(func):
     //   if func.isConstructor():
     //     self.errorAt(func,
@@ -428,17 +412,6 @@ namespace tempest::sema::pass {
     if (vd->ast()->init) {
       vd->setInit(visitExpr(scope, vd->ast()->init));
     }
-    // if vdef.astInit:
-    //   if vdef.hasType() and isinstance(vdef.getType(), graph.Enum):
-    //     self.nameLookup.scopeStack.push(vdef.getType().getDefn().getMemberScope())
-    //     vdef.setInit(self.resolveExprs.visit(vdef.astInit))
-    //     self.nameLookup.scopeStack.pop()
-    //   else:
-    //     init = self.resolveExprs.visit(vdef.astInit)
-    //     if not self.isErrorExpr(init):
-    //       vdef.setInit(init)
-    // self.visitDefn(vdef) # Visits members and attrs
-    // return vdef
   }
 
   void NameResolutionPass::visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast) {
@@ -447,6 +420,28 @@ namespace tempest::sema::pass {
       if (!Expr::isError(expr)) {
         defn->attributes().push_back(expr);
       }
+    }
+  }
+
+  void NameResolutionPass::visitTypeParams(LookupScope* scope, GenericDefn* defn) {
+    for (auto param : defn->typeParams()) {
+      llvm::SmallVector<Type*, 8> subtypes;
+      llvm::SmallVector<Type*, 8> supertypes;
+      for (auto constraint : param->ast()->constraints) {
+        if (constraint->kind == ast::Node::Kind::SUPERTYPE_CONSTRAINT) {
+          auto type = resolveType(scope, static_cast<const ast::UnaryOp*>(constraint)->arg);
+          if (!Type::isError(type)) {
+            supertypes.push_back(type);
+          }
+        } else {
+          auto type = resolveType(scope, constraint);
+          if (!Type::isError(type)) {
+            subtypes.push_back(type);
+          }
+        }
+      }
+      param->setSubtypeConstraints(_alloc->copyOf(subtypes));
+      // param->setSupertypeConstraints(_alloc->copyOf(supertypes));
     }
   }
 
@@ -853,9 +848,6 @@ namespace tempest::sema::pass {
 
       // DEFN,
       // TYPE_DEFN,
-      // CLASS_DEFN,
-      // STRUCT_DEFN,
-      // INTERFACE_DEFN,
       // TRAIT_DEFN,
       // EXTEND_DEFN,
       // OBJECT_DEFN,

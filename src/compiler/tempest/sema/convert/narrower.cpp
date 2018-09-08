@@ -1,11 +1,13 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/infer/types.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
+  using namespace tempest::sema::infer;
   using namespace llvm;
   using tempest::error::diag;
   using tempest::sema::transform::ApplySpecialization;
@@ -56,6 +58,26 @@ namespace tempest::sema::convert {
       }
       auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       return isEqualOrNarrower(l, lEnv, genType, newEnv);
+    }
+
+    if (l->kind == Type::Kind::INFERRED) {
+      auto lit = static_cast<const InferredType*>(l);
+      for (auto& constraint : lit->constraints) {
+        if (lit->isViable(constraint) && isEqualOrNarrower(constraint.value, lEnv, r, rEnv)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (r->kind == Type::Kind::INFERRED) {
+      auto rit = static_cast<const InferredType*>(r);
+      for (auto& constraint : rit->constraints) {
+        if (rit->isViable(constraint) && isEqualOrNarrower(l, lEnv, constraint.value, rEnv)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     // if (l->kind == Type::Kind::MODIFIED) {

@@ -53,17 +53,17 @@ TEST_CASE("Unification.primitive", "[sema]") {
 
   SECTION("Unify integer types") {
     REQUIRE(unify(result, &IntegerType::I8, &IntegerType::I8, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(unify(result, &IntegerType::I32, &IntegerType::I32, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE_FALSE(unify(result, &IntegerType::I8, &IntegerType::I16, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE_FALSE(unify(result, &IntegerType::I16, &IntegerType::I8, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(unify(result, &IntegerType::I16, &IntegerType::I8, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(unify(result, &IntegerType::I8, &IntegerType::I16, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
   }
 }
 
@@ -84,41 +84,41 @@ TEST_CASE("Unification.composite", "[sema]") {
     auto clsB = cast<TypeDefn>(mod->members()[1])->type();
     auto intI = cast<TypeDefn>(mod->members()[2])->type();
     auto clsC = cast<TypeDefn>(mod->members()[3])->type();
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsC, clsA, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsC, clsA, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE(unify(result, clsC, clsA, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE(unify(result, clsC, clsA, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsC, clsA, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsA, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsA, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE(unify(result, clsC, clsA, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE(unify(result, clsC, clsA, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsA, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsA, clsC, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE(unify(result, clsA, clsC, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsC, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsC, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE(unify(result, clsA, clsC, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsC, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE(unify(result, clsA, clsC, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsC, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsC, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE(unify(result, clsA, clsC, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsC, intI, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsC, intI, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE(unify(result, clsC, intI, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE(unify(result, clsC, intI, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsC, intI, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsC, intI, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsC, intI, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE(unify(result, clsC, intI, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE(unify(result, clsC, intI, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsC, intI, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, intI, clsC, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE(unify(result, intI, clsC, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, intI, clsC, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, intI, clsC, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE(unify(result, intI, clsC, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, intI, clsC, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE(unify(result, intI, clsC, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, intI, clsC, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, intI, clsC, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE(unify(result, intI, clsC, conditions, TypeRelation::SUPERTYPE, alloc));
 
     REQUIRE(result.size() == 0);
   }
@@ -152,41 +152,41 @@ TEST_CASE("Unification.composite", "[sema]") {
     auto clsC = cast<TypeDefn>(mod->members()[2])->type();
     auto letD = cast<ValueDefn>(mod->members()[3])->type();
 
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE(unify(result, clsA, clsA, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE(unify(result, clsA, clsA, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsA, clsB, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsB, clsC, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsC, clsB, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, clsB, letD, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE_FALSE(unify(result, clsB, letD, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE(unify(result, clsB, letD, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE(unify(result, clsB, letD, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE_FALSE(unify(result, clsB, letD, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsB, letD, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE_FALSE(unify(result, clsB, letD, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE(unify(result, clsB, letD, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE(unify(result, clsB, letD, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE_FALSE(unify(result, clsB, letD, conditions, TypeRelation::SUPERTYPE, alloc));
 
-    REQUIRE_FALSE(unify(result, letD, clsB, conditions, BindingPredicate::EQUAL, alloc));
-    REQUIRE(unify(result, letD, clsB, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
-    REQUIRE_FALSE(unify(result, letD, clsB, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
-    REQUIRE_FALSE(unify(result, letD, clsB, conditions, BindingPredicate::SUBTYPE, alloc));
-    REQUIRE(unify(result, letD, clsB, conditions, BindingPredicate::SUPERTYPE, alloc));
+    REQUIRE_FALSE(unify(result, letD, clsB, conditions, TypeRelation::EQUAL, alloc));
+    REQUIRE(unify(result, letD, clsB, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
+    REQUIRE_FALSE(unify(result, letD, clsB, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
+    REQUIRE_FALSE(unify(result, letD, clsB, conditions, TypeRelation::SUBTYPE, alloc));
+    REQUIRE(unify(result, letD, clsB, conditions, TypeRelation::SUPERTYPE, alloc));
 
     REQUIRE(result.size() == 0);
   }
@@ -207,26 +207,26 @@ TEST_CASE("Unification.composite", "[sema]") {
     env.args.push_back(&a);
 
     REQUIRE_FALSE(
-        unify(result, clsA, env, clsB, empty, conditions, BindingPredicate::EQUAL, alloc));
+        unify(result, clsA, env, clsB, empty, conditions, TypeRelation::EQUAL, alloc));
     REQUIRE(
-        unify(result, clsA, env, clsB, empty, conditions, BindingPredicate::ASSIGNABLE_FROM, alloc));
+        unify(result, clsA, env, clsB, empty, conditions, TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("i32"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
     result.clear();
     REQUIRE_FALSE(
-        unify(result, clsA, env, clsB, empty, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
+        unify(result, clsA, env, clsB, empty, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE_FALSE(
-        unify(result, clsA, env, clsB, empty, conditions, BindingPredicate::SUBTYPE, alloc));
+        unify(result, clsA, env, clsB, empty, conditions, TypeRelation::SUBTYPE, alloc));
     REQUIRE(
-        unify(result, clsA, env, clsB, empty, conditions, BindingPredicate::SUPERTYPE, alloc));
+        unify(result, clsA, env, clsB, empty, conditions, TypeRelation::SUPERTYPE, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("i32"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
     result.clear();
   }
 
@@ -246,27 +246,27 @@ TEST_CASE("Unification.composite", "[sema]") {
     env.args.push_back(&a);
 
     REQUIRE_FALSE(
-        unify(result, clsB, empty, clsA, env, conditions, BindingPredicate::EQUAL, alloc));
+        unify(result, clsB, empty, clsA, env, conditions, TypeRelation::EQUAL, alloc));
     REQUIRE(
-        unify(result, clsB, empty, clsA, env, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
+        unify(result, clsB, empty, clsA, env, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("i32"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
     result.clear();
     REQUIRE_FALSE(
         unify(result, clsB, empty, clsA, env, conditions,
-            BindingPredicate::ASSIGNABLE_FROM, alloc));
+            TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE_FALSE(
-        unify(result, clsB, empty, clsA, env, conditions, BindingPredicate::SUPERTYPE, alloc));
+        unify(result, clsB, empty, clsA, env, conditions, TypeRelation::SUPERTYPE, alloc));
     REQUIRE(
-        unify(result, clsB, empty, clsA, env, conditions, BindingPredicate::SUBTYPE, alloc));
+        unify(result, clsB, empty, clsA, env, conditions, TypeRelation::SUBTYPE, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("i32"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
     result.clear();
   }
 }
@@ -295,22 +295,22 @@ TEST_CASE("Unification.derived", "[sema]") {
     InferredType a(env.params[0], nullptr);
     env.args.push_back(&a);
 
-    REQUIRE(unify(result, argA, env, argB, empty, conditions, BindingPredicate::EQUAL, alloc));
+    REQUIRE(unify(result, argA, env, argB, empty, conditions, TypeRelation::EQUAL, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("bool"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
 
     REQUIRE(
         unify(result, argA, env, argB, empty, conditions,
-            BindingPredicate::ASSIGNABLE_FROM, alloc));
+            TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(
-        unify(result, argA, env, argB, empty, conditions, BindingPredicate::ASSIGNABLE_TO, alloc));
+        unify(result, argA, env, argB, empty, conditions, TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE(
-        unify(result, argA, env, argB, empty, conditions, BindingPredicate::SUBTYPE, alloc));
+        unify(result, argA, env, argB, empty, conditions, TypeRelation::SUBTYPE, alloc));
     REQUIRE(
-        unify(result, argA, env, argB, empty, conditions, BindingPredicate::SUPERTYPE, alloc));
+        unify(result, argA, env, argB, empty, conditions, TypeRelation::SUPERTYPE, alloc));
   }
 
   SECTION("Unify union with union") {
@@ -353,97 +353,97 @@ TEST_CASE("Unification.derived", "[sema]") {
     envC.args.push_back(&ct);
 
     // Generic union with generic union
-    REQUIRE(unify(result, typeA, envA, typeB, envB, conditions, BindingPredicate::EQUAL, alloc));
+    REQUIRE(unify(result, typeA, envA, typeB, envB, conditions, TypeRelation::EQUAL, alloc));
     REQUIRE(result.size() == 2);
     REQUIRE(result[0].param == &b);
     REQUIRE_THAT(result[0].value, TypeEQ("void"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
     REQUIRE(result[1].param == &a);
     REQUIRE_THAT(result[1].value, TypeEQ("bool"));
     REQUIRE(result[1].conditions.empty());
-    REQUIRE(result[1].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[1].predicate == TypeRelation::EQUAL);
 
     REQUIRE(unify(result, typeA, envA, typeB, envB, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(unify(result, typeA, envA, typeB, envB, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE(unify(result, typeA, envA, typeB, envB, conditions,
-        BindingPredicate::SUBTYPE, alloc));
+        TypeRelation::SUBTYPE, alloc));
     REQUIRE(unify(result, typeA, envA, typeB, envB, conditions,
-        BindingPredicate::SUPERTYPE, alloc));
+        TypeRelation::SUPERTYPE, alloc));
     result.clear();
 
     // Union with more than one type param - fail
     REQUIRE_FALSE(unify(result, typeA, envA, typeC, envC, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(result.size() == 0);
 
     // Generic union with non-generic - type parameter gets the leftover
-    REQUIRE(unify(result, typeA, envA, typeD, empty, conditions, BindingPredicate::EQUAL, alloc));
+    REQUIRE(unify(result, typeA, envA, typeD, empty, conditions, TypeRelation::EQUAL, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("bool"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::EQUAL);
+    REQUIRE(result[0].predicate == TypeRelation::EQUAL);
 
     REQUIRE(unify(result, typeA, envA, typeD, empty, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(unify(result, typeA, envA, typeD, empty, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE(unify(result, typeA, envA, typeD, empty, conditions,
-        BindingPredicate::SUBTYPE, alloc));
+        TypeRelation::SUBTYPE, alloc));
     REQUIRE(unify(result, typeA, envA, typeD, empty, conditions,
-        BindingPredicate::SUPERTYPE, alloc));
+        TypeRelation::SUPERTYPE, alloc));
     result.clear();
 
     // Generic union with smaller union - type parameter is undetermined
     REQUIRE_FALSE(unify(result, typeA, envA, typeE, empty, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(unify(result, typeA, envA, typeE, empty, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(unify(result, typeA, envA, typeE, empty, conditions,
-        BindingPredicate::SUPERTYPE, alloc));
+        TypeRelation::SUPERTYPE, alloc));
     REQUIRE_FALSE(unify(result, typeA, envA, typeE, empty, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE_FALSE(unify(result, typeA, envA, typeE, empty, conditions,
-        BindingPredicate::SUBTYPE, alloc));
+        TypeRelation::SUBTYPE, alloc));
     REQUIRE(result.empty());
 
     // Generic union with larger union - type parameter bound to temp union of leftovers
     REQUIRE_FALSE(unify(result, typeA, envA, typeF, empty, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(result.empty());
     REQUIRE(unify(result, typeA, envA, typeF, empty, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("bool | f32"));
     REQUIRE(result[0].conditions.empty());
     REQUIRE_FALSE(unify(result, typeA, envA, typeF, empty, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE(unify(result, typeA, envA, typeF, empty, conditions,
-        BindingPredicate::SUPERTYPE, alloc));
+        TypeRelation::SUPERTYPE, alloc));
     REQUIRE_FALSE(unify(result, typeA, envA, typeF, empty, conditions,
-        BindingPredicate::SUBTYPE, alloc));
+        TypeRelation::SUBTYPE, alloc));
     result.clear();
 
     // Flipped
     REQUIRE_FALSE(unify(result, typeF, empty, typeA, envA, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(result.empty());
     REQUIRE(unify(result, typeF, empty, typeA, envA, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("bool | f32"));
     REQUIRE(result[0].conditions.empty());
     REQUIRE_FALSE(unify(result, typeF, empty, typeA, envA, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(unify(result, typeF, empty, typeA, envA, conditions,
-        BindingPredicate::SUBTYPE, alloc));
+        TypeRelation::SUBTYPE, alloc));
     REQUIRE_FALSE(unify(result, typeF, empty, typeA, envA, conditions,
-        BindingPredicate::SUPERTYPE, alloc));
+        TypeRelation::SUPERTYPE, alloc));
   }
 
   SECTION("Unify union with non-union") {
@@ -466,31 +466,31 @@ TEST_CASE("Unification.derived", "[sema]") {
 
     // (i32 | void | T) is not the same as i32.
     REQUIRE_FALSE(unify(result, typeA, envA, typeB, empty, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(result.empty());
 
     // (i32 | void | T) should be assignable from i32.
     REQUIRE(unify(result, typeA, envA, typeB, empty, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(result.size() == 0); // Type of T is undetermined by this unification.
 
     REQUIRE_FALSE(unify(result, typeA, envA, typeB, empty, conditions,
-        BindingPredicate::ASSIGNABLE_TO, alloc));
+        TypeRelation::ASSIGNABLE_TO, alloc));
     REQUIRE_FALSE(unify(result, typeA, envA, typeB, empty, conditions,
-        BindingPredicate::SUBTYPE, alloc));
+        TypeRelation::SUBTYPE, alloc));
     REQUIRE(unify(result, typeA, envA, typeB, empty, conditions,
-        BindingPredicate::SUPERTYPE, alloc));
+        TypeRelation::SUPERTYPE, alloc));
     result.clear();
 
     // (i32 | void | T) can be assigned from f32 if T => f32.
     REQUIRE_FALSE(unify(result, typeA, envA, typeC, empty, conditions,
-        BindingPredicate::EQUAL, alloc));
+        TypeRelation::EQUAL, alloc));
     REQUIRE(unify(result, typeA, envA, typeC, empty, conditions,
-        BindingPredicate::ASSIGNABLE_FROM, alloc));
+        TypeRelation::ASSIGNABLE_FROM, alloc));
     REQUIRE(result.size() == 1);
     REQUIRE(result[0].param == &a);
     REQUIRE_THAT(result[0].value, TypeEQ("f32"));
     REQUIRE(result[0].conditions.empty());
-    REQUIRE(result[0].predicate == BindingPredicate::ASSIGNABLE_FROM);
+    REQUIRE(result[0].predicate == TypeRelation::ASSIGNABLE_FROM);
   }
 }

@@ -1060,20 +1060,38 @@ namespace tempest::parse {
       next();
 
       if (match(TOKEN_COLON)) {
-        auto type = typeExpression();
-        if (type == nullptr) {
-          skipUntil({TOKEN_RBRACKET, TOKEN_LBRACE});
-        } else {
-          tp->type = type;
+        NodeListBuilder builder(_alloc);
+        for (;;) {
+          auto type = typeExpression();
+          if (type == nullptr) {
+            skipUntil({TOKEN_RBRACKET, TOKEN_LBRACE});
+            break;
+          } else {
+            builder.append(type);
+          }
+          if (!match(TOKEN_AMP)) {
+            break;
+          }
         }
+        tp->constraints = builder.build();
       } else {
         if (match(TOKEN_TYPE_LE)) {
-          auto super = typeExpression();
-          if (super != nullptr) {
-            NodeListBuilder builder(_alloc);
-            builder.append(super);
-            tp->constraints = builder.build();
+          NodeListBuilder builder(_alloc);
+          for (;;) {
+            auto super = typeExpression();
+            if (super == nullptr) {
+              skipUntil({TOKEN_RBRACKET, TOKEN_LBRACE});
+              break;
+            } else {
+              builder.append(new (_alloc)
+                  ast::UnaryOp(Node::Kind::SUPERTYPE_CONSTRAINT, super->location, super));
+            }
+            if (!match(TOKEN_AMP)) {
+              break;
+            }
           }
+          tp->constraints = builder.build();
+          diag.error(location()) << "Supertype constraints are not supported yet.";
         } else if (match(TOKEN_ELLIPSIS)) {
           tp->variadic = true;
         }

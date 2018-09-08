@@ -84,6 +84,7 @@ namespace tempest::sema::pass {
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
 
     void visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast);
+    void visitTypeParams(LookupScope* scope, GenericDefn* defn);
     Expr* createNameRef(
         const source::Location& loc,
         const NameLookupResultRef& result,

@@ -22,14 +22,6 @@ namespace tempest::sema::infer {
   using namespace tempest::sema::convert;
   using tempest::error::diag;
 
-  void ConstraintSolver::addBindingConstraint(
-      const source::Location& loc,
-      const Type* dstType,
-      const Type* srcType,
-      BindingConstraint::Restriction restriction,
-      Conditions when) {
-  }
-
   void ConstraintSolver::addSite(OverloadSite* site) {
     site->ordinal = _sites.size();
     _sites.push_back(site);
@@ -84,7 +76,7 @@ namespace tempest::sema::infer {
                 cc->paramTypes[paramIndex],
                 callSite->argTypes[i],
                 when,
-                BindingPredicate::ASSIGNABLE_FROM,
+                TypeRelation::ASSIGNABLE_FROM,
                 _alloc)) {
               cc->rejection.reason = Rejection::CONVERSION_FAILURE;
               cc->rejection.argIndex = i;
@@ -107,7 +99,7 @@ namespace tempest::sema::infer {
           assign.dstType,
           assign.srcType,
           when,
-          BindingPredicate::ASSIGNABLE_FROM,
+          TypeRelation::ASSIGNABLE_FROM,
           _alloc)) {
         diag.error(assign.location) << "Cannot convert type " << assign.srcType << " to "
             << assign.dstType << ".";
@@ -318,6 +310,15 @@ namespace tempest::sema::infer {
       for (auto& assign : _assignments) {
         auto result = isAssignable(assign.dstType, assign.srcType);
         rankings.count[int(result.rank)] += 1;
+      }
+      for (auto& constraint : _bindings) {
+        if (constraint.candidate->isViable()) {
+          if (constraint.predicate == TypeRelation::SUBTYPE) {
+            if (!isEqualOrNarrower(constraint.dstType, constraint.srcType)) {
+              rankings.count[int(ConversionRank::ERROR)] += 1;
+            }
+          }
+        }
       }
 
       if (rankings.isBetterThan(_bestRankings)) {
@@ -577,14 +578,14 @@ namespace tempest::sema::infer {
           for (auto& constraint : inferred->constraints) {
             if (inferred->isViable(constraint)) {
               if (constraint.value->kind != Type::Kind::INFERRED) {
-                if (constraint.predicate == BindingPredicate::EQUAL) {
+                if (constraint.predicate == TypeRelation::EQUAL) {
                   // If there are multiple equal constraints, they must be equal to each other.
                   if (!equivalent) {
                     equivalent = constraint.value;
                   } else if (!isEqual(equivalent, constraint.value)) {
                     assert(false && "Inconsistent");
                   }
-                } else if (constraint.predicate == BindingPredicate::ASSIGNABLE_FROM) {
+                } else if (constraint.predicate == TypeRelation::ASSIGNABLE_FROM) {
                   // If there are multiple assignableFroms, then pick the more general one,
                   // that is, the one that can be assigned from all the others. If they are
                   // disjoint, that's an error.
@@ -599,7 +600,7 @@ namespace tempest::sema::infer {
                       assignableFrom = constraint.value;
                     }
                   }
-                } else if (constraint.predicate == BindingPredicate::ASSIGNABLE_TO) {
+                } else if (constraint.predicate == TypeRelation::ASSIGNABLE_TO) {
                   // If there are multiple assignableTos, then pick the more specific one,
                   // that is, the one that can be assigned to all the others. If they are
                   // disjoint, that's an error.

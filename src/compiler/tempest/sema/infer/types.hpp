@@ -5,10 +5,6 @@
   #include "tempest/sema/graph/type.hpp"
 #endif
 
-// #ifndef TEMPEST_SEMA_INFER_CONSTRAINT_HPP
-//   #include "tempest/sema/infer/constraint.hpp"
-// #endif
-
 #ifndef TEMPEST_SEMA_INFER_CONDITIONS_HPP
   #include "tempest/sema/infer/conditions.hpp"
 #endif
@@ -18,7 +14,8 @@ namespace tempest::sema::infer {
   class OverloadCandidate;
   class ConstraintSolver;
 
-  enum class BindingPredicate {
+  /** A testable relation between two types. */
+  enum class TypeRelation {
     EQUAL,
     SUBTYPE,
     SUPERTYPE,
@@ -26,13 +23,13 @@ namespace tempest::sema::infer {
     ASSIGNABLE_TO,
   };
 
-  inline BindingPredicate inversePredicate(BindingPredicate predicate) {
+  inline TypeRelation inverseRelation(TypeRelation predicate) {
     switch (predicate) {
-      case BindingPredicate::EQUAL: return BindingPredicate::EQUAL;
-      case BindingPredicate::SUBTYPE: return BindingPredicate::SUPERTYPE;
-      case BindingPredicate::SUPERTYPE: return BindingPredicate::SUBTYPE;
-      case BindingPredicate::ASSIGNABLE_FROM: return BindingPredicate::ASSIGNABLE_TO;
-      case BindingPredicate::ASSIGNABLE_TO: return BindingPredicate::ASSIGNABLE_FROM;
+      case TypeRelation::EQUAL: return TypeRelation::EQUAL;
+      case TypeRelation::SUBTYPE: return TypeRelation::SUPERTYPE;
+      case TypeRelation::SUPERTYPE: return TypeRelation::SUBTYPE;
+      case TypeRelation::ASSIGNABLE_FROM: return TypeRelation::ASSIGNABLE_TO;
+      case TypeRelation::ASSIGNABLE_TO: return TypeRelation::ASSIGNABLE_FROM;
     }
   }
 
@@ -63,12 +60,12 @@ namespace tempest::sema::infer {
   public:
     struct Constraint {
       const Type* value;
-      BindingPredicate predicate;
+      TypeRelation predicate;
       Conditions when;
 
       Constraint(
         const Type* value,
-        BindingPredicate predicate,
+        TypeRelation predicate,
         Conditions when)
         : value(value)
         , predicate(predicate)

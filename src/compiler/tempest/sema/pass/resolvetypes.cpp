@@ -31,6 +31,7 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::ParameterAssignmentsBuilder;
   using tempest::sema::infer::ParamError;
   using tempest::sema::infer::SolutionTransform;
+  using tempest::sema::infer::TypeRelation;
   using tempest::sema::transform::ApplySpecialization;
 
   void ResolveTypesPass::run() {
@@ -139,15 +140,6 @@ namespace tempest::sema::pass {
 
   void ResolveTypesPass::visitFunctionDefn(FunctionDefn* fd) {
     auto prevSubject = setSubject(fd);
-//   @accept(spark.graph.defn.Function)
-//   def visitFunction(self, func):
-//     '@type func: spark.graph.graph.Function'
-//     if func in self.membersVisited:
-//       return
-//     if not func.isMutable():
-//       self.membersVisited.add(func)
-//       return
-//     savedSubject = self.nameLookup.setSubject(func)
 //     savedTempVars = self.tempVarTypes
 //     self.tempVarTypes = {}
 
@@ -203,41 +195,6 @@ namespace tempest::sema::pass {
     }
   }
 
-//   @accept(spark.graph.defn.ValueDefn)
-//   def visitValueDefn(self, vdef):
-//     '@type vdef: spark.graph.graph.ValueDefn'
-//     if vdef in self.membersVisited:
-//       return
-//     if vdef.hasDefinedIn():
-//       savedSubject = self.nameLookup.setSubject(vdef.getDefinedIn())
-//     self.visitAttributes(vdef)
-//     if vdef.hasDefinedIn():
-//       self.nameLookup.setSubject(savedSubject)
-
-//     initType = None
-//     if not vdef.hasType() and not vdef.hasInit():
-//       assert not vdef.hasAstType()
-//       assert not vdef.hasAstInit()
-//       self.errorAt(vdef, "Variable must either have an explicit type or an initializer.")
-//       vdef.setType(graph.ErrorType.defaultInstance())
-//     elif vdef.hasType():
-//       initType = vdef.getType()
-//       self.membersVisited.add(vdef)
-// #     print(vdef.getName(), vdef.hasType(), vdef.hasInit())
-//     if vdef.hasInit():
-//       if vdef.hasDefinedIn():
-//         savedSubject = self.nameLookup.setSubject(vdef)
-//       initType = self.assignTypes(vdef.getInit(), initType)
-//       if vdef.hasDefinedIn():
-//         self.nameLookup.setSubject(savedSubject)
-//       assert initType, (vdef.getName(), type(vdef.getInit()))
-//       if not vdef.hasType():
-//         initType = self.chooseIntegerType(vdef.getInit(), initType)
-//     if not vdef.hasType() and initType:
-//       vdef.setType(initType)
-// #     vdef.getType().freeze()
-//     self.membersVisited.add(vdef)
-
 //   @accept(spark.graph.defn.Parameter)
 //   def visitParameter(self, param):
 //     '@type param: spark.graph.graph.Parameter'
@@ -273,9 +230,6 @@ namespace tempest::sema::pass {
     // cs = constraintsolver.ConstraintSolver(
     //     location, self, self.typeStore, self.nameLookup.getSubject())
     auto errorCount = diag.errorCount();
-    //   if self.nameLookup.getSubject().getName() in TRACE_SUBJECTS:
-    //     debug.write('tracing:', self.nameLookup.getSubject().getName())
-    //     debug.tracing = True
     auto exprType = visitExpr(e, cs);
     assert(exprType != nullptr);
     if (errorCount != diag.errorCount()) {
@@ -284,9 +238,6 @@ namespace tempest::sema::pass {
 
     // TODO: Make sure result is a valid expression, not a type name or non-expression.
 
-    // diag.debug() << "Expression type: " << exprType;
-
-    //   assert exprType.typeId() != graph.TypeKind.BASE, debug.format(expr)
     //   cs.renamer.renamerChecker.traverseType(exprType)
     if (dstType != nullptr && dstType->kind != Type::Kind::VOID) {
       if (exprType->kind != Type::Kind::NEVER) {
@@ -616,6 +567,17 @@ namespace tempest::sema::pass {
         transform.transformArray(mappedParamTypes, function->type()->paramTypes);
         cc->paramTypes = cs.alloc().copyOf(mappedParamTypes);
         returnType = transform.transform(returnType);
+
+        // Add constraints on type arguments
+        for (size_t i = 0; i < cc->typeArgs.size(); i += 1) {
+          auto typeParam = function->allTypeParams()[i];
+          auto typeArg = cc->typeArgs[i];
+          for (auto subtype : typeParam->subtypeConstraints()) {
+            cs.addBindingConstraint(
+                site->location, typeArg, transform.transform(subtype),
+                TypeRelation::SUBTYPE, cc);
+          }
+        }
       } else {
         cc->paramTypes = function->type()->paramTypes;
       }

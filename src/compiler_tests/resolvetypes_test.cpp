@@ -456,4 +456,10 @@ TEST_CASE("ResolveTypes", "[sema]") {
       ),
       Catch::Contains("T cannot be bound to type f32, it must be a subtype of i8"));
   }
+
+  SECTION("Resolve addition operator") {
+    auto mod = compile(cu, "fn x(arg: i32) => arg + 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
 }

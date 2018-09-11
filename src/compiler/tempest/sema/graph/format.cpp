@@ -71,7 +71,8 @@ namespace tempest::sema::graph {
       }
 
       case Member::Kind::TYPE_PARAM: {
-        assert(false && "Implement");
+        auto tp = static_cast<const TypeParameter*>(m);
+        out << tp->name();
         break;
       }
 
@@ -445,9 +446,9 @@ namespace tempest::sema::graph {
       case Expr::Kind::ADD: {
         auto op = static_cast<const BinaryOp*>(e);
         out << "(";
-        visitExpr(op->lhs);
+        visitExpr(op->args[0]);
         out << " + ";
-        visitExpr(op->rhs);
+        visitExpr(op->args[1]);
         out << ")";
         break;
       }

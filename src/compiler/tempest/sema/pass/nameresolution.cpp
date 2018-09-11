@@ -578,36 +578,50 @@ namespace tempest::sema::pass {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) BinaryOp(Expr::Kind::ADD, lhs->location | rhs->location, lhs, rhs);
+        auto expr = new (*_alloc) BinaryOp(
+            Expr::Kind::ADD, lhs->location | rhs->location, lhs, rhs);
+        expr->lowered = resolveOperatorName(op->location, scope, "infixAdd");
+        return expr;
       }
 
       case ast::Node::Kind::SUB: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) BinaryOp(Expr::Kind::SUBTRACT, lhs->location | rhs->location, lhs, rhs);
+        auto expr = new (*_alloc) BinaryOp(
+            Expr::Kind::SUBTRACT, lhs->location | rhs->location, lhs, rhs);
+        expr->lowered = resolveOperatorName(op->location, scope, "infixSubtract");
+        return expr;
       }
 
       case ast::Node::Kind::MUL: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) BinaryOp(Expr::Kind::MULTIPLY, lhs->location | rhs->location, lhs, rhs);
+        auto expr = new (*_alloc) BinaryOp(
+            Expr::Kind::MULTIPLY, lhs->location | rhs->location, lhs, rhs);
+        expr->lowered = resolveOperatorName(op->location, scope, "infixMultiply");
+        return expr;
       }
 
       case ast::Node::Kind::DIV: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) BinaryOp(Expr::Kind::DIVIDE, lhs->location | rhs->location, lhs, rhs);
+        auto expr = new (*_alloc) BinaryOp(
+            Expr::Kind::DIVIDE, lhs->location | rhs->location, lhs, rhs);
+        expr->lowered = resolveOperatorName(op->location, scope, "infixDivide");
+        return expr;
       }
 
       case ast::Node::Kind::MOD: {
         auto op = static_cast<const ast::Oper*>(node);
         auto lhs = visitExpr(scope, op->operands[0]);
         auto rhs = visitExpr(scope, op->operands[1]);
-        return new (*_alloc) BinaryOp(
+        auto expr = new (*_alloc) BinaryOp(
             Expr::Kind::REMAINDER, lhs->location | rhs->location, lhs, rhs);
+        expr->lowered = resolveOperatorName(op->location, scope, "infixRemainder");
+        return expr;
       }
 
       case ast::Node::Kind::BIT_AND: {
@@ -747,7 +761,7 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::CALL: {
         auto op = static_cast<const ast::Oper*>(node);
-        auto fn = visitExpr(scope, op->op);
+        auto fn = resolveFunctionName(scope, op->op);
         if (Expr::isError(fn)) {
           return fn;
         }
@@ -1071,17 +1085,62 @@ namespace tempest::sema::pass {
     }
   }
 
+  Expr* NameResolutionPass::resolveFunctionName(LookupScope* scope, const ast::Node* node) {
+    // Function names are allowed to return an empty result because it can be filled in later
+    // via ADL.
+    if (node->kind == ast::Node::Kind::IDENT) {
+      auto ident = static_cast<const ast::Ident*>(node);
+      NameLookupResult result;
+      if (!resolveDefnName(scope, node, result, true)) {
+        return &Expr::ERROR;
+      }
+
+      if (result.size() > 0) {
+        return createNameRef(node->location, result,
+            cast_or_null<Defn>(scope->subject()),
+            nullptr, false, true);
+      } else {
+        auto mref = new (*_alloc) MemberListExpr(
+            Expr::Kind::FUNCTION_REF_OVERLOAD, ident->location, ident->name,
+            llvm::ArrayRef<Member*>());
+        mref->useADL = true;
+        return mref;
+      }
+    } else {
+      return visitExpr(scope, node);
+    }
+  }
+
+  Expr* NameResolutionPass::resolveOperatorName(
+      const Location& loc, LookupScope* scope, const StringRef& name) {
+    NameLookupResult result;
+    scope->lookup(name, result);
+    if (result.size() > 0) {
+      return createNameRef(loc, result,
+          cast_or_null<Defn>(scope->subject()),
+          nullptr, false, true);
+    } else {
+      auto mref = new (*_alloc) MemberListExpr(
+          Expr::Kind::FUNCTION_REF_OVERLOAD, loc, name,
+          llvm::ArrayRef<Member*>());
+      mref->useADL = true;
+      return mref;
+    }
+  }
+
   Expr* NameResolutionPass::createNameRef(
       const Location& loc,
       const NameLookupResultRef& result,
       Defn* subject,
       Expr* stem,
-      bool preferPrivate) {
+      bool preferPrivate,
+      bool useADL) {
     NameLookupResult vars;
     NameLookupResult functions;
     NameLookupResult types;
     NameLookupResult privateMembers;
     NameLookupResult protectedMembers;
+
     for (auto member : result) {
       auto m = unwrapSpecialization(member);
       if (!isVisibleMember(subject, m)) {
@@ -1137,6 +1196,7 @@ namespace tempest::sema::pass {
       } else {
         auto mref = new (*_alloc) MemberListExpr(
             Expr::Kind::FUNCTION_REF_OVERLOAD, loc, result[0]->name(), _alloc->copyOf(functions));
+        mref->useADL = useADL;
         mref->stem = stem;
         return mref;
       }
@@ -1147,12 +1207,15 @@ namespace tempest::sema::pass {
   // This handles compound names such as A, A.B.C, A[X].B[Y], but not (expression).B.
   // The result is an array of possibly overloaded definitions.
   bool NameResolutionPass::resolveDefnName(
-    LookupScope* scope, const ast::Node* node, NameLookupResultRef& result) {
+    LookupScope* scope, const ast::Node* node, NameLookupResultRef& result, bool allowEmpty) {
     switch (node->kind) {
       case ast::Node::Kind::IDENT: {
         auto ident = static_cast<const ast::Ident*>(node);
         scope->lookup(ident->name, result);
         if (result.empty()) {
+          if (allowEmpty) {
+            return true;
+          }
           diag.error(node) << "Name not found: " << ident->name;
           ClosestName closest(ident->name);
           scope->forEach(std::ref(closest));
@@ -1188,6 +1251,7 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::SPECIALIZE: {
         auto spec = static_cast<const ast::Oper*>(node);
+        // TODO: Shouldn't this be resolveDefnName?
         auto base = resolveType(scope, spec->op);
         if (Type::isError(base)) {
           return false;

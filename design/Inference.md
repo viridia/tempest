@@ -123,3 +123,54 @@ However, it an also be a list of bindings:
     * assignable-to
     * assignable-from
   * the overloads upon which this type binding depends
+
+## Arithmetic operators:
+
+trait InfixAdd[T, Result = T] {
+  fn add(t: T) -> Result;
+}
+
+implement InfixAdd[i8] for i8 {
+  __intrinsic__ fn add(t: i8) -> i8;
+}
+
+implement InfixAdd[i16] for i16 {
+  __intrinsic__ fn add(t: i16) -> i16;
+}
+
+implement InfixAdd[i32] for i32 {
+  __intrinsic__ fn add(t: i32) -> i32;
+}
+
+implement InfixAdd[i64] for i64 {
+  __intrinsic__ fn add(t: i64) -> i64;
+}
+
+// This is way simpler. The only question is, what scope does it live in?
+// Ans: I think we're going to have to implement a limited form of ADL.
+// The problem with ADL is that it completely borks name resolution.
+// i.e. infixAdd(1, 2) is meaningless until we know the type of 1 and 2.
+// OK so CALL needs to handle idents specially.
+
+// TODO:
+// 1) Static methods.
+// 2) Static methods of primitive types.
+// 3) Core namespace
+// ?) Intrinsics
+
+static __intrinsic__ fn infixAdd[T: i64](l: T, r: T) -> T;
+static __intrinsic__ fn infixAdd[T: u64](l: T, r: T) -> T;
+static __intrinsic__ fn infixAdd[T: f64](l: T, r: T) -> T;
+
+trait InfixSubtract {
+  fn subtract(t: Self) -> Self;
+}
+
+trait InfixArithmetic[T] extends
+    InfixAdd[T], InfixSubtract[T], InfixMultiply[T], InfixDivide[T], InfixRemainder[T];
+trait InfixShift[T] extends InfixLeftShift[T], InfixRightShift[T];
+trait InfixBitwise[T] extends InfixBitAnd[T], InfixBitOr[T], InfixBitXor[T], InfixComplement[T];
+
+### Implementation
+
+A + B looks at all InfixAdds in scope.

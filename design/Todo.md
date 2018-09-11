@@ -1,6 +1,5 @@
 # TODOs
 
-* Generic type constraints
 * Infix operators
 * Member access operator
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.

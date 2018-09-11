@@ -1,3 +1,4 @@
+#include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/module.hpp"
@@ -7,6 +8,7 @@
 #include <llvm/Support/Casting.h>
 
 namespace tempest::sema::names {
+  using tempest::intrinsic::IntrinsicDefns;
   using tempest::sema::graph::Module;
   using tempest::sema::graph::PrimitiveType;
   using tempest::sema::graph::NameLookupResult;
@@ -14,6 +16,10 @@ namespace tempest::sema::names {
 
   void ModuleScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
     module->memberScope()->lookupName(name, result);
+    // TODO: Core module.
+    if (result.empty()) {
+      IntrinsicDefns::get()->builtinScope->lookupName(name, result);
+    }
     if (result.empty() && prev) {
       prev->lookup(name, result);
     }
@@ -21,6 +27,8 @@ namespace tempest::sema::names {
 
   void ModuleScope::forEach(const NameCallback& nameFn) {
     module->memberScope()->forAllNames(nameFn);
+    // TODO: Core module.
+    IntrinsicDefns::get()->builtinScope->forAllNames(nameFn);
     if (prev) {
       prev->forEach(nameFn);
     }

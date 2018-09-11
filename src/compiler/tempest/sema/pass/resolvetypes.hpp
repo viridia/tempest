@@ -11,6 +11,7 @@
 
 namespace tempest::sema::graph {
   class ApplyFnOp;
+  class BinaryOp;
   class BlockStmt;
   class LocalVarStmt;
   class DefnRef;
@@ -79,18 +80,20 @@ namespace tempest::sema::pass {
     size_t _importSourcesProcessed = 0;
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
     GenericDefn* _subject = nullptr;
+    Module* _module = nullptr;
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
+    Type* visitInfixOperator(BinaryOp* expr, ConstraintSolver& cs);
     Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
     Type* visitCallName(
-        ApplyFnOp* callExpr, Expr* fn, const llvm::ArrayRef<Expr*>& args, ConstraintSolver& cs);
+        ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs);
     Type* addCallSite(
         ApplyFnOp* callExpr,
         Expr* fn,
-        const llvm::ArrayRef<Member*>& methodList,
-        const llvm::ArrayRef<Expr*>& args,
-        const llvm::ArrayRef<Type*>& argTypes,
+        const ArrayRef<Member*>& methodList,
+        const ArrayRef<Expr*>& args,
+        const ::ArrayRef<Type*>& argTypes,
         ConstraintSolver& cs);
     Type* visitVarName(DefnRef* expr, ConstraintSolver& cs);
     Type* visitFunctionName(DefnRef* expr, ConstraintSolver& cs);
@@ -101,6 +104,7 @@ namespace tempest::sema::pass {
     void updateCallSite(ConstraintSolver& cs, CallSite* site);
     void reorderCallingArgs(
         ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc);
+    bool lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes);
     Type* chooseIntegerType(Expr* expr, Type* ty);
 
     GenericDefn* setSubject(GenericDefn* subject) {

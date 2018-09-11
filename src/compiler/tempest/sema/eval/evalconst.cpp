@@ -92,7 +92,7 @@ namespace tempest::sema::eval {
         auto op = static_cast<const BinaryOp*>(e);
         EvalResult lhsResult;
         EvalResult rhsResult;
-        if (!evalConstExpr(op->lhs, lhsResult) || !evalConstExpr(op->rhs, rhsResult)) {
+        if (!evalConstExpr(op->args[0], lhsResult) || !evalConstExpr(op->args[1], rhsResult)) {
           return false;
         }
 

@@ -540,7 +540,7 @@ namespace tempest::sema::graph {
       : GenericDefn(Kind::FUNCTION, location, name, definedIn)
       , _type(nullptr)
       , _paramScope(std::make_unique<SymbolTable>())
-      // , _intrinsic(nullptr)
+      , _intrinsic(false)
       , _selfType(nullptr)
       , _body(nullptr)
       , _constructor(false)
@@ -595,9 +595,9 @@ namespace tempest::sema::graph {
     bool isVariadic() const { return _variadic; }
     void setVariadic(bool variadic) { _variadic = variadic; }
 
-    /** If this type is an intrinsic type, here is the information for it. */
-    // intrinsic::IntrinsicFunction* intrinsic() const { return _intrinsic; }
-    // void setIntrinsic(intrinsic::IntrinsicFunction* i) { _intrinsic = i; }
+    /** True if this is an intrinsic function. */
+    bool isIntrinsic() const { return _intrinsic; }
+    void setIntrinsic(bool intrinsic) { _intrinsic = intrinsic; }
 
     /** Method index for this function in a dispatch table. */
     int32_t methodIndex() const { return _methodIndex; }
@@ -613,7 +613,7 @@ namespace tempest::sema::graph {
     std::vector<ParameterDefn*> _params;
     std::unique_ptr<SymbolTable> _paramScope;
     DefnList _localDefns;
-    // intrinsic::IntrinsicFunction* _intrinsic;
+    bool _intrinsic;
     Type* _selfType;
     Expr* _body;
     bool _constructor;

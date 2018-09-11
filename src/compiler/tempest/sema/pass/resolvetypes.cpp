@@ -49,6 +49,7 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::begin(Module* mod) {
+    _module = mod;
     _alloc = &mod->semaAlloc();
   }
 
@@ -333,6 +334,13 @@ namespace tempest::sema::pass {
   //     self.assignTypes(expr.getArg(), self.typeStore.getEssentialTypes()['throwable'].getType())
   //   return self.NO_RETURN
 
+      case Expr::Kind::ADD:
+      case Expr::Kind::SUBTRACT:
+      case Expr::Kind::MULTIPLY:
+      case Expr::Kind::DIVIDE:
+      case Expr::Kind::REMAINDER:
+        return visitInfixOperator(static_cast<BinaryOp*>(e), cs);
+
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(e->kind);
         assert(false && "Invalid expression kind");
@@ -386,6 +394,35 @@ namespace tempest::sema::pass {
     }
 
     return &Type::NOT_EXPR;
+  }
+
+  Type* ResolveTypesPass::visitInfixOperator(BinaryOp* expr, ConstraintSolver& cs) {
+    StringRef funcName;
+    switch (expr->kind) {
+      case Expr::Kind::ADD:
+        funcName = "infixAdd";
+        break;
+      case Expr::Kind::SUBTRACT:
+        funcName = "infixSubtract";
+        break;
+      case Expr::Kind::MULTIPLY:
+        funcName = "infixMultiply";
+        break;
+      case Expr::Kind::DIVIDE:
+        funcName = "infixDivide";
+        break;
+      case Expr::Kind::REMAINDER:
+        funcName = "infixRemainder";
+        break;
+      default:
+        assert(false && "Invalid binary op");
+    }
+
+    cs.binOps().push_back(expr);
+    auto callExpr = new (*_alloc) ApplyFnOp(
+        Expr::Kind::CALL, expr->location, expr->lowered, expr->args);
+    expr->lowered = callExpr;
+    return visitCallName(callExpr, callExpr->function, expr->args, cs);
   }
 
   Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
@@ -936,7 +973,6 @@ namespace tempest::sema::pass {
   // Type Inference
 
   Type* ResolveTypesPass::doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs) {
-
 //   def doTypeInference(self, expr, exprType, cs):
 //     try:
 //       solutionEnv = None
@@ -950,36 +986,21 @@ namespace tempest::sema::pass {
     }
 
     SolutionTransform transform(*_alloc);
-//       debug.tracing = False
-//       if cs.checkSolution():
-//         solutionEnv = cs.createSolutionEnv()
     applySolution(cs);
-//         self.applySolution(cs, expr, solutionEnv)
+
+    // For binary operators which have been lowered to function calls, update the result type.
+    for (auto binOp : cs.binOps()) {
+      auto callExpr = cast<ApplyFnOp>(binOp->lowered);
+      assert(callExpr->type);
+      binOp->type = callExpr->type;
+    }
+
 //         if exprType:
 //           finalExprType = typesubstitution.ApplyEnv(solutionEnv).traverseType(exprType)
 //           finalExprType = callsite.CollapseAmbiguousTypes(
 //               self.typeStore).traverseType(finalExprType)
-//           renamer.EnsureAllTypeVarsAreNormalized().traverseType(finalExprType)
-//           if self.nameLookup.getSubject().getName() in TRACE_SUBJECTS:
-//             cs.dump()
-//             self.infoAt(expr, 'Inference for expression')
-//             self.infoFmt('solution = {0}', debug.format(solutionEnv))
 //           return finalExprType
     return const_cast<Type*>(transform.transform(exprType));
-//       else:
-//         debug.write(
-//             "--------------------------------------------------------------------------------")
-//         cs.dump()
-//         return graph.ErrorType.defaultInstance()
-//     except AssertionError as e:
-//       self.info(
-//           "--------------------------------------------------------------------------------")
-//       self.errorAt(expr, 'Assertion error')
-//       cs.dump()
-//       if solutionEnv:
-//         debug.write('Solution Env:', solutionEnv)
-//       raise Exception() from e
-    // assert(false && "Implement");
   }
 
   void ResolveTypesPass::applySolution(ConstraintSolver& cs) {
@@ -1213,11 +1234,18 @@ namespace tempest::sema::pass {
     }
 
     callExpr->args = _alloc->copyOf(argList);
+    callExpr->type = const_cast<Type *>(cc->returnType); // TODO: Transform
   }
 
   // Utilities
 
+  bool ResolveTypesPass::lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes) {
+    assert(false);
+  }
+
   Type* ResolveTypesPass::chooseIntegerType(Expr* expr, Type* ty) {
+    assert(expr);
+    assert(ty);
     // if isinstance(expr, graph.Pack):
     //   assert isinstance(ty, graph.TupleType)
     //   assert len(expr.getArgs()) == len(ty.getMembers())

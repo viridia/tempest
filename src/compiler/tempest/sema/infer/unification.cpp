@@ -139,6 +139,8 @@ namespace tempest::sema::infer {
       }
       auto ltParam = ltTypeVar->param;
       if (!ltParam->subtypeConstraints().empty()) {
+        diag.debug() << "ltParam: " << ltParam;
+        diag.debug() << "rt: " << rt;
         assert(false && "Implement subtype constraints");
       }
       return false;

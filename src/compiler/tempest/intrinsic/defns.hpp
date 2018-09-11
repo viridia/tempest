@@ -9,17 +9,55 @@
   #include "tempest/sema/graph/defn.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_TYPESTORE_HPP
+  #include "tempest/sema/graph/typestore.hpp"
+#endif
+
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
+#endif
+
 namespace tempest::intrinsic {
+  using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Member;
+  using tempest::sema::graph::SymbolTable;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeDefn;
+  using tempest::sema::graph::TypeStore;
   using tempest::sema::graph::ValueDefn;
+
+  struct ArithmeticOperators {
+    std::unique_ptr<FunctionDefn> add;
+    std::unique_ptr<FunctionDefn> subtract;
+    std::unique_ptr<FunctionDefn> multiply;
+    std::unique_ptr<FunctionDefn> divide;
+    std::unique_ptr<FunctionDefn> remainder;
+  };
+
+  struct ShiftOperators {
+    std::unique_ptr<FunctionDefn> lsh;
+    std::unique_ptr<FunctionDefn> rsh;
+  };
+
+  struct BitwisOperators {
+    std::unique_ptr<FunctionDefn> bitOr;
+    std::unique_ptr<FunctionDefn> bitAnd;
+    std::unique_ptr<FunctionDefn> bitXor;
+  };
+
+  struct RelationalOperators {
+    std::unique_ptr<FunctionDefn> lt;
+    std::unique_ptr<FunctionDefn> le;
+    std::unique_ptr<FunctionDefn> gt;
+    std::unique_ptr<FunctionDefn> ge;
+  };
 
   /** Class to contain all of the various intrinsic definitions. */
   class IntrinsicDefns {
   public:
     IntrinsicDefns();
 
+    std::unique_ptr<SymbolTable> builtinScope;
     std::unique_ptr<TypeDefn> objectClass;
     std::unique_ptr<TypeDefn> throwableClass;
     // std::unique_ptr<TypeDefn*> classDescriptorStruct;
@@ -27,18 +65,17 @@ namespace tempest::intrinsic {
     // std::unique_ptr<TypeDefn*> iterableTrait;
     // std::unique_ptr<TypeDefn*> iteratorTrait;
 
-    // Operator traits
-    std::unique_ptr<TypeDefn> additionTrait;
-    std::unique_ptr<TypeDefn> subtractionTrait;
-    std::unique_ptr<TypeDefn> multiplicationTrait;
-    std::unique_ptr<TypeDefn> divisionTrait;
-    std::unique_ptr<TypeDefn> modulusTrait;
+    ArithmeticOperators intOps;
+    ArithmeticOperators uintOps;
+    ArithmeticOperators floatOps;
 
     // Singleton getter.
     static IntrinsicDefns* get();
 
   private:
+    TypeStore _types;
     std::unique_ptr<TypeDefn> makeTypeDefn(Type::Kind kind, llvm::StringRef name);
+    std::unique_ptr<FunctionDefn> makeInfixOp(llvm::StringRef name, Type* argType);
     ValueDefn* addValueDefn(
         std::unique_ptr<TypeDefn>& td,
         Member::Kind kind,

@@ -320,8 +320,8 @@ namespace tempest::gen {
 
       case Expr::Kind::ADD: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFAdd(lhs, rhs);
         } else {
@@ -331,8 +331,8 @@ namespace tempest::gen {
 
       case Expr::Kind::SUBTRACT: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFSub(lhs, rhs);
         } else {
@@ -342,8 +342,8 @@ namespace tempest::gen {
 
       case Expr::Kind::MULTIPLY: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFMul(lhs, rhs);
         } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
@@ -353,8 +353,8 @@ namespace tempest::gen {
 
       case Expr::Kind::DIVIDE: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFDiv(lhs, rhs);
         } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
@@ -370,8 +370,8 @@ namespace tempest::gen {
 
       case Expr::Kind::REMAINDER: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (auto itype = dyn_cast<IntegerType>(iop->type)) {
           if (itype->isUnsigned()) {
             return _builder.CreateURem(lhs, rhs);
@@ -385,8 +385,8 @@ namespace tempest::gen {
 
       case Expr::Kind::EQ: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFCmpOEQ(lhs, rhs);
         } else {
@@ -396,8 +396,8 @@ namespace tempest::gen {
 
       case Expr::Kind::NE: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFCmpONE(lhs, rhs);
         } else {
@@ -407,8 +407,8 @@ namespace tempest::gen {
 
       case Expr::Kind::LT: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFCmpOLT(lhs, rhs);
         } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
@@ -424,8 +424,8 @@ namespace tempest::gen {
 
       case Expr::Kind::LE: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFCmpOLE(lhs, rhs);
         } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
@@ -441,8 +441,8 @@ namespace tempest::gen {
 
       case Expr::Kind::GT: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFCmpOGT(lhs, rhs);
         } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
@@ -458,8 +458,8 @@ namespace tempest::gen {
 
       case Expr::Kind::GE: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lhs = visitExpr(iop->lhs);
-        auto rhs = visitExpr(iop->rhs);
+        auto lhs = visitExpr(iop->args[0]);
+        auto rhs = visitExpr(iop->args[1]);
         if (iop->type->kind == Type::Kind::FLOAT) {
           return _builder.CreateFCmpOGE(lhs, rhs);
         } else if (auto itype = dyn_cast<IntegerType>(iop->type)) {
@@ -656,18 +656,18 @@ namespace tempest::gen {
       case Expr::Kind::LOGICAL_AND: {
         auto op = static_cast<const BinaryOp*>(test);
         BasicBlock * blkSecond = BasicBlock::Create(_gen.context, "and", _irFunction, blkTrue);
-        genTestExpr(op->lhs, blkSecond, blkFalse);
+        genTestExpr(op->args[0], blkSecond, blkFalse);
         _builder.SetInsertPoint(blkSecond);
-        genTestExpr(op->rhs, blkTrue, blkFalse);
+        genTestExpr(op->args[1], blkTrue, blkFalse);
         return true;
       }
 
       case Expr::Kind::LOGICAL_OR: {
         auto op = static_cast<const BinaryOp*>(test);
         BasicBlock * blkSecond = BasicBlock::Create(_gen.context, "or", _irFunction, blkFalse);
-        genTestExpr(op->lhs, blkTrue, blkSecond);
+        genTestExpr(op->args[0], blkTrue, blkSecond);
         _builder.SetInsertPoint(blkSecond);
-        genTestExpr(op->rhs, blkTrue, blkFalse);
+        genTestExpr(op->args[1], blkTrue, blkFalse);
         return true;
       }
 

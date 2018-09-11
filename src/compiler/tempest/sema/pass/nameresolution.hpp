@@ -70,7 +70,12 @@ namespace tempest::sema::pass {
 
     // Utility
 
-    bool resolveDefnName(LookupScope* scope, const ast::Node* node, NameLookupResultRef& result);
+    Expr* resolveFunctionName(LookupScope* scope, const ast::Node* node);
+    Expr* resolveOperatorName(
+        const source::Location& loc, LookupScope* scope, const StringRef& name);
+    bool resolveDefnName(
+        LookupScope* scope, const ast::Node* node, NameLookupResultRef& result,
+        bool allowEmpty = false);
     bool resolveMemberName(
         const source::Location& loc,
         Member* scope,
@@ -90,7 +95,8 @@ namespace tempest::sema::pass {
         const NameLookupResultRef& result,
         Defn* subject,
         Expr* stem = nullptr,
-        bool preferPrivate = false);
+        bool preferPrivate = false,
+        bool useADL = false);
     void eagerResolveBaseTypes(TypeDefn* td);
     void resolveBaseTypes(LookupScope* scope, TypeDefn* td);
     Type* simplifyTypeSpecialization(SpecializedDefn* specDefn);

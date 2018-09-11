@@ -6,6 +6,7 @@
 #endif
 
 namespace tempest::sema::graph {
+  class ApplyFnOp;
 
   /** Unary operator. */
   class UnaryOp : public Expr {
@@ -36,8 +37,11 @@ namespace tempest::sema::graph {
   /** Infix operator. */
   class BinaryOp : public Expr {
   public:
-    Expr* lhs;
-    Expr* rhs;
+    Expr* args[2];
+
+    // In many cases, binary ops wil be lowered to a function call. This provides a place to
+    // stash that.
+    Expr* lowered = nullptr;
 
     BinaryOp(
           Kind kind,
@@ -46,14 +50,16 @@ namespace tempest::sema::graph {
           Expr* rhs,
           Type* type = nullptr)
       : Expr(kind, location, type)
-      , lhs(lhs)
-      , rhs(rhs)
-    {}
+    {
+      args[0] = lhs;
+      args[1] = rhs;
+    }
     BinaryOp(Kind kind, Expr* lhs, Expr* rhs, Type* type = nullptr)
       : Expr(kind, Location(), type)
-      , lhs(lhs)
-      , rhs(rhs)
-    {}
+    {
+      args[0] = lhs;
+      args[1] = rhs;
+    }
 
     /** Dynamic casting support. */
     static bool classof(const BinaryOp* e) { return true; }

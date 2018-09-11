@@ -21,6 +21,7 @@
 
 namespace tempest::sema::graph {
   class GenericDefn;
+  class BinaryOp;
 }
 
 namespace tempest::sema::infer {
@@ -109,6 +110,10 @@ namespace tempest::sema::infer {
     bool isViable(const Conditions& cond);
     bool isSingularSolution() const;
 
+    /** Just a list of binary operators whose expression nodes need to be updated after
+        inference is complete. */
+    std::vector<BinaryOp*>& binOps() { return _binOps; };
+
   private:
     tempest::support::BumpPtrAllocator _alloc;
     std::vector<AssignmentConstraint> _assignments;
@@ -119,6 +124,7 @@ namespace tempest::sema::infer {
     std::unordered_set<uint32_t> _bestPermutationSet;
     size_t _bestPermutationCount;
     ConversionRankTotals _bestRankings;
+    std::vector<BinaryOp*> _binOps;
     bool _failed = false;
 
     /** Find the best possible conversion for the nth parameter at a call site, checking

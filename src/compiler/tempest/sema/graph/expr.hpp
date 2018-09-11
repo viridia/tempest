@@ -266,6 +266,9 @@ namespace tempest::sema::graph {
     /** Stem expression */
     Expr* stem = nullptr;
 
+    /** Indicate that we want to use argument-dependent lookup during type resolution. */
+    bool useADL = false;
+
     MemberListExpr(
         Expr::Kind kind,
         Location location,

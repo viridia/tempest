@@ -2427,19 +2427,6 @@ namespace tempest::parse {
 
   Node* Parser::integerLit() {
     assert(_token == TOKEN_DEC_INT_LIT || _token == TOKEN_HEX_INT_LIT);
-    // bool uns = false;
-    // int64_t value;
-    // if (_token == TOKEN_DEC_INT_LIT) {
-    //   value = strtoll(_lexer.tokenValue().c_str(), nullptr, 10);
-    // } else {
-    //   value = strtoll(_lexer.tokenValue().c_str(), nullptr, 16);
-    // }
-    // if (_lexer.tokenSuffix().empty()) {
-    //   for (char ch : _lexer.tokenSuffix()) {
-    //     assert(ch == 'u');
-    //     uns = true;
-    //   }
-    // }
     auto node = new (_alloc) ast::Literal(
       Node::Kind::INTEGER_LITERAL, location(), copyOf(tokenValue()), copyOf(_lexer.tokenSuffix()));
     next();
@@ -2450,7 +2437,7 @@ namespace tempest::parse {
     assert(_token == TOKEN_FLOAT_LIT);
     // double d = strtod(_lexer.tokenValue().c_str(), nullptr);
     auto node = new (_alloc) ast::Literal(
-        Node::Kind::FLOAT_LITERAL, location(), copyOf(tokenValue()));
+        Node::Kind::FLOAT_LITERAL, location(), copyOf(tokenValue()), copyOf(_lexer.tokenSuffix()));
     next();
     return node;
   }

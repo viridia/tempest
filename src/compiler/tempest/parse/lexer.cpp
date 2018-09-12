@@ -440,7 +440,7 @@ namespace tempest::parse {
 
     if ((_ch == 'f' || _ch == 'F')) {
       isFloat = true;
-      _tokenValue.push_back(_ch);
+      _tokenSuffix.push_back(_ch);
       readCh();
     }
 

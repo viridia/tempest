@@ -463,13 +463,25 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
   }
 
+  SECTION("Resolve addition operator (large int") {
+    auto mod = compile(cu, "fn x(arg: i32) => arg + 0x100000000;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i64"));
+  }
+
+  SECTION("Resolve addition operator (float)") {
+    auto mod = compile(cu, "fn x(arg: f32) => arg + 1f;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("f32"));
+  }
+
   SECTION("Resolve subtraction operator") {
     auto mod = compile(cu, "fn x(arg: u32) => arg + 1;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
   }
 
-  SECTION("Resolve subtraction operator") {
+  SECTION("Resolve subtraction operator (unsigned)") {
     auto mod = compile(cu, "fn x(arg: i32) => arg + 1u;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));

@@ -462,4 +462,34 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto fd = cast<FunctionDefn>(mod->members().front());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
   }
+
+  SECTION("Resolve subtraction operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg + 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve subtraction operator") {
+    auto mod = compile(cu, "fn x(arg: i32) => arg + 1u;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve multiply operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg * 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve divide operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg / 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve remainder operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg % 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
 }

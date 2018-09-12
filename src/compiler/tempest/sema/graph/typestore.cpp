@@ -157,6 +157,19 @@ namespace tempest::sema::graph {
     return ft;
   }
 
+  IntegerType* TypeStore::createIntegerType(llvm::APInt& intVal, bool isUnsigned) {
+    int32_t bits = intVal.getMinSignedBits();
+    IntKey key({ bits, intVal.isNegative(), isUnsigned });
+    auto it = _intTypes.find(key);
+    if (it != _intTypes.end()) {
+      return it->second;
+    }
+
+    auto nt = new (_alloc) IntegerType("integer", bits, isUnsigned, intVal.isNegative());
+    _intTypes[key] = nt;
+    return nt;
+  }
+
   /** Specialize a generic definition. */
   SpecializedDefn* TypeStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
     SpecializationKey key(base, typeArgs);

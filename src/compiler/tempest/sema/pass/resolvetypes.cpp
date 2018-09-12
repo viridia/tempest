@@ -488,11 +488,11 @@ namespace tempest::sema::pass {
         return &Type::ERROR;
       }
     }
-    for (size_t i = 0; i < argTypes.size(); i += 1) {
-      if (args[i]->kind == Expr::Kind::INTEGER_LITERAL) {
-        argTypes[i] = chooseIntegerType(args[i], argTypes[i]);
-      }
-    }
+    // for (size_t i = 0; i < argTypes.size(); i += 1) {
+    //   if (args[i]->kind == Expr::Kind::INTEGER_LITERAL) {
+    //     argTypes[i] = chooseIntegerType(args[i], argTypes[i]);
+    //   }
+    // }
 
 //     cs.renamer.renamerChecker.traverseTypeList(argTypes)
 

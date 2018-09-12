@@ -8,6 +8,7 @@
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/nameresolution.hpp"
+#include "llvm/ADT/APInt.h"
 #include "llvm/Support/Casting.h"
 #include <iostream>
 
@@ -54,6 +55,74 @@ TEST_CASE("Convert.Narrower", "[sema]") {
     REQUIRE_FALSE(isEqualOrNarrower(&FloatType::F32, &IntegerType::I8));
     REQUIRE_FALSE(isEqualOrNarrower(&BooleanType::BOOL, &IntegerType::I8));
     REQUIRE_FALSE(isEqualOrNarrower(&VoidType::VOID, &IntegerType::I8));
+  }
+
+  SECTION("Compare implicit integer types") {
+    llvm::APInt seventeen(64, 17);
+    llvm::APInt oneThousand(64, 1024);
+    llvm::APInt negativeOne(64, -1, true);
+    auto ii17 = cu.types().createIntegerType(seventeen, false); // A 6-bit number (signed)
+    auto iu17 = cu.types().createIntegerType(seventeen, true); // A 5-bit number (unsigned)
+    auto ii1k = cu.types().createIntegerType(oneThousand, false); // A 12-bit number (signed)
+    auto iu1k = cu.types().createIntegerType(oneThousand, true); // An 11-bit number (unsigned)
+    auto iin1 = cu.types().createIntegerType(negativeOne, false); // A 2-bit number (signed)
+    auto iun1 = cu.types().createIntegerType(negativeOne, true); // An 1-bit number (unsigned)
+
+    REQUIRE(isEqualOrNarrower(&IntegerType::I8, ii17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I8, iu17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I8, ii1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I8, iu1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I8, iin1));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I8, iun1));
+
+    REQUIRE_FALSE(isEqualOrNarrower(ii17, &IntegerType::I8));
+    REQUIRE_FALSE(isEqualOrNarrower(iu17, &IntegerType::I8));
+    REQUIRE_FALSE(isEqualOrNarrower(ii1k, &IntegerType::I8));
+    REQUIRE_FALSE(isEqualOrNarrower(iu1k, &IntegerType::I8));
+    REQUIRE_FALSE(isEqualOrNarrower(iin1, &IntegerType::I8));
+    REQUIRE_FALSE(isEqualOrNarrower(iun1, &IntegerType::I8));
+
+    REQUIRE(isEqualOrNarrower(&IntegerType::U8, ii17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U8, iu17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U8, ii1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U8, iu1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U8, iin1));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U8, iun1));
+
+    REQUIRE_FALSE(isEqualOrNarrower(ii17, &IntegerType::U8));
+    REQUIRE_FALSE(isEqualOrNarrower(iu17, &IntegerType::U8));
+    REQUIRE_FALSE(isEqualOrNarrower(ii1k, &IntegerType::U8));
+    REQUIRE_FALSE(isEqualOrNarrower(iu1k, &IntegerType::U8));
+    REQUIRE_FALSE(isEqualOrNarrower(iin1, &IntegerType::U8));
+    REQUIRE_FALSE(isEqualOrNarrower(iun1, &IntegerType::U8));
+
+    REQUIRE(isEqualOrNarrower(&IntegerType::I16, ii17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I16, iu17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I16, ii1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I16, iu1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I16, iin1));
+    REQUIRE(isEqualOrNarrower(&IntegerType::I16, iun1));
+
+    REQUIRE_FALSE(isEqualOrNarrower(ii17, &IntegerType::I16));
+    REQUIRE_FALSE(isEqualOrNarrower(iu17, &IntegerType::I16));
+    REQUIRE_FALSE(isEqualOrNarrower(ii1k, &IntegerType::I16));
+    REQUIRE_FALSE(isEqualOrNarrower(iu1k, &IntegerType::I16));
+    REQUIRE_FALSE(isEqualOrNarrower(iin1, &IntegerType::I16));
+    REQUIRE_FALSE(isEqualOrNarrower(iun1, &IntegerType::I16));
+
+    REQUIRE(isEqualOrNarrower(&IntegerType::U16, ii17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U16, iu17));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U16, ii1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U16, iu1k));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U16, iin1));
+    REQUIRE(isEqualOrNarrower(&IntegerType::U16, iun1));
+
+    REQUIRE_FALSE(isEqualOrNarrower(ii17, &IntegerType::U16));
+    REQUIRE_FALSE(isEqualOrNarrower(iu17, &IntegerType::U16));
+    REQUIRE_FALSE(isEqualOrNarrower(ii1k, &IntegerType::U16));
+    REQUIRE_FALSE(isEqualOrNarrower(iu1k, &IntegerType::U16));
+    REQUIRE_FALSE(isEqualOrNarrower(iin1, &IntegerType::U16));
+    REQUIRE_FALSE(isEqualOrNarrower(iun1, &IntegerType::U16));
   }
 
   SECTION("Compare float types") {

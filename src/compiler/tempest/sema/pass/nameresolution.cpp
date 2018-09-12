@@ -256,12 +256,14 @@ namespace tempest::sema::pass {
         auto expr = visitExpr(&tdScope, ev->ast()->init);
         eval::EvalResult result;
         if (!eval::evalConstExpr(expr, result) || result.type != eval::EvalResult::INT) {
-          diag.error(expr) << "Enumeration value expression should be a constant integer";
+          if (!result.error) {
+            diag.error(expr) << "Enumeration value expression should be a constant integer";
+          }
           break;
         }
 
         if (base->isUnsigned()) {
-          if (result.hasSign && result.intResult.isNegative()) {
+          if (result.isUnsigned && result.intResult.isNegative()) {
             diag.error(expr) << "Can't assign a negative value to an unsigned enumeration.";
             break;
           } else if (result.intResult.getActiveBits() > (unsigned) base->bits()) {
@@ -516,11 +518,12 @@ namespace tempest::sema::pass {
         }
 
         // Integer literals default to 64 bits wide.
+        APInt intVal(64, value, radix);
         return new (*_alloc) IntegerLiteral(
           node->location,
-          APInt(64, value, radix),
+          intVal,
           isUnsigned,
-          &IntegerType::UNSIZED_INT);
+          _cu.types().createIntegerType(intVal, isUnsigned));
       }
 
       case ast::Node::Kind::FLOAT_LITERAL: {

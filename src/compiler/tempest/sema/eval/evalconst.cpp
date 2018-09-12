@@ -22,8 +22,8 @@ namespace tempest::sema::eval {
         auto intLit = static_cast<const IntegerLiteral*>(e);
         result.intResult = intLit->value();
         result.type = EvalResult::INT;
-        result.hasSize = llvm::cast<IntegerType>(intLit->type)->bits() > 0;
-        result.hasSign = !llvm::cast<IntegerType>(intLit->type)->isUnsigned();
+        result.hasSize = !llvm::cast<IntegerType>(intLit->type)->isImplicitlySized();
+        result.isUnsigned = !llvm::cast<IntegerType>(intLit->type)->isUnsigned();
         return true;
       }
 
@@ -39,18 +39,20 @@ namespace tempest::sema::eval {
         auto op = static_cast<const UnaryOp*>(e);
         EvalResult argResult;
         if (!evalConstExpr(op->arg, argResult)) {
+          result.error = argResult.error;
           return false;
         }
 
         if (argResult.type == EvalResult::INT) {
           result.type = EvalResult::INT;
-          result.hasSign = argResult.hasSign;
+          result.isUnsigned = argResult.isUnsigned;
           result.hasSize = argResult.hasSize;
 
           switch (e->kind) {
             case Expr::Kind::NEGATE:
-              if (!argResult.hasSign) {
+              if (argResult.isUnsigned) {
                 diag.error(op) << "Can't negate an unsigned number";
+                result.error = true;
               }
               result.intResult = -argResult.intResult;
               break;
@@ -93,38 +95,38 @@ namespace tempest::sema::eval {
         EvalResult lhsResult;
         EvalResult rhsResult;
         if (!evalConstExpr(op->args[0], lhsResult) || !evalConstExpr(op->args[1], rhsResult)) {
+          result.error = lhsResult.error || rhsResult.error;
           return false;
         }
 
         if (lhsResult.type == EvalResult::INT && rhsResult.type == EvalResult::INT) {
           result.type = EvalResult::INT;
-          result.hasSign = lhsResult.hasSign || rhsResult.hasSign;
+          result.isUnsigned = lhsResult.isUnsigned || rhsResult.isUnsigned;
           result.hasSize = lhsResult.hasSize || rhsResult.hasSize;
-          // Only sized types can be unsigned. So it's illegal for a type to be both unsized
-          // and unsigned.
-          assert(lhsResult.hasSign || lhsResult.hasSize);
-          assert(rhsResult.hasSign || rhsResult.hasSize);
 
           // If one of the types is sized, and the other is not, then make the unsized one
           // the same as the sized one.
           if (lhsResult.hasSize) {
             if (rhsResult.hasSize) {
               // Both are sized, now let's see if the signs are the same.
-              if (lhsResult.hasSign != rhsResult.hasSign) {
+              if (lhsResult.isUnsigned != rhsResult.isUnsigned) {
                 diag.error(op) << "Signed / unsigned mismatch";
+                result.error = true;
                 return false;
               }
             } else {
               // Cannot convert negative unsized number to unsigned
-              if (!lhsResult.hasSign && rhsResult.intResult.isNegative()) {
+              if (lhsResult.isUnsigned && rhsResult.intResult.isNegative()) {
                 diag.error(op) << "Cannot convert negative number to signed integer";
+                result.error = true;
                 return false;
               }
             }
           } else if (rhsResult.hasSize) {
             // Cannot convert negative unsized number to unsigned
-            if (!rhsResult.hasSign && lhsResult.intResult.isNegative()) {
+            if (rhsResult.isUnsigned && lhsResult.intResult.isNegative()) {
               diag.error(op) << "Cannot convert negative number to signed integer";
+              result.error = true;
               return false;
             }
           }
@@ -134,16 +136,16 @@ namespace tempest::sema::eval {
               lhsResult.intResult.getBitWidth(),
               rhsResult.intResult.getBitWidth());
           if (lhsResult.intResult.getBitWidth() < bitWidth) {
-            if (lhsResult.hasSign) {
-              lhsResult.intResult = lhsResult.intResult.sext(bitWidth);
-            } else {
+            if (lhsResult.isUnsigned) {
               lhsResult.intResult = lhsResult.intResult.zext(bitWidth);
+            } else {
+              lhsResult.intResult = lhsResult.intResult.sext(bitWidth);
             }
           } else if (rhsResult.intResult.getBitWidth() < bitWidth) {
-            if (rhsResult.hasSign) {
-              rhsResult.intResult = rhsResult.intResult.sext(bitWidth);
-            } else {
+            if (rhsResult.isUnsigned) {
               rhsResult.intResult = rhsResult.intResult.zext(bitWidth);
+            } else {
+              rhsResult.intResult = rhsResult.intResult.sext(bitWidth);
             }
           }
 
@@ -161,18 +163,18 @@ namespace tempest::sema::eval {
               break;
 
             case Expr::Kind::DIVIDE:
-              if (lhsResult.hasSign) {
-                result.intResult = lhsResult.intResult.sdiv(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.intResult = lhsResult.intResult.udiv(rhsResult.intResult);
+              } else {
+                result.intResult = lhsResult.intResult.sdiv(rhsResult.intResult);
               }
               break;
 
             case Expr::Kind::REMAINDER:
-              if (lhsResult.hasSign) {
-                result.intResult = lhsResult.intResult.srem(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.intResult = lhsResult.intResult.urem(rhsResult.intResult);
+              } else {
+                result.intResult = lhsResult.intResult.srem(rhsResult.intResult);
               }
               break;
 
@@ -193,10 +195,10 @@ namespace tempest::sema::eval {
               break;
 
             case Expr::Kind::RSHIFT:
-              if (lhsResult.hasSign) {
-                result.intResult = lhsResult.intResult.ashr(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.intResult = lhsResult.intResult.lshr(rhsResult.intResult);
+              } else {
+                result.intResult = lhsResult.intResult.ashr(rhsResult.intResult);
               }
               break;
 
@@ -211,37 +213,37 @@ namespace tempest::sema::eval {
               break;
 
             case Expr::Kind::LE:
-              if (lhsResult.hasSign) {
-                result.boolResult = lhsResult.intResult.sle(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.boolResult = lhsResult.intResult.ule(rhsResult.intResult);
+              } else {
+                result.boolResult = lhsResult.intResult.sle(rhsResult.intResult);
               }
               result.type = EvalResult::BOOL;
               break;
 
             case Expr::Kind::LT:
-              if (lhsResult.hasSign) {
-                result.boolResult = lhsResult.intResult.slt(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.boolResult = lhsResult.intResult.ult(rhsResult.intResult);
+              } else {
+                result.boolResult = lhsResult.intResult.slt(rhsResult.intResult);
               }
               result.type = EvalResult::BOOL;
               break;
 
             case Expr::Kind::GE:
-              if (lhsResult.hasSign) {
-                result.boolResult = lhsResult.intResult.sge(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.boolResult = lhsResult.intResult.uge(rhsResult.intResult);
+              } else {
+                result.boolResult = lhsResult.intResult.sge(rhsResult.intResult);
               }
               result.type = EvalResult::BOOL;
               break;
 
             case Expr::Kind::GT:
-              if (lhsResult.hasSign) {
-                result.boolResult = lhsResult.intResult.sgt(rhsResult.intResult);
-              } else {
+              if (lhsResult.isUnsigned) {
                 result.boolResult = lhsResult.intResult.ugt(rhsResult.intResult);
+              } else {
+                result.boolResult = lhsResult.intResult.sgt(rhsResult.intResult);
               }
               result.type = EvalResult::BOOL;
               break;

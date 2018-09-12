@@ -78,13 +78,50 @@ namespace tempest::sema::graph {
     static BooleanType BOOL;
   };
 
-  /** An integer type. */
+  /** An integer type. There are 'fixed' integer types which represent specific machine word
+      sizes, as well as 'implicitly-sized' integer types which are used for constant integer
+      expressions (1 + 1) where an integer size has not yet been chosen.
+
+      Implicitly-sized integers are treated as being of unlimited maximum size; however they have
+      a *minimum* size based on the integer value they are currently holding. The `bits' field
+      contains the number of bits needed to represent the integer constant as a signed number,
+      and can be any number greater than zero. The 'isNegative' property indicates whether the
+      integer constants is negative; if it is, then it is illegal to assign that type to an
+      unsigned fixed integer type.
+
+      The meaning of 'isUnsigned' is different for fixed-sized and implicitly-sized integer types.
+      For fixed types, signed and unsigned types cannot be mixed. For implicit types, signed and
+      unsigned can be mixed freely, however if any term is unsigned, then the final result is
+      unsigned. In other words, for implicit types, 'unsigned' is just a hint as to what the final
+      result type should be, and is not a constraint on the values themselves.
+
+      Thus, the following expression is valid:
+
+        const a = 255u - 1;
+
+      The value of `a` will be 254 (255 - 1), and the type will be unsigned. Since the final result
+      is not negative, the conversion to unsigned succeeds.
+
+      Note that all integers must be converted to a fixed type before being assigned to a variable,
+      passed as an argument to a function, bound to a template parameter, or used as a non-constant.
+      Implicit types only exist within arithmetic expressions that are entirely composed of
+      constant integers with no specified integer type.
+  */
   class IntegerType : public PrimitiveType {
   public:
     IntegerType(llvm::StringRef name, int32_t bits, bool isUnsigned)
       : PrimitiveType(Kind::INTEGER, name)
       , _bits(bits)
       , _unsigned(isUnsigned)
+      , _negative(false)
+      , _implicitlySized(false)
+    {}
+    IntegerType(llvm::StringRef name, int32_t bits, bool isUnsigned, bool isNegative)
+      : PrimitiveType(Kind::INTEGER, name)
+      , _bits(bits)
+      , _unsigned(isUnsigned)
+      , _negative(isNegative)
+      , _implicitlySized(true)
     {}
 
     /** Number of bits in this integer type. */
@@ -92,6 +129,12 @@ namespace tempest::sema::graph {
 
     /** If true, this is an unsigned integer type. */
     bool isUnsigned() const { return _unsigned; }
+
+    /** If true, this is the type of an integer constant of indeterminate size. */
+    bool isImplicitlySized() const { return _implicitlySized; }
+
+    /** If true, the integer constant is a negative number. */
+    int32_t isNegative() const { return _negative; }
 
     /** Dynamic casting support. */
     static bool classof(const IntegerType* t) { return true; }
@@ -107,12 +150,11 @@ namespace tempest::sema::graph {
     static IntegerType U32;
     static IntegerType U64;
 
-    // For integer constants that don't have a known size.
-    static IntegerType UNSIZED_INT;
-
   private:
     int32_t _bits;
     bool _unsigned;
+    bool _negative;
+    bool _implicitlySized;
   };
 
   /** A floating-point type. */

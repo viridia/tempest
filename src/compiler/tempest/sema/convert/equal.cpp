@@ -118,7 +118,10 @@ namespace tempest::sema::convert {
       auto dstInt = static_cast<const IntegerType*>(dst);
       if (src->kind == Type::Kind::INTEGER) {
         auto srcInt = static_cast<const IntegerType*>(src);
-        return dstInt->isUnsigned() == srcInt->isUnsigned() && srcInt->bits() == dstInt->bits();
+        return dstInt->isUnsigned() == srcInt->isUnsigned()
+            && srcInt->bits() == dstInt->bits()
+            && srcInt->isNegative() == dstInt->isNegative()
+            && srcInt->isImplicitlySized() == dstInt->isImplicitlySized();
       }
       return false;
     }

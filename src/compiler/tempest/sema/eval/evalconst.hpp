@@ -17,13 +17,14 @@ namespace tempest::sema::eval {
       STRING,
     };
     DataType type;  // Data type of the result
-    bool hasSign;   // Whether the integer type is signed or unsigned
+    bool isUnsigned;// Whether the integer type is signed or unsigned
     bool hasSize;   // Whether the integer type has an explicit size (integer literals don't)
 
     llvm::APInt intResult;
     llvm::APFloat floatResult;
     std::string strResult;
     bool boolResult;
+    bool error = false;
 
     EvalResult()
       : floatResult(llvm::APFloat::IEEEdouble())

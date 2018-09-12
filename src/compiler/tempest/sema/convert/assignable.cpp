@@ -270,25 +270,56 @@ namespace tempest::sema::convert {
       auto dstInt = static_cast<const IntegerType*>(dst);
       if (src->kind == Type::Kind::INTEGER) {
         auto srcInt = static_cast<const IntegerType*>(src);
-        if (dstInt->isUnsigned() != srcInt->isUnsigned()) {
-          return ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED);
-        } else if (srcInt->bits() > dstInt->bits()) {
-          return ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION);
-        } else if (srcInt->bits() < dstInt->bits()) {
-          return ConversionResult(ConversionRank::EXACT);
+        if (srcInt->isImplicitlySized()) {
+          if (dstInt->isUnsigned()) {
+            // Requires one less bit for positive unsigned numbers.
+            int32_t srcBits = srcInt->bits() - 1;
+            if (srcInt->isNegative()) {
+              return ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED);
+            } else if (srcBits <= dstInt->bits()) {
+              return ConversionResult(ConversionRank::EXACT);
+            } else {
+              return ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION);
+            }
+          } else if (srcInt->isUnsigned()) {
+            // Can't assign unsigned to signed
+            return ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED);
+          } else if (dstInt->isImplicitlySized()) {
+            // Implicitly sized can accept anything.
+            return ConversionResult(ConversionRank::EXACT);
+          } else if (srcInt->bits() <= dstInt->bits()) {
+            return ConversionResult(ConversionRank::EXACT);
+          } else {
+            return ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION);
+          }
+        } else if (dstInt->isImplicitlySized()) {
+          if (dstInt->isUnsigned() && !srcInt->isUnsigned()) {
+            return ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED);
+          } else {
+            // Number of bits in destination doesn't matter.
+            return ConversionResult(ConversionRank::EXACT);
+          }
         } else {
-          return ConversionResult(ConversionRank::IDENTICAL);
+          if (dstInt->isUnsigned() != srcInt->isUnsigned()) {
+            return ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED);
+          } else if (srcInt->bits() > dstInt->bits()) {
+            return ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION);
+          } else if (srcInt->bits() < dstInt->bits()) {
+            return ConversionResult(ConversionRank::EXACT);
+          } else {
+            return ConversionResult(ConversionRank::IDENTICAL);
+          }
         }
       } else if (src->kind == Type::Kind::ENUM) {
         // Can assign enum to integer
         auto srcEnum = static_cast<const UserDefinedType*>(src);
         auto srcBase = cast<IntegerType>(cast<TypeDefn>(srcEnum->defn()->extends()[0])->type());
-        if (dstInt->isUnsigned() != srcBase->isUnsigned()) {
-          return ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED);
-        } else if (srcBase->bits() > dstInt->bits()) {
-          return ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION);
-        } else {
+        auto result = isAssignable(dst, dstMods, dstEnv, srcBase, srcMods, srcEnv);
+        if (result.rank == ConversionRank::IDENTICAL) {
+          // It's not identical
           return ConversionResult(ConversionRank::EXACT);
+        } else {
+          return result;
         }
       }
       return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);

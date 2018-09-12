@@ -198,6 +198,13 @@ namespace tempest::sema::convert {
       auto lInt = static_cast<const IntegerType*>(l);
       if (r->kind == Type::Kind::INTEGER) {
         auto rInt = static_cast<const IntegerType*>(r);
+        // An implicitly sized int is broader than a fixed-size int.
+        if (lInt->isImplicitlySized()) {
+          return rInt->isImplicitlySized();
+        }
+        if (rInt->isImplicitlySized()) {
+          return true;
+        }
         if (lInt->isUnsigned() == rInt->isUnsigned()) {
           return lInt->bits() <= rInt->bits();
         } else {

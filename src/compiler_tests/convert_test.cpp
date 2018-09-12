@@ -8,6 +8,7 @@
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/nameresolution.hpp"
+#include "llvm/ADT/APInt.h"
 #include "llvm/Support/Casting.h"
 #include <iostream>
 
@@ -62,6 +63,111 @@ TEST_CASE("Convert.Assignable", "[sema]") {
         == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
     REQUIRE(isAssignable(&IntegerType::I8, &VoidType::VOID)
         == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
+  }
+
+  SECTION("Convert implicit integer types") {
+    llvm::APInt seventeen(64, 17);
+    llvm::APInt oneThousand(64, 1024);
+    llvm::APInt negativeOne(64, -1, true);
+    auto ii17 = cu.types().createIntegerType(seventeen, false); // A 6-bit number (signed)
+    auto iu17 = cu.types().createIntegerType(seventeen, true); // A 5-bit number (unsigned)
+    auto ii1k = cu.types().createIntegerType(oneThousand, false); // A 12-bit number (signed)
+    auto iu1k = cu.types().createIntegerType(oneThousand, true); // An 11-bit number (unsigned)
+    auto iin1 = cu.types().createIntegerType(negativeOne, false); // A 2-bit number (signed)
+    auto iun1 = cu.types().createIntegerType(negativeOne, true); // An 1-bit number (unsigned)
+    REQUIRE(ii17->bits() == 6);
+    REQUIRE(iu17->bits() == 6);
+    REQUIRE(ii1k->bits() == 12);
+    REQUIRE(iu1k->bits() == 12);
+    REQUIRE(iin1->bits() == 1);
+    REQUIRE(iun1->bits() == 1);
+    // `17` fits in an I8
+    REQUIRE(isAssignable(&IntegerType::I8, ii17) == ConversionResult(ConversionRank::EXACT));
+    // `17` fits in a U8
+    REQUIRE(isAssignable(&IntegerType::U8, ii17) == ConversionResult(ConversionRank::EXACT));
+    // `17u` does not fit in an U8
+    REQUIRE(isAssignable(&IntegerType::I8, iu17) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    // `17u` fits in a U8
+    REQUIRE(isAssignable(&IntegerType::U8, iu17) == ConversionResult(ConversionRank::EXACT));
+
+    // `1000` does not fit in an I8
+    REQUIRE(isAssignable(&IntegerType::I8, ii1k) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION));
+    // `1000` does fit in an I16
+    REQUIRE(isAssignable(&IntegerType::I16, ii1k) == ConversionResult(ConversionRank::EXACT));
+
+    // `1000` does not fit in a U8
+    REQUIRE(isAssignable(&IntegerType::U8, ii1k) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION));
+    // `1000` does fit in an U16
+    REQUIRE(isAssignable(&IntegerType::U16, ii1k) == ConversionResult(ConversionRank::EXACT));
+
+    // `1000u` does not fit in an I8
+    REQUIRE(isAssignable(&IntegerType::I8, iu1k) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    // `1000u` does not fit in an I16
+    REQUIRE(isAssignable(&IntegerType::I16, iu1k) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+
+    // `1000u` does not fit in a U8
+    REQUIRE(isAssignable(&IntegerType::U8, iu1k) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::TRUNCATION));
+    // `1000u` does fit in an U16
+    REQUIRE(isAssignable(&IntegerType::U16, iu1k) == ConversionResult(ConversionRank::EXACT));
+
+    // `-1` fits in an I8
+    REQUIRE(isAssignable(&IntegerType::I8, iin1) == ConversionResult(ConversionRank::EXACT));
+    // `-1` fits in an I16
+    REQUIRE(isAssignable(&IntegerType::I16, iin1) == ConversionResult(ConversionRank::EXACT));
+
+    // `-1` does not fit in an U8
+    REQUIRE(isAssignable(&IntegerType::U8, iin1) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    // `-1` does not fit in a U16
+    REQUIRE(isAssignable(&IntegerType::U16, iin1) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+
+    // `-1u` does not fit in an I8
+    REQUIRE(isAssignable(&IntegerType::I8, iun1) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    // `-1u` does not fit in an I16
+    REQUIRE(isAssignable(&IntegerType::I16, iun1) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+
+    // `-1u` does not fit in an U8
+    REQUIRE(isAssignable(&IntegerType::U8, iun1) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    // `-1u` does not fit in a U16
+    REQUIRE(isAssignable(&IntegerType::U16, iun1) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+
+    // Now, backwards
+
+    // Fixed types fit in implicitly sized int, unless sign mismatch.
+    REQUIRE(isAssignable(ii17, &IntegerType::I8) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(ii17, &IntegerType::I16) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(ii17, &IntegerType::U8) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(ii17, &IntegerType::U16) == ConversionResult(ConversionRank::EXACT));
+    // `17u` does not fit in an U8
+    REQUIRE(isAssignable(iu17, &IntegerType::I8) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    REQUIRE(isAssignable(iu17, &IntegerType::I16) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    REQUIRE(isAssignable(iu17, &IntegerType::U8) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(iu17, &IntegerType::U16) == ConversionResult(ConversionRank::EXACT));
+
+    // Negative destination doesn't matter.
+    REQUIRE(isAssignable(iin1, &IntegerType::I8) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(iin1, &IntegerType::I16) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(iin1, &IntegerType::U8) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(iin1, &IntegerType::U16) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(iun1, &IntegerType::I8) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    REQUIRE(isAssignable(iun1, &IntegerType::I16) ==
+        ConversionResult(ConversionRank::ERROR, ConversionError::SIGNED_UNSIGNED));
+    REQUIRE(isAssignable(iun1, &IntegerType::U8) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(iun1, &IntegerType::U16) == ConversionResult(ConversionRank::EXACT));
   }
 
   SECTION("Convert float types") {

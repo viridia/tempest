@@ -1,5 +1,6 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/convert/predicate.hpp"
+#include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/infer/constraintsolver.hpp"
 #include "tempest/sema/infer/unification.hpp"
 #include "llvm/ADT/EquivalenceClasses.h"
@@ -591,89 +592,107 @@ namespace tempest::sema::infer {
           }
         }
       }
+    }
 
-      // For each equivalent set, find all of the constraints
-      for (auto it = ec.begin(); it != ec.end(); ++it) {
-        const Type* equivalent = nullptr;
-        const Type* assignableFrom = nullptr;
-        const Type* assignableTo = nullptr;
-        for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
-          auto inferred = *mit;
-          for (auto& constraint : inferred->constraints) {
-            if (inferred->isViable(constraint)) {
-              if (constraint.value->kind != Type::Kind::INFERRED) {
-                if (constraint.predicate == TypeRelation::EQUAL) {
-                  // If there are multiple equal constraints, they must be equal to each other.
-                  if (!equivalent) {
-                    equivalent = constraint.value;
-                  } else if (!isEqual(equivalent, constraint.value)) {
-                    assert(false && "Inconsistent");
-                  }
-                } else if (constraint.predicate == TypeRelation::ASSIGNABLE_FROM) {
-                  // If there are multiple assignableFroms, then pick the more general one,
-                  // that is, the one that can be assigned from all the others. If they are
-                  // disjoint, that's an error.
-                  if (!assignableFrom) {
-                    assignableFrom = constraint.value;
-                  } else if (isAssignable(assignableFrom, constraint.value).rank ==
-                      ConversionRank::ERROR) {
-                    if (isAssignable(constraint.value, assignableFrom) ==
-                        ConversionRank::ERROR) {
-                      assert(false && "Inconsistent");
-                    } else {
-                      assignableFrom = constraint.value;
-                    }
-                  }
-                } else if (constraint.predicate == TypeRelation::ASSIGNABLE_TO) {
-                  // If there are multiple assignableTos, then pick the more specific one,
-                  // that is, the one that can be assigned to all the others. If they are
-                  // disjoint, that's an error.
-                  if (!assignableTo) {
-                    assignableTo = constraint.value;
-                  } else if (isAssignable(constraint.value, assignableTo).rank ==
-                      ConversionRank::ERROR) {
-                    if (isAssignable(assignableTo, constraint.value) ==
-                        ConversionRank::ERROR) {
-                      assert(false && "Inconsistent");
-                    } else {
-                      assignableTo = constraint.value;
-                    }
-                  }
-                } else {
-                  // TODO: other constraint types.
-                  assert(false && "Invalid predicate");
+    // For each equivalent set, find all of the constraints
+    for (auto it = ec.begin(); it != ec.end(); ++it) {
+      const Type* equivalent = nullptr;
+      const Type* assignableFrom = nullptr;
+      const Type* assignableTo = nullptr;
+      for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
+        auto inferred = *mit;
+        for (auto& constraint : inferred->constraints) {
+          if (inferred->isViable(constraint)) {
+            if (constraint.value->kind != Type::Kind::INFERRED) {
+              if (constraint.predicate == TypeRelation::EQUAL) {
+                // If there are multiple equal constraints, they must be equal to each other.
+                if (!equivalent) {
+                  equivalent = constraint.value;
+                } else if (!isEqual(equivalent, constraint.value)) {
+                  assert(false && "Inconsistent");
                 }
+              } else if (constraint.predicate == TypeRelation::ASSIGNABLE_FROM) {
+                // If there are multiple assignableFroms, then pick the more general one,
+                // that is, the one that can be assigned from all the others. If they are
+                // disjoint, that's an error.
+                if (!assignableFrom) {
+                  assignableFrom = constraint.value;
+                } else if (isAssignable(assignableFrom, constraint.value).rank ==
+                    ConversionRank::ERROR) {
+                  if (isAssignable(constraint.value, assignableFrom) ==
+                      ConversionRank::ERROR) {
+                    assert(false && "Inconsistent");
+                  } else {
+                    assignableFrom = constraint.value;
+                  }
+                }
+              } else if (constraint.predicate == TypeRelation::ASSIGNABLE_TO) {
+                // If there are multiple assignableTos, then pick the more specific one,
+                // that is, the one that can be assigned to all the others. If they are
+                // disjoint, that's an error.
+                if (!assignableTo) {
+                  assignableTo = constraint.value;
+                } else if (isAssignable(constraint.value, assignableTo).rank ==
+                    ConversionRank::ERROR) {
+                  if (isAssignable(assignableTo, constraint.value) ==
+                      ConversionRank::ERROR) {
+                    assert(false && "Inconsistent");
+                  } else {
+                    assignableTo = constraint.value;
+                  }
+                }
+              } else {
+                // TODO: other constraint types.
+                assert(false && "Invalid predicate");
               }
             }
           }
         }
+      }
 
-        if (equivalent) {
-          if (assignableFrom) {
-            if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
-              assert(false && "Inconsistent");
-            }
+      if (equivalent) {
+        if (assignableFrom) {
+          if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
+            assert(false && "Inconsistent");
           }
-          if (assignableTo) {
-            if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
-              assert(false && "Inconsistent");
-            }
+        }
+        if (assignableTo) {
+          if (isAssignable(equivalent, assignableFrom).rank == ConversionRank::ERROR) {
+            assert(false && "Inconsistent");
           }
-        } else if (assignableFrom) {
-          equivalent = assignableFrom;
-          if (assignableTo) {
-            assert(false && "Implement");
-          }
-        } else if (assignableTo) {
-          equivalent = assignableTo;
-        } else {
+        }
+      } else if (assignableFrom) {
+        equivalent = assignableFrom;
+        if (assignableTo) {
           assert(false && "Implement");
         }
+      } else if (assignableTo) {
+        equivalent = assignableTo;
+      } else {
+        assert(false && "Implement");
+      }
 
-        for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
-          auto inferred = *mit;
-          inferred->value = equivalent;
+      if (auto intType = dyn_cast<IntegerType>(equivalent)) {
+        if (intType->isImplicitlySized()) {
+          if (intType->isUnsigned()) {
+            if (intType->bits() - 1 <= 32) {
+              equivalent = &IntegerType::U32;
+            } else if (intType->bits() - 1 <= 64) {
+              equivalent = &IntegerType::U64;
+            } // Else leave it, handle truncation error later
+          } else {
+            if (intType->bits() <= 32) {
+              equivalent = &IntegerType::I32;
+            } else if (intType->bits() <= 64) {
+              equivalent = &IntegerType::I64;
+            } // Else leave it, handle truncation error later
+          }
         }
+      }
+
+      for (auto mit = ec.member_begin(it); mit != ec.member_end(); ++mit) {
+        auto inferred = *mit;
+        inferred->value = equivalent;
       }
     }
   }

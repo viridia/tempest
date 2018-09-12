@@ -26,9 +26,6 @@ namespace tempest::sema::graph {
   IntegerType IntegerType::U32("u32", 32, true);
   IntegerType IntegerType::U64("u64", 64, true);
 
-  /** Positive signed integers. */
-  IntegerType IntegerType::UNSIZED_INT("unsized int", 0, false);
-
   /** Float types. */
   FloatType FloatType::F32("f32", 32);
   FloatType FloatType::F64("f64", 64);

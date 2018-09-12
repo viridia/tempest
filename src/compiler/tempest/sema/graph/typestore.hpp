@@ -21,11 +21,8 @@
 #include <unordered_set>
 
 namespace tempest::sema::graph {
-  using tempest::sema::graph::Type;
-
   struct Env;
-  class Member;
-  class ParameterDefn;
+  class IntegerType;
 
   /** A hashable tuple of types that can be used as a lookup key. */
   class TypeKey {
@@ -156,6 +153,12 @@ namespace tempest::sema::graph {
     std::size_t operator()(const SingletonKey& value) const;
   };
 
+  struct IntKey {
+    int32_t bits;
+    bool isNegative;
+    bool isUnsigned;
+  };
+
   /** A store of canonicalized, uniqued derived types. */
   class TypeStore {
   public:
@@ -175,6 +178,9 @@ namespace tempest::sema::graph {
 
     /** Create a singleton type. */
     SingletonType* createSingletonType(const Expr* expr);
+
+    /** Create an integer type large enough to hold an integer value. */
+    IntegerType* createIntegerType(llvm::APInt& intVal, bool isUnsigned);
 
     /** Specialize a generic definition. */
     SpecializedDefn* specialize(GenericDefn* base, const TypeArray& typeArgs);
@@ -202,14 +208,31 @@ namespace tempest::sema::graph {
         return result;
       }
     };
-    struct ModifiedKeyEqual {
-      inline bool operator()(const ModifiedKey& key0, const ModifiedKey& key1) const {
-        return key0.first == key1.first && key0.second == key1.second;
+    // struct ModifiedKeyEqual {
+    //   inline bool operator()(const ModifiedKey& key0, const ModifiedKey& key1) const {
+    //     return key0.first == key1.first && key0.second == key1.second;
+    //   }
+    // };
+
+    struct IntKeyHash {
+      inline std::size_t operator()(const IntKey& value) const {
+        std::size_t result = std::hash<int32_t>()(value.bits);
+        hash_combine(result, std::hash<bool>()(value.isNegative));
+        hash_combine(result, std::hash<bool>()(value.isUnsigned));
+        return result;
       }
     };
 
+    struct IntKeyEqual {
+      inline bool operator()(const IntKey& l, const IntKey& r) const {
+        return l.bits == r.bits
+            && l.isNegative == r.isNegative
+            && l.isUnsigned == r.isUnsigned;
+      }
+    };
 
     tempest::support::BumpPtrAllocator _alloc;
+    std::unordered_map<IntKey, IntegerType*, IntKeyHash, IntKeyEqual> _intTypes;
     std::unordered_map<TypeKey, UnionType*, TypeKeyHash> _unionTypes;
     std::unordered_map<TypeKey, TupleType*, TypeKeyHash> _tupleTypes;
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;

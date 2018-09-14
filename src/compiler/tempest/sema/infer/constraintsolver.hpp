@@ -100,6 +100,9 @@ namespace tempest::sema::infer {
     /** Find the best possible conversion rankings. */
     void findRankUpperBound();
 
+    /** Reject candidates by restricting a single site to each candidate in turn. */
+    void narrowPassRejection();
+
     /** Brute-force search of all overload permutations to find the best ranking. */
     void findBestRankedOverloads();
     void findBestRankedOverloads(const llvm::ArrayRef<OverloadSite*>& sites, size_t index);
@@ -126,6 +129,8 @@ namespace tempest::sema::infer {
     ConversionRankTotals _bestRankings;
     std::vector<BinaryOp*> _binOps;
     bool _failed = false;
+
+    ConversionRankTotals computeRankingsForConfiguration();
 
     /** Find the best possible conversion for the nth parameter at a call site, checking
         all remaining viable overloads. */

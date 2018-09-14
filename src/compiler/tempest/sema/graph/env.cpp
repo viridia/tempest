@@ -23,8 +23,4 @@ namespace tempest::sema::graph {
     assert(has(param));
     return param->index() < args.size() ? args[param->index()] : nullptr;
   }
-#if 0
-  static ImmutableEnv emptyEnv;
-  EnvChain EnvChain::NIL(emptyEnv);
-#endif
 }

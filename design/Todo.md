@@ -1,6 +1,7 @@
 # TODOs
 
 * Infix operators
+* Constant infix operators
 * Member access operator
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
 * If / While / For

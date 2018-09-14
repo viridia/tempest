@@ -504,4 +504,12 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto fd = cast<FunctionDefn>(mod->members().front());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
   }
+
+  SECTION("Conflicting types for generic parameter") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x(a0: f32, a1: i32) => a0 + a1;\n"
+      ),
+      Catch::Contains("subtype of i64"));
+  }
 }

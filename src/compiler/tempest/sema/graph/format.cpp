@@ -111,6 +111,15 @@ namespace tempest::sema::graph {
               out << sep;
               sep = ", ";
               out << p->name();
+              if (p->subtypeConstraints().size() > 0) {
+                out << ": ";
+                auto sep2 = "";
+                for (auto st : p->subtypeConstraints()) {
+                  out << sep2;
+                  sep2 = " & ";
+                  out << st;
+                }
+              }
             }
             out << "]";
           }

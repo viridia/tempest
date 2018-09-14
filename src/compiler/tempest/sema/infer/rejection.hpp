@@ -5,6 +5,10 @@
   #include "tempest/sema/graph/type.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_INFER_TYPES_HPP
+  #include "tempest/sema/infer/types.hpp"
+#endif
+
 namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   struct ExplicitConstraint;
@@ -30,6 +34,7 @@ namespace tempest::sema::infer {
       UNSATISFIED_REQIREMENT,
       UNSATISFIED_TYPE_CONSTRAINT,
       INCONSISTENT, // Contradictory constraints
+      CONFLICT, // Conflict between explicit and implicit constraint
       NOT_MORE_SPECIALIZED,
       NOT_BEST,
     };
@@ -41,7 +46,11 @@ namespace tempest::sema::infer {
 
     /** Some rejections include a constraint that wasn't satisfied. */
     ExplicitConstraint* constraint = nullptr;
-    // Constraint* otherConstraint = nullptr;
+
+    /** Some rejections include a constraint that wasn't satisfied. */
+    const InferredType* itype = nullptr;
+    InferredType::Constraint* iconst0 = nullptr;
+    InferredType::Constraint* iconst1 = nullptr;
 
     Rejection() : reason(NONE) {};
     Rejection(Reason reason) : reason(reason) {};

@@ -40,6 +40,13 @@ namespace tempest::sema::infer {
     }
 
     if (!isSingularSolution()) {
+      narrowPassRejection();
+      if (_failed) {
+        return;
+      }
+    }
+
+    if (!isSingularSolution()) {
       findBestRankedOverloads();
       if (_failed) {
         return;
@@ -218,6 +225,112 @@ namespace tempest::sema::infer {
     return rejection;
   }
 
+  void ConstraintSolver::narrowPassRejection() {
+    // Set up pruning flags
+    for (auto site : _sites) {
+      site->pruneAll(false);
+    }
+
+    for (auto site : _sites) {
+      if (site->candidates.size() > 1) {
+        // All viable candidates are unpruned, except for this one site.
+        site->pruneAll(true);
+        for (auto oc : site->candidates) {
+          if (oc->rejection.reason != Rejection::NONE) {
+            continue;
+          }
+
+          oc->pruned = false;
+
+          // So the conversion rankings represent the best possible case if this candidate is
+          // chosen.
+
+          for (auto typeArg : oc->typeArgs) {
+            if (oc->rejection.reason != Rejection::NONE) {
+              break;
+            }
+            if (auto inferred = dyn_cast<InferredType>(typeArg)) {
+              if (oc->rejection.reason != Rejection::NONE) {
+                break;
+              }
+
+              // See if explicit condition conflicts with assignment
+              for (auto& excon : _bindings) {
+                if (excon.candidate == oc && excon.dstType == inferred) {
+                  for (auto& constraint : inferred->constraints) {
+                    if (oc->rejection.reason != Rejection::NONE) {
+                      break;
+                    }
+                    if (!isViable(constraint.when)) {
+                      continue;
+                    }
+
+                    if (excon.predicate == TypeRelation::SUBTYPE) {
+                      if (constraint.predicate == TypeRelation::ASSIGNABLE_FROM) {
+                        if (isAssignable(excon.srcType, constraint.value).rank
+                                == ConversionRank::ERROR) {
+                          oc->rejection.reason = Rejection::CONFLICT;
+                          oc->rejection.constraint = &excon;
+                          oc->rejection.itype = inferred;
+                          oc->rejection.iconst0 = &constraint;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              // See if we can find any contradictory type constraints
+              for (auto& constraint : inferred->constraints) {
+                if (oc->rejection.reason != Rejection::NONE) {
+                  break;
+                }
+                if (!isViable(constraint.when)) {
+                  continue;
+                }
+
+                for (auto& constraint2 : inferred->constraints) {
+                  if (&constraint == &constraint2) {
+                    continue;
+                  }
+                  if (!isViable(constraint.when)) {
+                    continue;
+                  }
+
+                  if (constraint.when == constraint2.when) {
+                    if (constraint.predicate == TypeRelation::ASSIGNABLE_FROM) {
+                      if (constraint2.predicate == TypeRelation::ASSIGNABLE_FROM) {
+                        if (isAssignable(constraint.value, constraint2.value).rank
+                                == ConversionRank::ERROR &&
+                            isAssignable(constraint2.value, constraint.value).rank
+                                == ConversionRank::ERROR) {
+                          oc->rejection.reason = Rejection::INCONSISTENT;
+                          oc->rejection.itype = inferred;
+                          oc->rejection.iconst0 = &constraint;
+                          oc->rejection.iconst1 = &constraint2;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          oc->pruned = true;
+        }
+        site->pruneAll(false);
+        if (site->allRejected()) {
+          reportSiteRejections(site);
+          _failed = true;
+          return;
+        }
+      }
+    }
+  }
+
   void ConstraintSolver::findBestRankedOverloads() {
     // Set up pruning flags
     _currentPermutation.resize(_sites.size());
@@ -271,37 +384,7 @@ namespace tempest::sema::infer {
         oc->pruned = true;
       }
     } else {
-      ConversionRankTotals rankings;
-      for (auto site : _sites) {
-        assert(site->numViable() == 1);
-        if (site->kind == OverloadKind::CALL) {
-          auto callSite = static_cast<CallSite*>(site);
-          auto cc = static_cast<CallCandidate*>(
-              site->candidates[_currentPermutation[site->ordinal]]);
-          assert(cc->isViable());
-          for (size_t i = 0; i < callSite->argTypes.size(); i += 1) {
-            auto paramIndex = cc->paramAssignments[i];
-            auto result = isAssignable(cc->paramTypes[paramIndex], callSite->argTypes[i]);
-            rankings.count[int(result.rank)] += 1;
-          }
-        } else {
-          assert(false && "Implement overload kind");
-        }
-      }
-      for (auto& assign : _assignments) {
-        auto result = isAssignable(assign.dstType, assign.srcType);
-        rankings.count[int(result.rank)] += 1;
-      }
-      for (auto& constraint : _bindings) {
-        if (constraint.candidate->isViable()) {
-          if (constraint.predicate == TypeRelation::SUBTYPE) {
-            if (!isEqualOrNarrower(constraint.dstType, constraint.srcType)) {
-              rankings.count[int(ConversionRank::ERROR)] += 1;
-            }
-          }
-        }
-      }
-
+      ConversionRankTotals rankings = computeRankingsForConfiguration();
       if (rankings.isBetterThan(_bestRankings)) {
         _bestPermutationSet.clear();
         _bestRankings = rankings;
@@ -316,6 +399,40 @@ namespace tempest::sema::infer {
         }
       }
     }
+  }
+
+  ConversionRankTotals ConstraintSolver::computeRankingsForConfiguration() {
+    ConversionRankTotals rankings;
+    for (auto site : _sites) {
+      assert(site->numViable() == 1);
+      if (site->kind == OverloadKind::CALL) {
+        auto callSite = static_cast<CallSite*>(site);
+        auto cc = static_cast<CallCandidate*>(
+            site->candidates[_currentPermutation[site->ordinal]]);
+        assert(cc->isViable());
+        for (size_t i = 0; i < callSite->argTypes.size(); i += 1) {
+          auto paramIndex = cc->paramAssignments[i];
+          auto result = isAssignable(cc->paramTypes[paramIndex], callSite->argTypes[i]);
+          rankings.count[int(result.rank)] += 1;
+        }
+      } else {
+        assert(false && "Implement overload kind");
+      }
+    }
+    for (auto& assign : _assignments) {
+      auto result = isAssignable(assign.dstType, assign.srcType);
+      rankings.count[int(result.rank)] += 1;
+    }
+    for (auto& constraint : _bindings) {
+      if (constraint.candidate->isViable()) {
+        if (constraint.predicate == TypeRelation::SUBTYPE) {
+          if (!isEqualOrNarrower(constraint.dstType, constraint.srcType)) {
+            rankings.count[int(ConversionRank::ERROR)] += 1;
+          }
+        }
+      }
+    }
+    return rankings;
   }
 
   ConversionResult ConstraintSolver::paramConversion(CallSite* site, size_t argIndex) {
@@ -387,12 +504,7 @@ namespace tempest::sema::infer {
   void ConstraintSolver::reportSiteAmbiguities() {
     for (auto site : _sites) {
       if (site->allRejected()) {
-        if (site->kind == OverloadKind::CALL) {
-          auto callSite = static_cast<CallSite*>(site);
-          diag.error(callSite->location) << "No suitable method for call:";
-          diag.info() << "Possible methods are:";
-          reportCandidateStatus(site);
-        }
+        reportSiteRejections(site);
       } else if (!site->isSingular()) {
         if (site->kind == OverloadKind::CALL) {
           auto callSite = static_cast<CallSite*>(site);
@@ -515,16 +627,48 @@ namespace tempest::sema::infer {
           // Type inference rejections
           // UNIFICATION_ERROR,
           // UNSATISFIED_REQIREMENT,
-          // INCONSISTENT, // Contradictory constraints
 
           case Rejection::NOT_MORE_SPECIALIZED:
             diag.info(method->location()) << cc->method
                 << ": matches less strictly than other candidates.";
             break;
 
+          case Rejection::INCONSISTENT:
+            diag.info(method->location()) << cc->method
+                << ": no type found for " << oc->rejection.itype->typeParam
+                << " that satisfies all the following constraints:";
+            if (oc->rejection.iconst0->predicate == TypeRelation::ASSIGNABLE_FROM) {
+              diag.info() << "  assignable from " << oc->rejection.iconst0->value;
+            } else {
+              assert(false && "Implement");
+            }
+
+            if (oc->rejection.iconst1->predicate == TypeRelation::ASSIGNABLE_FROM) {
+              diag.info() << "  assignable from " << oc->rejection.iconst1->value;
+            } else {
+              assert(false && "Implement");
+            }
+            break;
+
+          case Rejection::CONFLICT:
+            diag.info(method->location()) << cc->method
+                << ": no type found for " << oc->rejection.itype->typeParam
+                << " that satisfies all the following constraints:";
+            if (oc->rejection.constraint->predicate == TypeRelation::SUBTYPE) {
+              diag.info() << "  subtype of " << oc->rejection.constraint->srcType;
+            } else {
+              assert(false && "Implement");
+            }
+            if (oc->rejection.iconst0->predicate == TypeRelation::ASSIGNABLE_FROM) {
+              diag.info() << "  assignable from " << oc->rejection.iconst0->value;
+            } else {
+              assert(false && "Implement");
+            }
+            break;
+
           case Rejection::NOT_BEST:
             diag.info(method->location()) << cc->method
-                << ": rejected because other choices produce fewer type conversionss.";
+                << ": rejected because other choices produce fewer type conversions.";
             break;
 
           default:

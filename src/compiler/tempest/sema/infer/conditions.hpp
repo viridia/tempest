@@ -12,22 +12,31 @@ namespace tempest::sema::infer {
   class ConstraintSolver;
 
   /** Class that represents the set of conditions that must be satisfied in order for
-      a particular type constraint to be applicable.
+      a particular type constraint to be applicable. These are expressed in the form of
+      a boolean expression represented as ANDs (conjuncts) and ORs (disjuncts), in the form:
 
-      The individual terms of the conditions represent the choice of which overload
-      candidate is chosen for a particular call site. During type inference, the set of
-      overloads may initially be ambiguous, which means that multiple overloads may be
-      chosen for a single site, but eventually those choices must be narrowed to
-      a single overload per site.
+        (T1 OR T2 OR T3) AND (T4 OR T5) ...etc...
 
-      Note all overload sites will be included in a given condition set, since not every
+        (T1 OR T2 OR T3) AND (T4 OR T5) ...etc...
+
+      The individual terms of the condition (Tn) represent the choice of which overload
+      candidate is chosen for a particular call site. To make it easier to test this class,
+      terms are stored as integer indices: (site index, candidate index). The determination
+      as to whether a given term is true or false will depend on context and is the resposibility
+      of the caller.
+
+      During type inference, the set of overloads may initially be ambiguous, which means that
+      multiple overloads may be chosen for a single site, but eventually those choices must be
+      narrowed to a single overload per site.
+
+      Not all overload sites will be included in a given condition set, since not every
       overload site affects whether a given type constraint is applicable.
 
       This class supports logical operations on condition sets. Adding a conjunct to a set
       makes it more restrictive, while adding choices within a conjunct makes it less
       restrictive.
 
-      Because sets are typically very small (1 or 2 elements), we use a SmallVector to store
+      Because sets are typically very small (1 or 2 elements), we use a sorted SmallVector to store
       the entries and do linear searches for membership tests rather than a fancy unordered
       set.
   */
@@ -51,6 +60,10 @@ namespace tempest::sema::infer {
 
       bool empty() const {
         return _choices.empty();
+      }
+
+      size_t size() const {
+        return _choices.size();
       }
 
       const_iterator begin() const { return _choices.begin(); }
@@ -85,29 +98,25 @@ namespace tempest::sema::infer {
       }
 
       /** True if this set includes all the conditions of `subset`. */
-      bool includes(const Conjunct& subset) const {
-        for (auto choice : subset._choices) {
-          if (!contains(choice)) {
-            return false;
-          }
-        }
-        return true;
+      bool isSuperset(const Conjunct& subset) const {
+        return _site == subset._site &&
+            std::includes(
+                _choices.begin(), _choices.end(),
+                subset._choices.begin(), subset._choices.end());
       }
 
       /** True if this set is a subset of `superset`. */
       bool isSubset(const Conjunct& superset) const {
-        for (auto choice : _choices) {
-          if (!superset.contains(choice)) {
-            return false;
-          }
-        }
-        return true;
+        return _site == superset._site &&
+            std::includes(
+                superset._choices.begin(), superset._choices.end(),
+                _choices.begin(), _choices.end());
       }
 
       /** Add elements to the set. Maintains sorted order. */
       bool add(size_t choice) {
         if (!contains(choice)) {
-          _choices.insert(std::upper_bound(_choices.begin(), _choices.end(), choice), choice);
+          _choices.insert(std::lower_bound(_choices.begin(), _choices.end(), choice), choice);
           return true;
         }
         return false;
@@ -168,20 +177,21 @@ namespace tempest::sema::infer {
       return _conjuncts.empty();
     }
 
-    iterator findSite(size_t site) {
-      return std::find_if(
-          _conjuncts.begin(),
-          _conjuncts.end(),
-          [site](const Conjunct& c) { return c.site() == site; });
+    /** Number of conjuncts. */
+    size_t numConjuncts() const { return _conjuncts.size(); }
+
+    iterator find(size_t site) {
+      auto it = findInsertionPoint(site);
+      return it != _conjuncts.end() && it->site() == site ? it : _conjuncts.end();
     }
 
     /** Add elements to the set. */
     bool add(size_t site, size_t choice) {
-      auto it = findSite(site);
-      if (it != _conjuncts.end()) {
+      auto it = findInsertionPoint(site);
+      if (it != _conjuncts.end() && it->site() == site) {
         return it->add(choice);
       } else {
-        _conjuncts.push_back(Conjunct(site, choice));
+        _conjuncts.insert(it, Conjunct(site, choice));
         return true;
       }
     }
@@ -189,13 +199,50 @@ namespace tempest::sema::infer {
     /** Compute the conjunction of this set of conditions and another. */
     void conjoinWith(const Conditions& src) {
       for (auto& it : src) {
-        auto dst = findSite(it.site());
-        if (dst == _conjuncts.end()) {
-          _conjuncts.push_back(it);
+        auto dit = findInsertionPoint(it.site());
+        if (dit != _conjuncts.end() && dit->site() == it.site()) {
+          dit->intersectWith(it);
         } else {
-          dst->intersectWith(it);
+          _conjuncts.insert(dit, it);
         }
       }
+    }
+
+    /** True if conditions are equal. */
+    bool equal(const Conditions& other) const {
+      return std::equal(
+          _conjuncts.begin(), _conjuncts.end(),
+          other._conjuncts.begin(), other._conjuncts.end());
+    }
+
+    bool operator==(const Conditions& other) const {
+      return equal(other);
+    }
+
+    bool operator!=(const Conditions& other) const {
+      return !equal(other);
+    }
+
+    /** True if this 'superset' includes all the cases of this set. Note that while adding more
+        terms to a conjunct makes it *larger*, adding more conjuncts makes it *smaller*.
+        That is because adding more conjuncts means it applies to fewer cases.
+    */
+    bool isSubset(const Conditions& superset) const {
+      auto first1 = begin(), last1 = end();
+      auto first2 = superset.begin(), last2 = superset.end();
+      for (; first2 != last2; ++first1) {
+        if (first1 == last1) {
+          return false;
+        } else if (first2->site() < first1->site()) {
+          return false;
+        } else if (first2->site() == first1->site() && !first1->isSubset(*first2)) {
+          return false;
+        }
+        if (!(first1->site() < first2->site())) {
+          ++first2;
+        }
+      }
+      return true;
     }
 
     /** Set operations. */
@@ -222,7 +269,34 @@ namespace tempest::sema::infer {
 
   private:
     Conjuncts _conjuncts;
+
+    iterator findInsertionPoint(size_t site) {
+      return std::lower_bound(
+          _conjuncts.begin(),
+          _conjuncts.end(), site,
+          [](const Conjunct& l, const Conjunct& r) {
+            return l.site() < r.site();
+          });
+    }
   };
+
+  // How to print a node kind.
+  inline ::std::ostream& operator<<(::std::ostream& os, const Conditions& c) {
+    os << "{";
+    auto s2 = "";
+    for (auto cj : c) {
+      os << s2 << cj.site() << ":[";
+      auto sep = "";
+      for (auto choice : cj) {
+        os << sep << choice;
+        sep = " or ";
+      }
+      os << "]";
+      s2 = " and ";
+    }
+    os << "}";
+    return os;
+  }
 }
 
 #endif

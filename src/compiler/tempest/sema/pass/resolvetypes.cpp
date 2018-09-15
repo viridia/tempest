@@ -1,6 +1,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
+#include "tempest/sema/eval/evalconst.hpp"
 #include "tempest/sema/graph/env.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
@@ -36,8 +37,9 @@ namespace tempest::sema::pass {
 
   class LowerOperatorsTransform : public ExprTransform {
   public:
-    LowerOperatorsTransform(support::BumpPtrAllocator& alloc)
-      : _alloc(alloc)
+    LowerOperatorsTransform(CompilationUnit& cu, support::BumpPtrAllocator& alloc)
+      : _cu(cu)
+      , _alloc(alloc)
     {}
 
     Expr* transform(Expr* e) {
@@ -59,6 +61,32 @@ namespace tempest::sema::pass {
     }
 
     Expr* visitInfixOperator(BinaryOp* op) {
+      eval::EvalResult result;
+      result.failSilentIfNonConst = true;
+      if (eval::evalConstExpr(op, result)) {
+        switch (result.type) {
+          case eval::EvalResult::INT: {
+            auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
+            return new (_alloc) IntegerLiteral(
+              op->location,
+              result.intResult,
+              result.isUnsigned,
+              intType);
+          }
+          case eval::EvalResult::FLOAT:
+            assert(false && "Implement");
+            break;
+          case eval::EvalResult::BOOL:
+            assert(false && "Implement");
+            break;
+          case eval::EvalResult::STRING:
+            assert(false && "Implement");
+            break;
+        }
+      } else if (result.error) {
+        return &Expr::ERROR;
+      }
+
       StringRef funcName;
       switch (op->kind) {
         case Expr::Kind::ADD:
@@ -85,6 +113,7 @@ namespace tempest::sema::pass {
     }
 
   private:
+    CompilationUnit& _cu;
     support::BumpPtrAllocator& _alloc;
   };
 
@@ -212,7 +241,7 @@ namespace tempest::sema::pass {
         returnType = &VoidType::VOID;
       }
 
-      LowerOperatorsTransform transform(*_alloc);
+      LowerOperatorsTransform transform(_cu, *_alloc);
       fd->setBody(transform.transform(fd->body()));
       returnType = chooseIntegerType(fd->body(), assignTypes(fd->body(), returnType));
       if (returnType && !fd->type()) {

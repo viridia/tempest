@@ -20,6 +20,10 @@ namespace tempest::sema::eval {
     bool isUnsigned;// Whether the integer type is signed or unsigned
     bool hasSize;   // Whether the integer type has an explicit size (integer literals don't)
 
+    // Flag that indicates we want to give up without an error if an argument
+    bool failSilentIfNonConst = false;
+
+    // Results of the evaluation
     llvm::APInt intResult;
     llvm::APFloat floatResult;
     std::string strResult;

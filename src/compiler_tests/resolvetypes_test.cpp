@@ -469,6 +469,18 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i64"));
   }
 
+  SECTION("Resolve addition operator (constant folding") {
+    auto mod = compile(cu, "fn x() => 100000001 - 100000000;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Resolve addition operator (constant folding - unsigned") {
+    auto mod = compile(cu, "fn x() => 100000001 - 100000000u;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
   SECTION("Resolve addition operator (float)") {
     auto mod = compile(cu, "fn x(arg: f32) => arg + 1f;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());

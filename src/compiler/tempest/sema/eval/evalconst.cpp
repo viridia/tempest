@@ -23,7 +23,7 @@ namespace tempest::sema::eval {
         result.intResult = intLit->value();
         result.type = EvalResult::INT;
         result.hasSize = !llvm::cast<IntegerType>(intLit->type)->isImplicitlySized();
-        result.isUnsigned = !llvm::cast<IntegerType>(intLit->type)->isUnsigned();
+        result.isUnsigned = llvm::cast<IntegerType>(intLit->type)->isUnsigned();
         return true;
       }
 
@@ -38,6 +38,7 @@ namespace tempest::sema::eval {
       case Expr::Kind::COMPLEMENT: {
         auto op = static_cast<const UnaryOp*>(e);
         EvalResult argResult;
+        argResult.failSilentIfNonConst = result.failSilentIfNonConst;
         if (!evalConstExpr(op->arg, argResult)) {
           result.error = argResult.error;
           return false;
@@ -94,6 +95,8 @@ namespace tempest::sema::eval {
         auto op = static_cast<const BinaryOp*>(e);
         EvalResult lhsResult;
         EvalResult rhsResult;
+        lhsResult.failSilentIfNonConst = rhsResult.failSilentIfNonConst
+            = result.failSilentIfNonConst;
         if (!evalConstExpr(op->args[0], lhsResult) || !evalConstExpr(op->args[1], rhsResult)) {
           result.error = lhsResult.error || rhsResult.error;
           return false;
@@ -275,8 +278,10 @@ namespace tempest::sema::eval {
 
           }
         } else {
-          diag.debug(e->location) << "Reference to variable '" << var->defn->name() <<
-              "' is not a compile-time constant.";
+          if (!result.failSilentIfNonConst) {
+            diag.debug(e->location) << "Reference to variable '" << var->defn->name() <<
+                "' is not a compile-time constant.";
+          }
           return false;
         }
       }

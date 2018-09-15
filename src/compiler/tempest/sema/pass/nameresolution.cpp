@@ -255,6 +255,7 @@ namespace tempest::sema::pass {
       if (ev->ast()->init) {
         auto expr = visitExpr(&tdScope, ev->ast()->init);
         eval::EvalResult result;
+        result.failSilentIfNonConst = true;
         if (!eval::evalConstExpr(expr, result) || result.type != eval::EvalResult::INT) {
           if (!result.error) {
             diag.error(expr) << "Enumeration value expression should be a constant integer";
@@ -263,7 +264,7 @@ namespace tempest::sema::pass {
         }
 
         if (base->isUnsigned()) {
-          if (result.isUnsigned && result.intResult.isNegative()) {
+          if (!result.isUnsigned && result.intResult.isNegative()) {
             diag.error(expr) << "Can't assign a negative value to an unsigned enumeration.";
             break;
           } else if (result.intResult.getActiveBits() > (unsigned) base->bits()) {

@@ -15,7 +15,9 @@ namespace tempest::sema::graph {
   class BlockStmt;
   class LocalVarStmt;
   class DefnRef;
+  class IfStmt;
   class MemberListExpr;
+  class WhileStmt;
 }
 
 namespace tempest::sema::infer {
@@ -84,6 +86,8 @@ namespace tempest::sema::pass {
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
+    Type* visitIf(IfStmt* expr, ConstraintSolver& cs);
+    Type* visitWhile(WhileStmt* expr, ConstraintSolver& cs);
     Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
     Type* visitCallName(
         ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs);

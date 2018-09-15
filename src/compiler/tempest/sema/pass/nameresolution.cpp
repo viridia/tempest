@@ -834,15 +834,32 @@ namespace tempest::sema::pass {
         return new (*_alloc) LocalVarStmt(node->location, defn);
       }
 
+      case ast::Node::Kind::IF: {
+        auto stmt = static_cast<const ast::Control*>(node);
+        auto test = visitExpr(scope, stmt->test);
+        auto thenSt = visitExpr(scope, stmt->outcomes[0]);
+        auto elseSt = stmt->outcomes.size() > 1 ? visitExpr(scope, stmt->outcomes[1]) : nullptr;
+        return new (*_alloc) IfStmt(node->location, test, thenSt, elseSt);
+      }
+
+      case ast::Node::Kind::WHILE: {
+        auto stmt = static_cast<const ast::Control*>(node);
+        auto test = visitExpr(scope, stmt->test);
+        auto body = visitExpr(scope, stmt->outcomes[0]);
+        return new (*_alloc) WhileStmt(node->location, test, body);
+      }
+
+      case ast::Node::Kind::LOOP: {
+        auto stmt = static_cast<const ast::Control*>(node);
+        auto test = new (*_alloc) BooleanLiteral(node->location, true);
+        auto body = visitExpr(scope, stmt->outcomes[0]);
+        return new WhileStmt(node->location, test, body);
+      }
+
       // /* Misc statements */
-      // LOCAL_LET,  // A single variable definition (ident, type, init)
-      // LOCAL_CONST,// A single variable definition (ident, type, init)
       // ELSE,       // default for match or switch
       // FINALLY,    // finally block for try
 
-      // IF,         // if-statement (test, thenBlock, elseBlock)
-      // WHILE,      // while-statement (test, body)
-      // LOOP,       // loop (body)
       // FOR,        // for (vars, init, test, step, body)
       // FOR_IN,     // for in (vars, iter, body)
       // TRY,        // try (test, body, cases...)

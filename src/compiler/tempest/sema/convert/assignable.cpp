@@ -260,8 +260,6 @@ namespace tempest::sema::convert {
     if (dst->kind == Type::Kind::BOOLEAN) {
       if (src->kind == Type::Kind::BOOLEAN) {
         return ConversionResult(ConversionRank::IDENTICAL);
-      } else if (src->kind == Type::Kind::INTEGER) {
-        return ConversionResult(ConversionRank::INEXACT);
       }
       return ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE);
     }

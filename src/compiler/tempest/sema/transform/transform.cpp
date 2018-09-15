@@ -183,6 +183,21 @@ namespace tempest::sema::graph {
         return st;
       }
 
+      case Expr::Kind::IF: {
+        auto stmt = static_cast<IfStmt*>(expr);
+        stmt->test = transform(stmt->test);
+        stmt->thenBlock = transform(stmt->thenBlock);
+        stmt->elseBlock = transform(stmt->elseBlock);
+        return stmt;
+      }
+
+      case Expr::Kind::WHILE: {
+        auto stmt = static_cast<WhileStmt*>(expr);
+        stmt->test = transform(stmt->test);
+        stmt->body = transform(stmt->body);
+        return stmt;
+      }
+
       case Expr::Kind::RETURN: {
         auto ret = static_cast<UnaryOp*>(expr);
         ret->arg = transform(ret->arg);

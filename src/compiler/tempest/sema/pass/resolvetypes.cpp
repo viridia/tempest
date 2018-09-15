@@ -1,6 +1,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
+#include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/eval/evalconst.hpp"
 #include "tempest/sema/graph/env.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
@@ -20,7 +21,7 @@
 namespace tempest::sema::pass {
   using llvm::StringRef;
   using tempest::error::diag;
-  using namespace llvm;
+  using namespace tempest::sema::convert;
   using namespace tempest::sema::graph;
   using tempest::sema::infer::CallCandidate;
   using tempest::sema::infer::CallSite;
@@ -401,6 +402,12 @@ namespace tempest::sema::pass {
       case Expr::Kind::LOCAL_VAR:
         return visitLocalVar(static_cast<LocalVarStmt*>(e), cs);
 
+      case Expr::Kind::IF:
+        return visitIf(static_cast<IfStmt*>(e), cs);
+
+      case Expr::Kind::WHILE:
+        return visitWhile(static_cast<WhileStmt*>(e), cs);
+
       case Expr::Kind::RETURN: {
         auto ret = static_cast<UnaryOp*>(e);
         auto fd = dyn_cast<FunctionDefn>(_subject);
@@ -472,6 +479,40 @@ namespace tempest::sema::pass {
     }
 
     return &Type::NOT_EXPR;
+  }
+
+  Type* ResolveTypesPass::visitIf(IfStmt* expr, ConstraintSolver& cs) {
+    // Coerce test to bool later.
+    assignTypes(expr->test, nullptr);
+    auto thenType = visitExpr(expr->thenBlock, cs);
+    if (expr->elseBlock) {
+      auto elseType = visitExpr(expr->elseBlock, cs);
+      if (elseType->kind == Type::Kind::NEVER) {
+        return thenType;
+      } else if (thenType->kind == Type::Kind::NEVER) {
+        return elseType;
+      } else if (isAssignable(thenType, elseType).rank > ConversionRank::WARNING) {
+        return thenType;
+      } else if (isAssignable(elseType, thenType).rank > ConversionRank::WARNING) {
+        return elseType;
+      } else {
+        return _cu.types().createUnionType({ thenType, elseType });
+      }
+    } else {
+      if (thenType->kind == Type::Kind::NEVER) {
+        return thenType;
+      } else if (thenType->kind != Type::Kind::VOID) {
+        return _cu.types().createUnionType({ thenType, &VoidType::VOID });
+      }
+      return thenType;
+    }
+  }
+
+  Type* ResolveTypesPass::visitWhile(WhileStmt* expr, ConstraintSolver& cs) {
+    // Coerce to bool later.
+    assignTypes(expr->test, nullptr);
+    assignTypes(expr->body, nullptr);
+    return &VoidType::VOID;
   }
 
   Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {

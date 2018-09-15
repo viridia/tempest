@@ -525,20 +525,55 @@ TEST_CASE("ResolveTypes", "[sema]") {
       Catch::Contains("subtype of i64"));
   }
 
-  // SECTION("If statement") {
-  //   auto mod = compile(cu,
-  //       "fn x(a: i32) {\n"
-  //       "  if a {\n"
-  //       "    a\n"
-  //       "  } else {\n"
-  //       "    false\n"
-  //       "  }\n"
-  //       "}\n"
-  //   );
-  //   auto fd = cast<FunctionDefn>(mod->members().back());
-  //   auto body = cast<BlockStmt>(fd->body());
-  //   auto letSt = cast<LocalVarStmt>(body->stmts[0]);
-  //   REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
-  //   REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
-  // }
+  SECTION("If statement - disjoint returns") {
+    auto mod = compile(cu,
+        "fn x(a: i32) {\n"
+        "  if a {\n"
+        "    a\n"
+        "  } else {\n"
+        "    false\n"
+        "  }\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool | i32"));
+  }
+
+  SECTION("If statement - overlapping returns") {
+    auto mod = compile(cu,
+        "fn x(a: i32, b: i16) {\n"
+        "  if a {\n"
+        "    a\n"
+        "  } else {\n"
+        "    b\n"
+        "  }\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("If statement - no else") {
+    auto mod = compile(cu,
+        "fn x(a: i32, b: i16) {\n"
+        "  if a {\n"
+        "    a\n"
+        "  }\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("void | i32"));
+  }
+
+  SECTION("While statement") {
+    auto mod = compile(cu,
+        "fn x(a: i32) {\n"
+        "  while a {\n"
+        "    a\n"
+        "  }\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("void"));
+  }
 }

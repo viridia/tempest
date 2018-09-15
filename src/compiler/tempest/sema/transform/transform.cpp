@@ -1,9 +1,15 @@
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/expr.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_op.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/transform/transform.hpp"
 
 namespace tempest::sema::graph {
   using tempest::sema::infer::InferredType;
   using tempest::sema::infer::ContingentType;
+  using tempest::error::diag;
 
   const Type* TypeTransform::transform(const Type* ty) {
     if (ty == nullptr) {
@@ -128,5 +134,88 @@ namespace tempest::sema::graph {
       }
     }
     return changed;
+  }
+
+  Expr* ExprTransform::transform(Expr* expr) {
+    if (expr == nullptr) {
+      return nullptr;
+    }
+
+    switch (expr->kind) {
+      case Expr::Kind::VOID:
+      case Expr::Kind::BOOLEAN_LITERAL:
+      case Expr::Kind::INTEGER_LITERAL:
+      case Expr::Kind::FLOAT_LITERAL:
+        return expr;
+
+      case Expr::Kind::CALL: {
+        auto callExpr = static_cast<ApplyFnOp*>(expr);
+        callExpr->function = transform(callExpr->function);
+        transformArray(callExpr->args);
+        return callExpr;
+      }
+
+      case Expr::Kind::FUNCTION_REF:
+      case Expr::Kind::TYPE_REF:
+      case Expr::Kind::VAR_REF: {
+        auto dref = static_cast<DefnRef*>(expr);
+        dref->stem = transform(dref->stem);
+        return dref;
+      }
+
+      case Expr::Kind::FUNCTION_REF_OVERLOAD:
+      case Expr::Kind::TYPE_REF_OVERLOAD: {
+        auto mref = static_cast<MemberListExpr*>(expr);
+        mref->stem = transform(mref->stem);
+        return mref;
+      }
+
+      case Expr::Kind::BLOCK: {
+        auto block = static_cast<BlockStmt*>(expr);
+        transformArray(block->stmts);
+        block->result = transform(block->result);
+        return block;
+      }
+
+      case Expr::Kind::LOCAL_VAR: {
+        auto st = static_cast<LocalVarStmt*>(expr);
+        st->defn->setInit(transform(st->defn->init()));
+        return st;
+      }
+
+      case Expr::Kind::RETURN: {
+        auto ret = static_cast<UnaryOp*>(expr);
+        ret->arg = transform(ret->arg);
+        return ret;
+      }
+
+  // def visitThrow(self, expr, cs):
+  //   '''@type expr: spark.graph.graph.Throw
+  //      @type cs: constraintsolver.ConstraintSolver'''
+  //   if expr.hasArg():
+  //     self.assignTypes(expr.getArg(), self.typeStore.getEssentialTypes()['throwable'].getType())
+  //   return self.NO_RETURN
+
+      case Expr::Kind::ADD:
+      case Expr::Kind::SUBTRACT:
+      case Expr::Kind::MULTIPLY:
+      case Expr::Kind::DIVIDE:
+      case Expr::Kind::REMAINDER: {
+        auto op = static_cast<BinaryOp*>(expr);
+        op->args[0] = transform(op->args[0]);
+        op->args[1] = transform(op->args[1]);
+        return op;
+      }
+
+      default:
+        diag.debug() << "Invalid expression kind: " << Expr::KindName(expr->kind);
+        assert(false && "Invalid expression kind");
+    }
+  }
+
+  void ExprTransform::transformArray(const ArrayRef<Expr*>& in) {
+    for (size_t i = 0; i < in.size(); i += 1) {
+      const_cast<Expr**>(in.data())[i] = transform(in[i]);
+    }
   }
 }

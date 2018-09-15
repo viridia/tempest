@@ -34,6 +34,60 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::TypeRelation;
   using tempest::sema::transform::ApplySpecialization;
 
+  class LowerOperatorsTransform : public ExprTransform {
+  public:
+    LowerOperatorsTransform(support::BumpPtrAllocator& alloc)
+      : _alloc(alloc)
+    {}
+
+    Expr* transform(Expr* e) {
+      if (e == nullptr) {
+        return e;
+      }
+
+      switch (e->kind) {
+        case Expr::Kind::ADD:
+        case Expr::Kind::SUBTRACT:
+        case Expr::Kind::MULTIPLY:
+        case Expr::Kind::DIVIDE:
+        case Expr::Kind::REMAINDER:
+          return visitInfixOperator(static_cast<BinaryOp*>(e));
+
+        default:
+          return ExprTransform::transform(e);
+      }
+    }
+
+    Expr* visitInfixOperator(BinaryOp* op) {
+      StringRef funcName;
+      switch (op->kind) {
+        case Expr::Kind::ADD:
+          funcName = "infixAdd";
+          break;
+        case Expr::Kind::SUBTRACT:
+          funcName = "infixSubtract";
+          break;
+        case Expr::Kind::MULTIPLY:
+          funcName = "infixMultiply";
+          break;
+        case Expr::Kind::DIVIDE:
+          funcName = "infixDivide";
+          break;
+        case Expr::Kind::REMAINDER:
+          funcName = "infixRemainder";
+          break;
+        default:
+          assert(false && "Invalid binary op");
+      }
+
+      return new (_alloc) ApplyFnOp(
+          Expr::Kind::CALL, op->location, op->lowered, op->args);
+    }
+
+  private:
+    support::BumpPtrAllocator& _alloc;
+  };
+
   void ResolveTypesPass::run() {
     while (_sourcesProcessed < _cu.sourceModules().size()) {
       process(_cu.sourceModules()[_sourcesProcessed++]);
@@ -158,6 +212,8 @@ namespace tempest::sema::pass {
         returnType = &VoidType::VOID;
       }
 
+      LowerOperatorsTransform transform(*_alloc);
+      fd->setBody(transform.transform(fd->body()));
       returnType = chooseIntegerType(fd->body(), assignTypes(fd->body(), returnType));
       if (returnType && !fd->type()) {
         SmallVector<Type*, 8> paramTypes;
@@ -334,13 +390,6 @@ namespace tempest::sema::pass {
   //     self.assignTypes(expr.getArg(), self.typeStore.getEssentialTypes()['throwable'].getType())
   //   return self.NO_RETURN
 
-      case Expr::Kind::ADD:
-      case Expr::Kind::SUBTRACT:
-      case Expr::Kind::MULTIPLY:
-      case Expr::Kind::DIVIDE:
-      case Expr::Kind::REMAINDER:
-        return visitInfixOperator(static_cast<BinaryOp*>(e), cs);
-
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(e->kind);
         assert(false && "Invalid expression kind");
@@ -394,35 +443,6 @@ namespace tempest::sema::pass {
     }
 
     return &Type::NOT_EXPR;
-  }
-
-  Type* ResolveTypesPass::visitInfixOperator(BinaryOp* expr, ConstraintSolver& cs) {
-    StringRef funcName;
-    switch (expr->kind) {
-      case Expr::Kind::ADD:
-        funcName = "infixAdd";
-        break;
-      case Expr::Kind::SUBTRACT:
-        funcName = "infixSubtract";
-        break;
-      case Expr::Kind::MULTIPLY:
-        funcName = "infixMultiply";
-        break;
-      case Expr::Kind::DIVIDE:
-        funcName = "infixDivide";
-        break;
-      case Expr::Kind::REMAINDER:
-        funcName = "infixRemainder";
-        break;
-      default:
-        assert(false && "Invalid binary op");
-    }
-
-    cs.binOps().push_back(expr);
-    auto callExpr = new (*_alloc) ApplyFnOp(
-        Expr::Kind::CALL, expr->location, expr->lowered, expr->args);
-    expr->lowered = callExpr;
-    return visitCallName(callExpr, callExpr->function, expr->args, cs);
   }
 
   Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
@@ -987,13 +1007,6 @@ namespace tempest::sema::pass {
 
     SolutionTransform transform(*_alloc);
     applySolution(cs);
-
-    // For binary operators which have been lowered to function calls, update the result type.
-    for (auto binOp : cs.binOps()) {
-      auto callExpr = cast<ApplyFnOp>(binOp->lowered);
-      assert(callExpr->type);
-      binOp->type = callExpr->type;
-    }
 
 //         if exprType:
 //           finalExprType = typesubstitution.ApplyEnv(solutionEnv).traverseType(exprType)

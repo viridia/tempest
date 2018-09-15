@@ -2,23 +2,27 @@
 
 * Infix operators
 * Constant infix operators
+* Unary operators
 * Member access operator
+* I think we might need another pass after nameresolution:
+  * lower infix operators
+  * fold constants
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
+  * inferred source types
+  * structural typing in unification
+  * structural typing for field definitions
+  * narrower doesn't handle type vars (except inferred)
 * If / While / For
 * Match
-* Unify contingent types
 * Traits
-* Type inference for generic function parameters
-  * Include outer generic params
-  * Apply generic solution
 * Type inference for constructor calls
 * Unify structural typing
 * Unify function types
+* Constructor calls
 * Expression callables
 * Private / Protected visibility tests
 * Class method overload tests
 * Support for 'self' and 'super'
-* Support for built-in operators
 * Type parameter defaults
 * Get rid of classes we don't need
 * More statement types

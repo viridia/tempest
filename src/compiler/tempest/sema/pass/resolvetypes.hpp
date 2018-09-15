@@ -84,7 +84,6 @@ namespace tempest::sema::pass {
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
-    Type* visitInfixOperator(BinaryOp* expr, ConstraintSolver& cs);
     Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
     Type* visitCallName(
         ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs);

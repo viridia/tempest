@@ -20,8 +20,7 @@
 namespace tempest::sema::graph {
   using tempest::sema::graph::Type;
 
-  /** Helper class that takes a type expression and returns a corresponding type expression
-      where all type variables have been replaced. */
+  /** Abstract base class for type transformations. */
   class TypeTransform {
   public:
     TypeTransform(tempest::support::BumpPtrAllocator& alloc) : _alloc(alloc) {}
@@ -35,6 +34,13 @@ namespace tempest::sema::graph {
 
   private:
     tempest::support::BumpPtrAllocator& _alloc;
+  };
+
+  /** Abstract base class for mutating expression transformations. */
+  class ExprTransform {
+  public:
+    virtual Expr* transform(Expr* in);
+    void transformArray(const ArrayRef<Expr*>& in);
   };
 }
 

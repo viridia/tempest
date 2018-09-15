@@ -102,6 +102,7 @@ namespace tempest::sema::pass {
     Type* visitFunctionName(DefnRef* expr, ConstraintSolver& cs);
     Type* visitTypeName(DefnRef* expr, ConstraintSolver& cs);
 
+    Expr* booleanTest(Expr* expr);
     Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
     void applySolution(ConstraintSolver& cs);
     void updateCallSite(ConstraintSolver& cs, CallSite* site);

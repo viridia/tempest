@@ -12,6 +12,24 @@ namespace tempest::sema::eval {
   using namespace tempest::sema::graph;
   using tempest::error::diag;
 
+  bool checkFloatError(
+      const source::Location& location, EvalResult& result, llvm::APFloat::opStatus st) {
+    if (st & llvm::APFloat::opDivByZero) {
+      diag.error(location) << "Floating-point divide by zero.";
+      result.error = true;
+      return false;
+    } else if (st & llvm::APFloat::opUnderflow) {
+      diag.warn(location) << "Floating-point underflow.";
+      result.error = true;
+      return false;
+    } else if (st & llvm::APFloat::opOverflow) {
+      diag.warn(location) << "Floating-point overflow.";
+      result.error = true;
+      return false;
+    }
+    return true;
+  }
+
   bool evalConstExpr(const Expr* e, EvalResult& result) {
     if (e == nullptr) {
       return false;
@@ -24,6 +42,20 @@ namespace tempest::sema::eval {
         result.type = EvalResult::INT;
         result.hasSize = !llvm::cast<IntegerType>(intLit->type)->isImplicitlySized();
         result.isUnsigned = llvm::cast<IntegerType>(intLit->type)->isUnsigned();
+        return true;
+      }
+
+      case Expr::Kind::FLOAT_LITERAL: {
+        auto fltLit = static_cast<const FloatLiteral*>(e);
+        result.floatResult = fltLit->value();
+        result.type = EvalResult::FLOAT;
+        if (fltLit->type == &FloatType::F32) {
+          result.size = EvalResult::F32;
+        } else if (fltLit->type == &FloatType::F64) {
+          result.size = EvalResult::F64;
+        } else {
+          assert(false && "Unsupported float size");
+        }
         return true;
       }
 
@@ -194,10 +226,12 @@ namespace tempest::sema::eval {
               break;
 
             case Expr::Kind::LSHIFT:
+              result.isUnsigned = lhsResult.isUnsigned;
               result.intResult = lhsResult.intResult.shl(rhsResult.intResult);
               break;
 
             case Expr::Kind::RSHIFT:
+              result.isUnsigned = lhsResult.isUnsigned;
               if (lhsResult.isUnsigned) {
                 result.intResult = lhsResult.intResult.lshr(rhsResult.intResult);
               } else {
@@ -256,8 +290,140 @@ namespace tempest::sema::eval {
           }
 
           return true;
+        } else if (lhsResult.type == EvalResult::FLOAT && rhsResult.type == EvalResult::FLOAT) {
+          bool ignored;
+          result.type = EvalResult::FLOAT;
+          result.size = std::max(lhsResult.size, rhsResult.size);
+          llvm::APFloat::opStatus st;
+          if (lhsResult.size != result.size) {
+            switch (result.size) {
+              case EvalResult::F16:
+                st = lhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEhalf(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+              case EvalResult::F32:
+                st = lhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEsingle(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+              case EvalResult::F64:
+                st = lhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEdouble(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+              case EvalResult::F128:
+                st = lhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEquad(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+            }
+
+            if (!checkFloatError(op->location, result, st)) {
+              return false;
+            }
+          }
+          if (rhsResult.size != result.size) {
+            switch (result.size) {
+              case EvalResult::F16:
+                st = rhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEhalf(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+              case EvalResult::F32:
+                st = rhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEsingle(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+              case EvalResult::F64:
+                st = rhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEdouble(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+              case EvalResult::F128:
+                st = rhsResult.floatResult.convert(
+                    llvm::APFloat::IEEEquad(), llvm::APFloat::rmNearestTiesToEven, &ignored);
+                break;
+            }
+
+            if (!checkFloatError(op->location, result, st)) {
+              return false;
+            }
+          }
+
+          switch (e->kind) {
+            case Expr::Kind::ADD:
+              result.floatResult = lhsResult.floatResult;
+              st = result.floatResult.add(rhsResult.floatResult, llvm::APFloat::rmNearestTiesToAway);
+              break;
+
+            case Expr::Kind::SUBTRACT:
+              result.floatResult = lhsResult.floatResult;
+              st = result.floatResult.subtract(
+                  rhsResult.floatResult, llvm::APFloat::rmNearestTiesToAway);
+              break;
+
+            case Expr::Kind::MULTIPLY:
+              result.floatResult = lhsResult.floatResult;
+              st = result.floatResult.multiply(
+                  rhsResult.floatResult, llvm::APFloat::rmNearestTiesToAway);
+              break;
+
+            case Expr::Kind::DIVIDE:
+              result.floatResult = lhsResult.floatResult;
+              st = result.floatResult.divide(
+                  rhsResult.floatResult, llvm::APFloat::rmNearestTiesToAway);
+              break;
+
+            case Expr::Kind::REMAINDER:
+              result.floatResult = lhsResult.floatResult;
+              st = result.floatResult.mod(rhsResult.floatResult);
+              break;
+
+            case Expr::Kind::BIT_OR:
+            case Expr::Kind::BIT_AND:
+            case Expr::Kind::BIT_XOR:
+            case Expr::Kind::LSHIFT:
+            case Expr::Kind::RSHIFT:
+              diag.error(e->location) << "Invalid operation for floating-point operands";
+              result.error = true;
+              return false;
+
+            case Expr::Kind::EQ:
+            case Expr::Kind::NE:
+            case Expr::Kind::LE:
+            case Expr::Kind::LT:
+            case Expr::Kind::GE:
+            case Expr::Kind::GT: {
+              result.floatResult = lhsResult.floatResult;
+              auto cmpResult = result.floatResult.compare(rhsResult.floatResult);
+              result.type = EvalResult::BOOL;
+
+              switch (e->kind) {
+                case Expr::Kind::EQ:
+                  result.boolResult = cmpResult == llvm::APFloat::cmpEqual;
+                  break;
+                case Expr::Kind::NE:
+                  result.boolResult = cmpResult != llvm::APFloat::cmpEqual;
+                  break;
+                case Expr::Kind::LE:
+                  result.boolResult = cmpResult == llvm::APFloat::cmpLessThan ||
+                      cmpResult == llvm::APFloat::cmpEqual;
+                  break;
+                case Expr::Kind::LT:
+                  result.boolResult = cmpResult == llvm::APFloat::cmpLessThan;
+                  break;
+                case Expr::Kind::GE:
+                  result.boolResult = cmpResult == llvm::APFloat::cmpGreaterThan ||
+                      cmpResult == llvm::APFloat::cmpEqual;
+                  break;
+                case Expr::Kind::GT:
+                  result.boolResult = cmpResult == llvm::APFloat::cmpGreaterThan;
+                  break;
+                default: assert(false);
+              }
+              break;
+            }
+
+            default:
+              return false;
+          }
+
+          return checkFloatError(op->location, result, st);
         } else {
-          // float + float
           // string + string
           assert(false && "Implement other data types for eval constant");
         }

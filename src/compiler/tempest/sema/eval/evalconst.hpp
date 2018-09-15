@@ -16,7 +16,14 @@ namespace tempest::sema::eval {
       BOOL,
       STRING,
     };
+    enum DataSize : uint8_t {
+      F16,
+      F32,
+      F64,
+      F128,
+    };
     DataType type;  // Data type of the result
+    DataSize size;  // Data size of the result (for floats)
     bool isUnsigned;// Whether the integer type is signed or unsigned
     bool hasSize;   // Whether the integer type has an explicit size (integer literals don't)
 

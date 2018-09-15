@@ -74,9 +74,17 @@ namespace tempest::sema::pass {
               result.isUnsigned,
               intType);
           }
-          case eval::EvalResult::FLOAT:
-            assert(false && "Implement");
-            break;
+          case eval::EvalResult::FLOAT: {
+            FloatType* ftype = &FloatType::F64;
+            if (result.size == eval::EvalResult::F32) {
+              ftype = &FloatType::F32;
+            }
+            return new (_alloc) FloatLiteral(
+              op->location,
+              result.floatResult,
+              false,
+              ftype);
+          }
           case eval::EvalResult::BOOL:
             assert(false && "Implement");
             break;
@@ -275,6 +283,8 @@ namespace tempest::sema::pass {
   void ResolveTypesPass::visitValueDefn(ValueDefn* vd) {
     visitAttributes(vd);
     if (vd->init()) {
+      LowerOperatorsTransform transform(_cu, *_alloc);
+      vd->setInit(transform.transform(vd->init()));
       auto initType = assignTypes(vd->init(), vd->type());
       if (!vd->type() && !Type::isError(initType)) {
         vd->setType(chooseIntegerType(vd->init(), initType));
@@ -483,7 +493,7 @@ namespace tempest::sema::pass {
 
   Type* ResolveTypesPass::visitIf(IfStmt* expr, ConstraintSolver& cs) {
     // Coerce test to bool later.
-    assignTypes(expr->test, nullptr);
+    expr->test = booleanTest(expr->test);
     auto thenType = visitExpr(expr->thenBlock, cs);
     if (expr->elseBlock) {
       auto elseType = visitExpr(expr->elseBlock, cs);
@@ -510,7 +520,7 @@ namespace tempest::sema::pass {
 
   Type* ResolveTypesPass::visitWhile(WhileStmt* expr, ConstraintSolver& cs) {
     // Coerce to bool later.
-    assignTypes(expr->test, nullptr);
+    expr->test = booleanTest(expr->test);
     assignTypes(expr->body, nullptr);
     return &VoidType::VOID;
   }
@@ -1321,6 +1331,19 @@ namespace tempest::sema::pass {
   }
 
   // Utilities
+
+  Expr* ResolveTypesPass::booleanTest(Expr* expr) {
+    auto type = assignTypes(expr, nullptr);
+    if (type->kind == Type::Kind::BOOLEAN) {
+      return expr;
+    } else if (type->kind == Type::Kind::INTEGER) {
+      return new BinaryOp(Expr::Kind::NE, expr, new IntegerLiteral(0, cast<IntegerType>(type)));
+    } else {
+      // TODO: Check for collections
+      diag.error(expr) << "Cannot coerce value to boolean type.";
+      return expr;
+    }
+  }
 
   bool ResolveTypesPass::lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes) {
     assert(false);

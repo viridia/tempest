@@ -17,10 +17,16 @@
   #include "tempest/support/allocator.hpp"
 #endif
 
+#ifndef TEMPEST_SUPPORT_HASHING_HPP
+  #include "tempest/support/hashing.hpp"
+#endif
+
 #include <unordered_map>
 #include <unordered_set>
 
 namespace tempest::sema::graph {
+  using tempest::support::hash_combine;
+
   struct Env;
   class IntegerType;
 
@@ -68,10 +74,6 @@ namespace tempest::sema::graph {
     llvm::ArrayRef<const Type*> _members;
   };
 
-  inline void hash_combine(size_t& lhs, size_t rhs) {
-    lhs ^= rhs + 0x9e3779b9 + (lhs<<6) + (lhs>>2);
-  }
-
   struct TypeKeyHash {
     inline std::size_t operator()(const TypeKey& value) const {
       std::size_t seed = 0;
@@ -79,45 +81,6 @@ namespace tempest::sema::graph {
         hash_combine(seed, std::hash<const Type*>()(member));
       }
       return seed;
-    }
-  };
-
-  /** A hashable tuple of types that can be used as a lookup key. */
-  class SpecializationKey {
-  public:
-    SpecializationKey() = default;
-    SpecializationKey(const SpecializationKey& key) = default;
-    SpecializationKey(const GenericDefn* base, const TypeArray& typeArgs)
-      : _base(base)
-      , _typeArgs(TypeKey(typeArgs))
-    {}
-
-    /** The generic type to be specialized. */
-    const GenericDefn* base() const { return _base; }
-
-    /** The type arguments to the generic type. */
-    const TypeKey typeArgs() const { return _typeArgs; }
-
-    /** Equality comparison. */
-    friend bool operator==(const SpecializationKey& lhs, const SpecializationKey& rhs) {
-      return lhs._base == rhs._base && lhs._typeArgs == rhs._typeArgs;
-    }
-
-    /** Inequality comparison. */
-    friend bool operator!=(const SpecializationKey& lhs, const SpecializationKey& rhs) {
-      return lhs._base != rhs._base || lhs._typeArgs != rhs._typeArgs;
-    }
-
-  private:
-    const GenericDefn* _base;
-    TypeKey _typeArgs;
-  };
-
-  struct SpecializationKeyHash {
-    inline std::size_t operator()(const SpecializationKey& value) const {
-      std::size_t hash = std::hash<const tempest::sema::graph::GenericDefn*>()(value.base());
-      hash_combine(hash, TypeKeyHash()(value.typeArgs()));
-      return hash;
     }
   };
 
@@ -167,9 +130,6 @@ namespace tempest::sema::graph {
     /** TypeStore has its own allocator. */
     tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
-    /** Create an environment object from a set of type mappings. */
-    Env createEnv(const Env& env);
-
     /** Create a union type from the given type key. */
     UnionType* createUnionType(const TypeArray& members);
 
@@ -181,9 +141,6 @@ namespace tempest::sema::graph {
 
     /** Create an integer type large enough to hold an integer value. */
     IntegerType* createIntegerType(llvm::APInt& intVal, bool isUnsigned);
-
-    /** Specialize a generic definition. */
-    SpecializedDefn* specialize(GenericDefn* base, const TypeArray& typeArgs);
 
     /** Create a function type from a return type and parameter types. */
     FunctionType* createFunctionType(
@@ -238,7 +195,6 @@ namespace tempest::sema::graph {
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;
     std::unordered_map<ModifiedKey, ModifiedType*, ModifiedKeyHash> _modifiedTypes;
     std::unordered_map<SingletonKey, SingletonType*, SingletonKeyHash> _singletonTypes;
-    std::unordered_map<SpecializationKey, SpecializedDefn*, SpecializationKeyHash> _specs;
     std::unordered_set<Type*> _addressTypes;
   //     self.valueRefTypes = {}
   };

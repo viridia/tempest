@@ -26,26 +26,17 @@ namespace tempest::intrinsic {
   using tempest::sema::graph::TypeStore;
   using tempest::sema::graph::ValueDefn;
 
-  struct ArithmeticOperators {
+  struct PrimitiveOperators {
     std::unique_ptr<FunctionDefn> add;
     std::unique_ptr<FunctionDefn> subtract;
     std::unique_ptr<FunctionDefn> multiply;
     std::unique_ptr<FunctionDefn> divide;
     std::unique_ptr<FunctionDefn> remainder;
-  };
-
-  struct ShiftOperators {
     std::unique_ptr<FunctionDefn> lsh;
     std::unique_ptr<FunctionDefn> rsh;
-  };
-
-  struct BitwisOperators {
     std::unique_ptr<FunctionDefn> bitOr;
     std::unique_ptr<FunctionDefn> bitAnd;
     std::unique_ptr<FunctionDefn> bitXor;
-  };
-
-  struct RelationalOperators {
     std::unique_ptr<FunctionDefn> lt;
     std::unique_ptr<FunctionDefn> le;
     std::unique_ptr<FunctionDefn> gt;
@@ -65,9 +56,9 @@ namespace tempest::intrinsic {
     // std::unique_ptr<TypeDefn*> iterableTrait;
     // std::unique_ptr<TypeDefn*> iteratorTrait;
 
-    ArithmeticOperators intOps;
-    ArithmeticOperators uintOps;
-    ArithmeticOperators floatOps;
+    PrimitiveOperators intOps;
+    PrimitiveOperators uintOps;
+    PrimitiveOperators floatOps;
 
     // Singleton getter.
     static IntrinsicDefns* get();
@@ -75,7 +66,10 @@ namespace tempest::intrinsic {
   private:
     TypeStore _types;
     std::unique_ptr<TypeDefn> makeTypeDefn(Type::Kind kind, llvm::StringRef name);
-    std::unique_ptr<FunctionDefn> makeInfixOp(llvm::StringRef name, Type* argType);
+    std::unique_ptr<FunctionDefn> makeInfixOp(
+        llvm::StringRef name, Type* argType, IntrinsicFn intrinsic);
+    std::unique_ptr<FunctionDefn> makeRelationalOp(
+        llvm::StringRef name, Type* argType, IntrinsicFn intrinsic);
     ValueDefn* addValueDefn(
         std::unique_ptr<TypeDefn>& td,
         Member::Kind kind,

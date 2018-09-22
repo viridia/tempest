@@ -1,8 +1,8 @@
 #ifndef TEMPEST_COMPILER_COMPILATIONUNIT_HPP
 #define TEMPEST_COMPILER_COMPILATIONUNIT_HPP 1
 
-#ifndef TEMPEST_SEMA_GRAPH_TYPESTORE_HPP
-  #include "tempest/sema/graph/typestore.hpp"
+#ifndef TEMPEST_SEMA_GRAPH_SPECSTORE_HPP
+  #include "tempest/sema/graph/specstore.hpp"
 #endif
 
 #ifndef TEMPEST_IMPORT_IMPORTMGR_HPP
@@ -13,13 +13,14 @@
 
 namespace tempest::compiler {
   using tempest::sema::graph::Module;
+  using tempest::sema::graph::SpecializationStore;
   using tempest::sema::graph::TypeStore;
   using tempest::import::ImportMgr;
 
   /** Represents a compilation job - all of the source files and libraries to be compiled. */
   class CompilationUnit {
   public:
-    // CompilationUnit();
+    CompilationUnit() : _spec(_types.alloc()) {}
 
     /** Add a source file to be compiled. */
     void addSourceFile(llvm::StringRef filepath, llvm::StringRef moduleName);
@@ -38,16 +39,18 @@ namespace tempest::compiler {
     /** Contains canonicalized instances of derived types. */
     TypeStore& types() { return _types; }
 
+    /** Contains canonicalized instances of derived types. */
+    SpecializationStore& spec() { return _spec; }
+
     /** Manages imports of modules. */
     ImportMgr& importMgr() { return _importMgr; }
-
-    // specializationStore
 
     // Static instance of current compilation unit.
     static CompilationUnit* theCU;
 
   private:
     TypeStore _types;
+    SpecializationStore _spec;
     ImportMgr _importMgr;
     std::vector<Module*> _sourceModules;
     std::vector<Module*> _importSourceModules;

@@ -24,6 +24,7 @@ namespace tempest::sema::infer {
   class ConstraintSolver;
   class CallCandidate;
   class CallSite;
+  class SolutionTransform;
 }
 
 namespace tempest::sema::pass {
@@ -32,6 +33,7 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::CallCandidate;
   using tempest::sema::infer::CallSite;
   using tempest::sema::infer::ConstraintSolver;
+  using tempest::sema::infer::SolutionTransform;
   using namespace tempest::sema::graph;
 
   /** Helper which can do eager type resolution. */
@@ -104,8 +106,8 @@ namespace tempest::sema::pass {
 
     Expr* booleanTest(Expr* expr);
     Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
-    void applySolution(ConstraintSolver& cs);
-    void updateCallSite(ConstraintSolver& cs, CallSite* site);
+    void applySolution(ConstraintSolver& cs, SolutionTransform& st);
+    void updateCallSite(ConstraintSolver& cs, CallSite* site, SolutionTransform& st);
     void reorderCallingArgs(
         ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc);
     bool lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes);

@@ -5,6 +5,10 @@
   #include "tempest/sema/graph/symboltable.hpp"
 #endif
 
+#ifndef TEMPEST_INTRINSIC_INTRINSIC_HPP
+  #include "tempest/intrinsic/intrinsic.hpp"
+#endif
+
 namespace tempest::ast {
   class Function;
   class Parameter;
@@ -15,6 +19,7 @@ namespace tempest::ast {
 
 namespace tempest::sema::graph {
   using tempest::source::Locatable;
+  using tempest::intrinsic::IntrinsicFn;
 
   class Expr;
   class Type;
@@ -540,7 +545,7 @@ namespace tempest::sema::graph {
       : GenericDefn(Kind::FUNCTION, location, name, definedIn)
       , _type(nullptr)
       , _paramScope(std::make_unique<SymbolTable>())
-      , _intrinsic(false)
+      , _intrinsic(IntrinsicFn::NONE)
       , _selfType(nullptr)
       , _body(nullptr)
       , _constructor(false)
@@ -596,8 +601,8 @@ namespace tempest::sema::graph {
     void setVariadic(bool variadic) { _variadic = variadic; }
 
     /** True if this is an intrinsic function. */
-    bool isIntrinsic() const { return _intrinsic; }
-    void setIntrinsic(bool intrinsic) { _intrinsic = intrinsic; }
+    IntrinsicFn intrinsic() const { return _intrinsic; }
+    void setIntrinsic(IntrinsicFn intrinsic) { _intrinsic = intrinsic; }
 
     /** Method index for this function in a dispatch table. */
     int32_t methodIndex() const { return _methodIndex; }
@@ -613,7 +618,7 @@ namespace tempest::sema::graph {
     std::vector<ParameterDefn*> _params;
     std::unique_ptr<SymbolTable> _paramScope;
     DefnList _localDefns;
-    bool _intrinsic;
+    IntrinsicFn _intrinsic;
     Type* _selfType;
     Expr* _body;
     bool _constructor;

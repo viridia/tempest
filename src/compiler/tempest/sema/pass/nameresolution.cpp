@@ -1302,7 +1302,7 @@ namespace tempest::sema::pass {
               return false;
             }
 
-            auto sd = _cu.types().specialize(gd, typeArgs);
+            auto sd = _cu.spec().specialize(gd, typeArgs);
             result.push_back(sd);
             return true;
           } else {

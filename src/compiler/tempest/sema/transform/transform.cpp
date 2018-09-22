@@ -6,7 +6,8 @@
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/transform/transform.hpp"
 
-namespace tempest::sema::graph {
+namespace tempest::sema::transform {
+  using namespace tempest::sema::graph;
   using tempest::sema::infer::InferredType;
   using tempest::sema::infer::ContingentType;
   using tempest::error::diag;
@@ -136,7 +137,7 @@ namespace tempest::sema::graph {
     return changed;
   }
 
-  Expr* ExprTransform::transform(Expr* expr) {
+  Expr* NonMutatingExprTransform::transform(Expr* expr) {
     if (expr == nullptr) {
       return nullptr;
     }
@@ -150,8 +151,15 @@ namespace tempest::sema::graph {
 
       case Expr::Kind::CALL: {
         auto callExpr = static_cast<ApplyFnOp*>(expr);
-        callExpr->function = transform(callExpr->function);
-        transformArray(callExpr->args);
+        auto type = transformType(callExpr->type);
+        auto function = transform(callExpr->function);
+        llvm::SmallVector<Expr*, 8> args;
+        if (transformArray(callExpr->args, args) ||
+            function != callExpr->function ||
+            type != callExpr->type) {
+          return new (_alloc) ApplyFnOp(
+              callExpr->kind, callExpr->location, function, _alloc.copyOf(args), type);
+        }
         return callExpr;
       }
 
@@ -159,48 +167,85 @@ namespace tempest::sema::graph {
       case Expr::Kind::TYPE_REF:
       case Expr::Kind::VAR_REF: {
         auto dref = static_cast<DefnRef*>(expr);
-        dref->stem = transform(dref->stem);
+        auto defn = transformMember(dref->defn);
+        auto type = transformType(dref->type);
+        auto stem = transform(dref->stem);
+        if (defn != dref->defn || type != dref->type || stem != dref->stem) {
+          return new (_alloc) DefnRef(dref->kind, dref->location, defn, stem, type);
+        }
         return dref;
       }
 
       case Expr::Kind::FUNCTION_REF_OVERLOAD:
       case Expr::Kind::TYPE_REF_OVERLOAD: {
-        auto mref = static_cast<MemberListExpr*>(expr);
-        mref->stem = transform(mref->stem);
-        return mref;
+        assert(false && "Implement");
+        // auto mref = static_cast<MemberListExpr*>(expr);
+        // mref->stem = transform(mref->stem);
+        // return mref;
       }
 
       case Expr::Kind::BLOCK: {
         auto block = static_cast<BlockStmt*>(expr);
-        transformArray(block->stmts);
-        block->result = transform(block->result);
+        auto result = transform(block->result);
+        auto type = transformType(block->type);
+        llvm::SmallVector<Expr*, 8> stmts;
+        if (transformArray(block->stmts, stmts) || result != block->result || type != block->type) {
+          return new (_alloc) BlockStmt(block->location, _alloc.copyOf(stmts), result, type);
+        }
         return block;
       }
 
       case Expr::Kind::LOCAL_VAR: {
         auto st = static_cast<LocalVarStmt*>(expr);
-        st->defn->setInit(transform(st->defn->init()));
+        auto type = transformType(st->defn->type());
+        auto init = transform(st->defn->init());
+        if (type != st->defn->type() || init != st->defn->init()) {
+          auto var = new (_alloc) ValueDefn(
+              st->defn->kind,
+              st->defn->location(),
+              st->defn->name(),
+              st->defn->definedIn());
+          var->setInit(init);
+          var->setType(type);
+          return new (_alloc) LocalVarStmt(st->location, var);
+        }
         return st;
       }
 
       case Expr::Kind::IF: {
         auto stmt = static_cast<IfStmt*>(expr);
-        stmt->test = transform(stmt->test);
-        stmt->thenBlock = transform(stmt->thenBlock);
-        stmt->elseBlock = transform(stmt->elseBlock);
+        auto test = transform(stmt->test);
+        auto thenBlock = transform(stmt->thenBlock);
+        auto elseBlock = transform(stmt->elseBlock);
+        auto type = transformType(stmt->type);
+        if (test != stmt->test ||
+            thenBlock != stmt->thenBlock ||
+            elseBlock != stmt->elseBlock ||
+            type != stmt->type) {
+          return new (_alloc) IfStmt(stmt->location, test, thenBlock, elseBlock, type);
+        }
         return stmt;
       }
 
       case Expr::Kind::WHILE: {
         auto stmt = static_cast<WhileStmt*>(expr);
-        stmt->test = transform(stmt->test);
-        stmt->body = transform(stmt->body);
+        auto test = transform(stmt->test);
+        auto body = transform(stmt->body);
+        auto type = transformType(stmt->type);
+        if (test != stmt->test || body != stmt->body || type != stmt->type) {
+          return new (_alloc) WhileStmt(stmt->location, test, body, type);
+        }
         return stmt;
       }
 
-      case Expr::Kind::RETURN: {
+      case Expr::Kind::RETURN:
+      case Expr::Kind::THROW: {
         auto ret = static_cast<UnaryOp*>(expr);
-        ret->arg = transform(ret->arg);
+        auto arg = transform(ret->arg);
+        auto type = transformType(ret->type);
+        if (arg != ret->arg || type != ret->type) {
+          return new (_alloc) UnaryOp(ret->kind, arg, type);
+        }
         return ret;
       }
 
@@ -217,8 +262,12 @@ namespace tempest::sema::graph {
       case Expr::Kind::DIVIDE:
       case Expr::Kind::REMAINDER: {
         auto op = static_cast<BinaryOp*>(expr);
-        op->args[0] = transform(op->args[0]);
-        op->args[1] = transform(op->args[1]);
+        auto a0 = transform(op->args[0]);
+        auto a1 = transform(op->args[1]);
+        auto type = transformType(op->type);
+        if (a0 != op->args[0] || a1 != op->args[1] || type != op->type) {
+          return new (_alloc) BinaryOp(op->kind, a0, a1, type);
+        }
         return op;
       }
 
@@ -228,9 +277,15 @@ namespace tempest::sema::graph {
     }
   }
 
-  void ExprTransform::transformArray(const ArrayRef<Expr*>& in) {
-    for (size_t i = 0; i < in.size(); i += 1) {
-      const_cast<Expr**>(in.data())[i] = transform(in[i]);
+  bool NonMutatingExprTransform::transformArray(
+      const ArrayRef<Expr*>& in, llvm::SmallVectorImpl<Expr*>& out) {
+    bool changed = false;
+    for (auto el : in) {
+      auto newEl = transform(el);
+      if (newEl != el) {
+        changed = true;
+      }
     }
+    return changed;
   }
 }

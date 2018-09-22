@@ -16,8 +16,9 @@ namespace tempest::sema::graph {
     ArrayRef<Expr*> stmts;
     Expr* result;
 
-    BlockStmt(Location location, const ArrayRef<Expr*>& stmts, Expr* result = nullptr)
-      : Expr(Kind::BLOCK, location)
+    BlockStmt(Location location, const ArrayRef<Expr*>& stmts, Expr* result = nullptr,
+        Type* type = nullptr)
+      : Expr(Kind::BLOCK, location, type)
       , stmts(stmts)
       , result(result)
     {}
@@ -54,8 +55,8 @@ namespace tempest::sema::graph {
     /** The 'else' block. */
     Expr* elseBlock;
 
-    IfStmt(Location location, Expr* test, Expr* thenBlock, Expr* elseBlock)
-      : Expr(Kind::IF, location)
+    IfStmt(Location location, Expr* test, Expr* thenBlock, Expr* elseBlock, Type* type = nullptr)
+      : Expr(Kind::IF, location, type)
       , test(test)
       , thenBlock(thenBlock)
       , elseBlock(elseBlock)
@@ -72,8 +73,8 @@ namespace tempest::sema::graph {
     Expr* test;
     Expr* body;
 
-    WhileStmt(Location location, Expr* test, Expr* body)
-      : Expr(Kind::WHILE, location)
+    WhileStmt(Location location, Expr* test, Expr* body, Type* type = nullptr)
+      : Expr(Kind::WHILE, location, type)
       , test(test)
       , body(body)
     {}

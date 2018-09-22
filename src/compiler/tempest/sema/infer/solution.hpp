@@ -13,10 +13,10 @@ namespace tempest::sema::infer {
   class ConstraintSolver;
 
   /** Applies the type inference solution to type expressions. */
-  class SolutionTransform : public TypeTransform {
+  class SolutionTransform : public transform::TypeTransform {
   public:
     SolutionTransform(tempest::support::BumpPtrAllocator& alloc)
-      : TypeTransform(alloc)
+      : transform::TypeTransform(alloc)
     {}
     SolutionTransform(const SolutionTransform&) = delete;
 

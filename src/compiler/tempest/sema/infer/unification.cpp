@@ -17,6 +17,8 @@ namespace tempest::sema::infer {
         t->kind == Type::Kind::ENUM;
   }
 
+  /** Separate a union into inferred and non-inferred members. A union can have at most a single
+      inferred member in order for unification to be successful. */
   bool separateInferredMembers(
       llvm::SmallVectorImpl<const Type*>& members,
       Env& env,
@@ -143,7 +145,10 @@ namespace tempest::sema::infer {
         diag.debug() << "rt: " << rt;
         assert(false && "Implement subtype constraints");
       }
-      return false;
+      if (rt->kind != Type::Kind::INFERRED) {
+        return false;
+      }
+      // Fall through to inferred case below
     }
 
     if (rt->kind == Type::Kind::TYPE_VAR) {
@@ -158,7 +163,10 @@ namespace tempest::sema::infer {
       if (!rtParam->subtypeConstraints().empty()) {
         assert(false && "Implement subtype constraints");
       }
-      return false;
+      if (lt->kind != Type::Kind::INFERRED) {
+        return false;
+      }
+      // Fall through to inferred case below
     }
 
     // If we see a specialized, expand it's type args and recurse with the new env.

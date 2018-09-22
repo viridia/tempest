@@ -202,7 +202,7 @@ namespace tempest::sema::graph {
     static Expr ERROR;
   };
 
-  /** Function to print a type. */
+  /** Function to print an expression. */
   void format(::std::ostream& out, const Expr* e);
 
   // Built-in values
@@ -239,8 +239,9 @@ namespace tempest::sema::graph {
     Expr* stem = nullptr;
 
     DefnRef(Expr::Kind kind, Location location): Expr(kind, location) {}
-    DefnRef(Expr::Kind kind, Location location, Member* defn, Expr* stem = nullptr)
-      : Expr(kind, location)
+    DefnRef(Expr::Kind kind, Location location, Member* defn, Expr* stem = nullptr,
+        Type* type = nullptr)
+      : Expr(kind, location, type)
       , defn(defn)
       , stem(stem)
     {}
@@ -285,6 +286,16 @@ namespace tempest::sema::graph {
       return e->kind == Kind::TYPE_REF_OVERLOAD || e->kind == Kind::FUNCTION_REF_OVERLOAD;
     }
   };
+
+  inline ::std::ostream& operator<<(::std::ostream& os, const Expr* e) {
+    format(os, e);
+    return os;
+  }
+
+  inline ::std::ostream& operator<<(::std::ostream& os, Expr::Kind kind) {
+    os << Expr::KindName(kind);
+    return os;
+  }
 }
 
 #endif

@@ -517,6 +517,12 @@ namespace tempest::sema::graph {
         break;
       }
 
+      case Expr::Kind::LOCAL_VAR: {
+        auto lvar = static_cast<const LocalVarStmt*>(e);
+        out << lvar->defn;
+        break;
+      }
+
       default:
         diag.error() << "Format not implemented: " << Expr::KindName(e->kind);
         assert(false && "Format not implemented.");

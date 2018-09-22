@@ -18,7 +18,16 @@
 #endif
 
 namespace tempest::sema::graph {
+  class Expr;
+  class Member;
+}
+
+namespace tempest::sema::transform {
+  using tempest::sema::graph::Expr;
+  using tempest::sema::graph::Member;
   using tempest::sema::graph::Type;
+  using tempest::sema::graph::TypeArray;
+  using tempest::sema::graph::TypeVar;
 
   /** Abstract base class for type transformations. */
   class TypeTransform {
@@ -36,11 +45,21 @@ namespace tempest::sema::graph {
     tempest::support::BumpPtrAllocator& _alloc;
   };
 
-  /** Abstract base class for mutating expression transformations. */
-  class ExprTransform {
+  /** Abstract base class for non-mutating expression transformations. */
+  class NonMutatingExprTransform {
   public:
+    NonMutatingExprTransform(tempest::support::BumpPtrAllocator& alloc)
+      : _alloc(alloc)
+    {}
+
     virtual Expr* transform(Expr* in);
-    void transformArray(const ArrayRef<Expr*>& in);
+    virtual Type* transformType(Type* type) { return type; }
+    virtual Member* transformMember(Member* member) { return member; }
+
+    bool transformArray(const ArrayRef<Expr*>& in, llvm::SmallVectorImpl<Expr*>& out);
+
+  private:
+    tempest::support::BumpPtrAllocator& _alloc;
   };
 }
 

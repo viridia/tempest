@@ -148,26 +148,39 @@ namespace tempest::gen {
   // Built-in values
 
   /** Unary operator. */
-  class UnaryOp : public Instr {
+  class UnaryInstr : public Instr {
   public:
     Instr* arg;
 
-    UnaryOp(Kind kind, Location location, Type* type, Instr* arg)
+    UnaryInstr(Kind kind, Location location, Type* type, Instr* arg)
       : Instr(kind, location, type)
       , arg(arg)
     {}
   };
 
   /** Binary operator. */
-  class BinaryOp : public Instr {
+  class BinaryInstr : public Instr {
   public:
-    Instr* arg0;
-    Instr* arg1;
+    Instr* args[2];
 
-    BinaryOp(Kind kind, Location location, Type* type, Instr* arg0, Instr* arg1)
+    BinaryInstr(Kind kind, Location location, Type* type, Instr* arg0, Instr* arg1)
       : Instr(kind, location, type)
-      , arg0(arg0)
-      , arg1(arg1)
+    {
+      args[0] = arg0;
+      args[1] = arg1;
+    }
+  };
+
+  /** Call instruction. */
+  class CallInstr : public Instr {
+  public:
+    Instr* function;
+    ArrayRef<Instr*> args;
+
+    CallInstr(Kind kind, Location location, Type* type, Instr* function, ArrayRef<Instr*> args)
+      : Instr(kind, location, type)
+      , function(function)
+      , args(args)
     {}
   };
 
@@ -186,11 +199,10 @@ namespace tempest::gen {
       , member(member)
       , stem(stem)
     {}
-
-    /** Dynamic casting support. */
-    static bool classof(const LValueRef* e) { return true; }
-    static bool classof(const Instr* e) { return e->kind == Kind::LVALUE_REF; }
   };
+
+  // Need:
+  // Reference to a type definition
 }
 
 #endif

@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/graph/typestore.hpp"
+#include "tempest/sema/graph/specstore.hpp"
 
 using namespace tempest::sema::graph;
 using tempest::source::Location;
@@ -15,6 +16,7 @@ TEST_CASE("TypeKey", "[type]") {
 
 TEST_CASE("TypeStore", "[type]") {
   TypeStore ts;
+  SpecializationStore ss(ts.alloc());
 
   SECTION("UnionType") {
     const UnionType* ut1 = ts.createUnionType({ &IntegerType::I16, &IntegerType::I32 });
@@ -36,9 +38,9 @@ TEST_CASE("TypeStore", "[type]") {
 
   SECTION("Specialize") {
     TypeDefn clsDefnA(Location(), "A");
-    const SpecializedDefn* sd1 = ts.specialize(&clsDefnA, { &IntegerType::I16, &IntegerType::I32 });
-    const SpecializedDefn* sd2 = ts.specialize(&clsDefnA, { &IntegerType::I16, &IntegerType::I32 });
-    const SpecializedDefn* sd3 = ts.specialize(&clsDefnA, { &IntegerType::I32, &IntegerType::I32 });
+    const SpecializedDefn* sd1 = ss.specialize(&clsDefnA, { &IntegerType::I16, &IntegerType::I32 });
+    const SpecializedDefn* sd2 = ss.specialize(&clsDefnA, { &IntegerType::I16, &IntegerType::I32 });
+    const SpecializedDefn* sd3 = ss.specialize(&clsDefnA, { &IntegerType::I32, &IntegerType::I32 });
     REQUIRE(sd1 == sd2);
     REQUIRE(sd1 != sd3);
   }

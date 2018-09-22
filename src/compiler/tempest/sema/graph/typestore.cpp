@@ -76,7 +76,6 @@ namespace tempest::sema::graph {
     _functionTypes.clear();
     _modifiedTypes.clear();
     _singletonTypes.clear();
-    _specs.clear();
     _addressTypes.clear();
     _alloc.Reset();
   }
@@ -168,22 +167,5 @@ namespace tempest::sema::graph {
     auto nt = new (_alloc) IntegerType("integer", bits, isUnsigned, intVal.isNegative());
     _intTypes[key] = nt;
     return nt;
-  }
-
-  /** Specialize a generic definition. */
-  SpecializedDefn* TypeStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
-    SpecializationKey key(base, typeArgs);
-    auto it = _specs.find(key);
-    if (it != _specs.end()) {
-      return it->second;
-    }
-
-    auto spec = new (_alloc) SpecializedDefn(base, _alloc.copyOf(typeArgs), base->allTypeParams());
-    if (auto typeDefn = llvm::dyn_cast<TypeDefn>(base)) {
-      spec->setType(new (_alloc) SpecializedType(spec));
-    }
-    SpecializationKey newKey(base, _alloc.copyOf(typeArgs));
-    _specs[newKey] = spec;
-    return spec;
   }
 }

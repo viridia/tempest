@@ -15,6 +15,7 @@
 #include "tempest/sema/infer/types.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
+#include "tempest/sema/transform/visitor.hpp"
 #include "llvm/Support/Casting.h"
 #include <assert.h>
 
@@ -36,14 +37,14 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::TypeRelation;
   using tempest::sema::transform::ApplySpecialization;
 
-  class LowerOperatorsTransform : public ExprTransform {
+  class LowerOperatorsTransform : public transform::ExprVisitor {
   public:
     LowerOperatorsTransform(CompilationUnit& cu, support::BumpPtrAllocator& alloc)
       : _cu(cu)
       , _alloc(alloc)
     {}
 
-    Expr* transform(Expr* e) {
+    Expr* visit(Expr* e) {
       if (e == nullptr) {
         return e;
       }
@@ -57,7 +58,7 @@ namespace tempest::sema::pass {
           return visitInfixOperator(static_cast<BinaryOp*>(e));
 
         default:
-          return ExprTransform::transform(e);
+          return ExprVisitor::visit(e);
       }
     }
 
@@ -251,7 +252,7 @@ namespace tempest::sema::pass {
       }
 
       LowerOperatorsTransform transform(_cu, *_alloc);
-      fd->setBody(transform.transform(fd->body()));
+      fd->setBody(transform.visit(fd->body()));
       returnType = chooseIntegerType(fd->body(), assignTypes(fd->body(), returnType));
       if (returnType && !fd->type()) {
         SmallVector<Type*, 8> paramTypes;
@@ -284,7 +285,7 @@ namespace tempest::sema::pass {
     visitAttributes(vd);
     if (vd->init()) {
       LowerOperatorsTransform transform(_cu, *_alloc);
-      vd->setInit(transform.transform(vd->init()));
+      vd->setInit(transform.visit(vd->init()));
       auto initType = assignTypes(vd->init(), vd->type());
       if (!vd->type() && !Type::isError(initType)) {
         vd->setType(chooseIntegerType(vd->init(), initType));
@@ -1086,7 +1087,7 @@ namespace tempest::sema::pass {
     }
 
     SolutionTransform transform(*_alloc);
-    applySolution(cs);
+    applySolution(cs, transform);
 
 //         if exprType:
 //           finalExprType = typesubstitution.ApplyEnv(solutionEnv).traverseType(exprType)
@@ -1096,7 +1097,7 @@ namespace tempest::sema::pass {
     return const_cast<Type*>(transform.transform(exprType));
   }
 
-  void ResolveTypesPass::applySolution(ConstraintSolver& cs) {
+  void ResolveTypesPass::applySolution(ConstraintSolver& cs, SolutionTransform& st) {
 //   def applySolution(self, cs, root, solutionEnv):
 //     nonContextualTypeVars = cs.renamer.getNonContextualTypeVars()
 
@@ -1164,7 +1165,7 @@ namespace tempest::sema::pass {
 //         renamer.EnsureAllTypeVarsAreNormalized().traverseTypeList(candidate.paramTypes)
       if (site->kind == OverloadKind::CALL) {
         CallSite* c = static_cast<CallSite*>(site);
-        updateCallSite(cs, c);
+        updateCallSite(cs, c, st);
       }
 //       mlist = site.callExpr.getArgs()[0]
 //       if method:
@@ -1210,14 +1211,20 @@ namespace tempest::sema::pass {
     }
   }
 
-  void ResolveTypesPass::updateCallSite(ConstraintSolver& cs, CallSite* site) {
+  void ResolveTypesPass::updateCallSite(
+      ConstraintSolver& cs, CallSite* site, SolutionTransform& st) {
     auto candidate = static_cast<CallCandidate*>(site->singularCandidate());
-    auto method = unwrapSpecialization(candidate->method);
     auto callExpr = static_cast<ApplyFnOp*>(site->callExpr);
+    Member* method = unwrapSpecialization(candidate->method);
 
     // Patch the call expression with a new callable
     if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
       auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
+      if (candidate->typeArgs.size() > 0) {
+        llvm::SmallVector<const Type*, 8> typeArgs;
+        st.transformArray(typeArgs, candidate->typeArgs);
+        method = _cu.spec().specialize(cast<GenericDefn>(method), typeArgs);
+      }
       callExpr->function =
           new (*_alloc) DefnRef(Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem);
     } else {

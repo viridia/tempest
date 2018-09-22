@@ -2,18 +2,18 @@
 
 * Infix operators
 * Constant infix operators
+  * String
+  * Boolean
 * Unary operators
 * Member access operator
-* I think we might need another pass after nameresolution:
-  * lower infix operators
-  * fold constants
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
   * inferred source types
   * structural typing in unification
   * structural typing for field definitions
   * narrower doesn't handle type vars (except inferred)
-* If / While / For
-* Match
+* Statements:
+  * For
+  * Match
 * Traits
 * Type inference for constructor calls
 * Unify structural typing

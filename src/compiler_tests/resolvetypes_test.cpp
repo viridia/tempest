@@ -350,8 +350,10 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
     auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    auto fnRef = cast<DefnRef>(callExpr->function);
     REQUIRE(callExpr->args.size() == 2);
     REQUIRE_THAT(callExpr, ExprEQ("y(1, 3)"));
+    REQUIRE_THAT(fnRef->defn, MemberEQ("fn y\n"));
   }
 
   SECTION("Generic function with explicit parameter") {
@@ -364,7 +366,11 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto fd = cast<FunctionDefn>(mod->members().front());
     auto body = cast<BlockStmt>(fd->body());
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    auto fnRef = cast<DefnRef>(callExpr->function);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fnRef->defn, MemberEQ("fn y[i32]\n"));
+    REQUIRE(fnRef->defn->kind == Member::Kind::SPECIALIZED);
   }
 
   SECTION("Generic function with inferred parameter") {
@@ -377,7 +383,11 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto fd = cast<FunctionDefn>(mod->members().front());
     auto body = cast<BlockStmt>(fd->body());
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    auto callExpr = cast<ApplyFnOp>(letSt->defn->init());
+    auto fnRef = cast<DefnRef>(callExpr->function);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+    REQUIRE_THAT(fnRef->defn, MemberEQ("fn y[i32]\n"));
+    REQUIRE(fnRef->defn->kind == Member::Kind::SPECIALIZED);
   }
 
   SECTION("Generic function with inferred parameter (2)") {
@@ -417,6 +427,20 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto body = cast<BlockStmt>(fd->body());
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
+  }
+
+  SECTION("Generic function that invokes another generic") {
+    auto mod = compile(cu,
+        "fn x(a0: f32, a1: f64) {\n"
+        "  let result = y(a0, a1);\n"
+        "}\n"
+        "fn y[T](a: T, b: T) => z(a);\n"
+        "fn z[T](a: T) => a;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("f64"));
   }
 
   SECTION("Return statement") {

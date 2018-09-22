@@ -86,7 +86,7 @@ namespace tempest::sema::infer {
                 when,
                 TypeRelation::ASSIGNABLE_FROM,
                 _alloc)) {
-              cc->rejection.reason = Rejection::CONVERSION_FAILURE;
+              cc->rejection.reason = Rejection::UNIFICATION_ERROR;
               cc->rejection.argIndex = i;
             }
           }
@@ -591,6 +591,7 @@ namespace tempest::sema::infer {
             diag.info(method->location()) << cc->method << ": keyword only arg.";
             break;
 
+          case Rejection::UNIFICATION_ERROR:
           case Rejection::CONVERSION_FAILURE: {
             auto paramIndex = cc->paramAssignments[oc->rejection.argIndex];
             auto srcType = callSite->argTypes[oc->rejection.argIndex];
@@ -625,7 +626,6 @@ namespace tempest::sema::infer {
           }
 
           // Type inference rejections
-          // UNIFICATION_ERROR,
           // UNSATISFIED_REQIREMENT,
 
           case Rejection::NOT_MORE_SPECIALIZED:

@@ -148,11 +148,6 @@ namespace tempest::sema::graph {
         const TypeArray& paramTypes,
         bool isVariadic = false);
 
-    /** Create a function type from a return type and a parameter list. */
-    // FunctionType* createFunctionType(
-    //     Type* returnType,
-    //     const llvm::ArrayRef<ParameterDefn*>& params);
-
     /** Create a const type. */
     ModifiedType* createModifiedType(Type* base, uint32_t modifiers);
 
@@ -195,6 +190,7 @@ namespace tempest::sema::graph {
     std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;
     std::unordered_map<ModifiedKey, ModifiedType*, ModifiedKeyHash> _modifiedTypes;
     std::unordered_map<SingletonKey, SingletonType*, SingletonKeyHash> _singletonTypes;
+    std::unordered_map<SpecializedDefn*, SpecializedType*> _specializdTypes;
     std::unordered_set<Type*> _addressTypes;
   //     self.valueRefTypes = {}
   };

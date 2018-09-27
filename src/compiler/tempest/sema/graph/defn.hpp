@@ -123,12 +123,6 @@ namespace tempest::sema::graph {
     std::vector<Expr*>& attributes() { return _attributes; }
     const std::vector<Expr*>& attributes() const { return _attributes; }
 
-    /** The list of all type variables that could afffect this definition, including type
-        variables defined by enclosing scopes. These are always in order from outermost
-        scope to innermost. */
-    std::vector<TypeVar*>& typeVars() { return _typeVars; }
-    const std::vector<TypeVar*>& typeVars() const { return _typeVars; }
-
     // If non-zero, means this is the Nth member with the same name.
     int32_t overloadIndex() const { return _overloadIndex; }
     void setOverloadIndex(int32_t index) { _overloadIndex = index; }
@@ -167,7 +161,6 @@ namespace tempest::sema::graph {
     bool _resolved;               // Means type resolution finished
 
     std::vector<Expr*> _attributes;
-    std::vector<TypeVar*> _typeVars;
 
     int32_t _overloadIndex;
   //  docComment: DocComment = 7;   # Doc comments

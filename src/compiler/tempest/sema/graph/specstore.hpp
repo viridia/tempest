@@ -17,13 +17,13 @@ namespace tempest::sema::graph {
   public:
     SpecializationKey() = default;
     SpecializationKey(const SpecializationKey& key) = default;
-    SpecializationKey(const GenericDefn* base, const TypeArray& typeArgs)
+    SpecializationKey(const Defn* base, const TypeArray& typeArgs)
       : _base(base)
       , _typeArgs(TypeKey(typeArgs))
     {}
 
     /** The generic type to be specialized. */
-    const GenericDefn* base() const { return _base; }
+    const Defn* base() const { return _base; }
 
     /** The type arguments to the generic type. */
     const TypeKey typeArgs() const { return _typeArgs; }
@@ -39,13 +39,13 @@ namespace tempest::sema::graph {
     }
 
   private:
-    const GenericDefn* _base;
+    const Defn* _base;
     TypeKey _typeArgs;
   };
 
   struct SpecializationKeyHash {
     inline std::size_t operator()(const SpecializationKey& value) const {
-      std::size_t hash = std::hash<const tempest::sema::graph::GenericDefn*>()(value.base());
+      std::size_t hash = std::hash<const tempest::sema::graph::Defn*>()(value.base());
       hash_combine(hash, TypeKeyHash()(value.typeArgs()));
       return hash;
     }
@@ -75,17 +75,9 @@ namespace tempest::sema::graph {
     std::unordered_map<SpecializationKey, SpecializedDefn*, SpecializationKeyHash>&
         specializations() { return _specs; }
 
-    /** Specialize a generic definition. */
-    void addConcreteSpec(SpecializedDefn* sp);
-
-    /** List of all concrete specializations. */
-    std::vector<SpecializedDefn*>& concreteSpecs() { return _concreteSpecList; }
-
   private:
     tempest::support::BumpPtrAllocator& _alloc;
     std::unordered_map<SpecializationKey, SpecializedDefn*, SpecializationKeyHash> _specs;
-    std::unordered_set<SpecializedDefn*, SpecializationPtrHash> _concreteSpecs;
-    std::vector<SpecializedDefn*> _concreteSpecList;
   };
 }
 

@@ -1223,6 +1223,7 @@ namespace tempest::sema::pass {
       if (candidate->typeArgs.size() > 0) {
         llvm::SmallVector<const Type*, 8> typeArgs;
         st.transformArray(typeArgs, candidate->typeArgs);
+        candidate->returnType = st.transform(candidate->returnType);
         method = _cu.spec().specialize(cast<GenericDefn>(method), typeArgs);
       }
       callExpr->function =

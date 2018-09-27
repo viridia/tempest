@@ -64,8 +64,12 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
         "}\n"
         "fn y[T](a: T, b: T) => a;\n"
     );
-    REQUIRE(cu.spec().concreteSpecs().size() == 1);
-    REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn y[f64]\n"));
+    REQUIRE(cu.symbols().list().size() == 2);
+    auto sym = cu.symbols().list()[0];
+    REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
+    sym = cu.symbols().list()[1];
+    REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
+    // REQUIRE_THAT(cu.symbols().list()[0], MemberEQ("fn y[f64]\n"));
   }
 
   SECTION("Generic multi-arg function with type constraint") {
@@ -79,16 +83,20 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
         "fn y[T: u64](a: T, b: T) => a;\n"
         "fn y[T: f64](a: T, b: T) => a;\n"
     );
-    REQUIRE(cu.spec().concreteSpecs().size() == 3);
-    REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn y[i16]\n"));
-    REQUIRE_THAT(cu.spec().concreteSpecs()[1], MemberEQ("fn y[i32]\n"));
-    REQUIRE_THAT(cu.spec().concreteSpecs()[2], MemberEQ("fn y[i64]\n"));
+    REQUIRE(cu.symbols().list().size() == 4);
+    // REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn y[i16]\n"));
+    // REQUIRE_THAT(cu.spec().concreteSpecs()[1], MemberEQ("fn y[i32]\n"));
+    // REQUIRE_THAT(cu.spec().concreteSpecs()[2], MemberEQ("fn y[i64]\n"));
   }
 
   SECTION("Resolve addition operator") {
     auto mod = compile(cu, "fn x(arg: i32) => arg + 1;\n");
-    REQUIRE(cu.spec().concreteSpecs().size() == 1);
-    REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn infixAdd[i32]\n"));
+    REQUIRE(cu.symbols().list().size() == 2);
+    auto sym = cu.symbols().list()[0];
+    REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
+    sym = cu.symbols().list()[1];
+    REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
+    // REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn infixAdd[i32]\n"));
   }
 
   SECTION("Generic function that invokes another generic") {
@@ -99,8 +107,8 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
         "fn y[T](a: T, b: T) => z(a);\n"
         "fn z[T](a: T) => a;\n"
     );
-    REQUIRE(cu.spec().concreteSpecs().size() == 2);
-    REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn y[f64]\n"));
-    REQUIRE_THAT(cu.spec().concreteSpecs()[1], MemberEQ("fn z[f64]\n"));
+    REQUIRE(cu.symbols().list().size() == 3);
+    // REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn y[f64]\n"));
+    // REQUIRE_THAT(cu.spec().concreteSpecs()[1], MemberEQ("fn z[f64]\n"));
   }
 }

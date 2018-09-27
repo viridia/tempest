@@ -137,7 +137,106 @@ namespace tempest::sema::transform {
     return changed;
   }
 
-  Expr* NonMutatingExprTransform::transform(Expr* expr) {
+  const Type* UniqueTypeTransform::transform(const Type* ty) {
+    if (ty == nullptr) {
+      return nullptr;
+    }
+
+    switch (ty->kind) {
+      case Type::Kind::INVALID:
+      case Type::Kind::NEVER:
+      case Type::Kind::IGNORED:
+      case Type::Kind::VOID:
+      case Type::Kind::BOOLEAN:
+      case Type::Kind::INTEGER:
+      case Type::Kind::FLOAT:
+      case Type::Kind::SINGLETON:
+      case Type::Kind::CLASS:
+      case Type::Kind::STRUCT:
+      case Type::Kind::INTERFACE:
+      case Type::Kind::TRAIT:
+      case Type::Kind::EXTENSION:
+      case Type::Kind::ENUM:
+      case Type::Kind::ALIAS:
+        return ty;
+
+    //   case Type::Kind::ALIAS:
+    //     assert(false && "Implement");
+    //     break;
+
+      case Type::Kind::MODIFIED: {
+        auto ct = static_cast<const ModifiedType*>(ty);
+        auto base = transform(ct->base);
+        if (base != ct->base) {
+          return _types.createModifiedType(const_cast<Type*>(base), ct->modifiers);
+        }
+        return ct;
+      }
+
+      case Type::Kind::UNION: {
+        auto ut = static_cast<const UnionType*>(ty);
+        llvm::SmallVector<const Type*, 8> members;
+        if (transformArray(members, ut->members)) {
+          return _types.createUnionType(members);
+        }
+        return ut;
+      }
+
+      case Type::Kind::TUPLE: {
+        auto tt = static_cast<const TupleType*>(ty);
+        llvm::SmallVector<const Type*, 8> members;
+        if (transformArray(members, tt->members)) {
+          return _types.createTupleType(members);
+        }
+        return tt;
+      }
+
+      case Type::Kind::SPECIALIZED: {
+        auto st = static_cast<const SpecializedType*>(ty);
+        auto sd = st->spec;
+        llvm::SmallVector<const Type*, 8> typeArgs;
+        if (transformArray(typeArgs, sd->typeArgs())) {
+          auto nsd = _specs.specialize(cast<GenericDefn>(sd->generic()), typeArgs);
+          return nsd->type();
+        }
+        return st;
+      }
+
+      case Type::Kind::FUNCTION: {
+        auto ft = static_cast<const FunctionType*>(ty);
+        llvm::SmallVector<const Type*, 8> paramTypes;
+        auto returnType = transform(ft->returnType);
+        if (transformArray(paramTypes, ft->paramTypes) || returnType != ft->returnType) {
+          return _types.createFunctionType(returnType, paramTypes, ft->isVariadic);
+        }
+        return ft;
+      }
+
+      case Type::Kind::TYPE_VAR: {
+        return transformTypeVar(static_cast<const TypeVar*>(ty));
+      }
+
+      default:
+        diag.error() << "Bad type: " << ty->kind;
+        assert(false && "TypeTransform - unsupported type kind");
+    }
+  }
+
+  bool UniqueTypeTransform::transformArray(
+      llvm::SmallVectorImpl<const Type*>& result,
+      const TypeArray& in) {
+    bool changed = false;
+    for (auto ty : in) {
+      auto tty = transform(ty);
+      result.push_back(tty);
+      if (tty != ty) {
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  Expr* ExprTransform::transform(Expr* expr) {
     if (expr == nullptr) {
       return nullptr;
     }
@@ -277,7 +376,7 @@ namespace tempest::sema::transform {
     }
   }
 
-  bool NonMutatingExprTransform::transformArray(
+  bool ExprTransform::transformArray(
       const ArrayRef<Expr*>& in, llvm::SmallVectorImpl<Expr*>& out) {
     bool changed = false;
     for (auto el : in) {

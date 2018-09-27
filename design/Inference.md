@@ -1,45 +1,5 @@
 # Type inference design notes
 
-One problem I haven't figured out yet is how to deal with a combinatorial explosion of overloads.
-
-Take for example the following:
-
-```
-fn a[T](input: i32) -> i32;
-fn a[T](input: T) -> T;
-
-let x: i32 = a(a(a(a(a(a(a(a(a(a(1))))))))));
-```
-
-There are 10 nested calls to `a`, and each one has two overloads, so there are 2 ** 10 or 1024
-possible combinations of overloads that have to be examined.
-
-Also, the type of the outermost `a` depends on the return types of all the inner calls, so we
-can't solve that call site in isolation.
-
-If `a` had more overloads, it would be quite simple to create more combinations than could fit
-in RAM.
-
-So what is needed is a way to prune overloads before we expand all of the possibilities.
-
-A different approach would be to trade time for space - rather than expanding all the possibilities,
-to generate the permutations one at a time.
-
-There are two problems with this approach. First, it may take a very long time to go through
-all of the possibilities.
-
-Second, there could be a large number of permutations that are equally good. We would need a way
-other than conversion rankings to decide which permutations are better than others.
-
-## Idea:
-
-One thing that would help if we could partition the condition sets, such that no assignment or
-type binding constraint crossed a partion boundary. Then each partition could be solved
-independently from the others. However, note that the pessimal example above is not partitionable
-in this way. However, it would help in real-world cases.
-
-## Another Idea:
-
 So, one could express the set of overloads as a discrimination graph of ANDs and ORs:
 
   * t -> i32 IF:

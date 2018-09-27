@@ -27,11 +27,4 @@ namespace tempest::sema::graph {
     _specs[newKey] = spec;
     return spec;
   }
-
-  void SpecializationStore::addConcreteSpec(SpecializedDefn* sp) {
-    auto result = _concreteSpecs.insert(sp);
-    if (result.second) {
-      _concreteSpecList.push_back(sp);
-    }
-  }
 }

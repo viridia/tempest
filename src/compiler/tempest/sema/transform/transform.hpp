@@ -9,6 +9,14 @@
   #include "tempest/sema/graph/type.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_TYPESTORE_HPP
+  #include "tempest/sema/graph/typestore.hpp"
+#endif
+
+#ifndef TEMPEST_SEMA_GRAPH_SPECSTORE_HPP
+  #include "tempest/sema/graph/specstore.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_INFER_TYPES_HPP
   #include "tempest/sema/infer/types.hpp"
 #endif
@@ -45,10 +53,30 @@ namespace tempest::sema::transform {
     tempest::support::BumpPtrAllocator& _alloc;
   };
 
-  /** Abstract base class for non-mutating expression transformations. */
-  class NonMutatingExprTransform {
+  /** Abstract base class for type transformations that uses a type store. */
+  class UniqueTypeTransform {
   public:
-    NonMutatingExprTransform(tempest::support::BumpPtrAllocator& alloc)
+    UniqueTypeTransform(
+        tempest::sema::graph::TypeStore& types,
+        tempest::sema::graph::SpecializationStore& specs)
+      : _types(types)
+      , _specs(specs)
+    {}
+
+    const Type* transform(const Type* in);
+    virtual const Type* transformTypeVar(const TypeVar* in) { return in; }
+
+    bool transformArray(llvm::SmallVectorImpl<const Type*>& out, const TypeArray& in);
+
+  private:
+    tempest::sema::graph::TypeStore& _types;
+    tempest::sema::graph::SpecializationStore& _specs;
+  };
+
+  /** Abstract base class for non-mutating expression transformations. */
+  class ExprTransform {
+  public:
+    ExprTransform(tempest::support::BumpPtrAllocator& alloc)
       : _alloc(alloc)
     {}
 

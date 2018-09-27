@@ -9,6 +9,10 @@
   #include "tempest/import/importmgr.hpp"
 #endif
 
+#ifndef TEMPEST_GEN_SYMBOLSTORE_HPP
+  #include "tempest/gen/symbolstore.hpp"
+#endif
+
 #include <vector>
 
 namespace tempest::compiler {
@@ -16,6 +20,7 @@ namespace tempest::compiler {
   using tempest::sema::graph::SpecializationStore;
   using tempest::sema::graph::TypeStore;
   using tempest::import::ImportMgr;
+  using tempest::gen::SymbolStore;
 
   /** Represents a compilation job - all of the source files and libraries to be compiled. */
   class CompilationUnit {
@@ -42,6 +47,9 @@ namespace tempest::compiler {
     /** Contains canonicalized instances of derived types. */
     SpecializationStore& spec() { return _spec; }
 
+    /** Repository of output symbols to be emitted. */
+    SymbolStore& symbols() { return _symbols; }
+
     /** Manages imports of modules. */
     ImportMgr& importMgr() { return _importMgr; }
 
@@ -51,6 +59,7 @@ namespace tempest::compiler {
   private:
     TypeStore _types;
     SpecializationStore _spec;
+    SymbolStore _symbols;
     ImportMgr _importMgr;
     std::vector<Module*> _sourceModules;
     std::vector<Module*> _importSourceModules;

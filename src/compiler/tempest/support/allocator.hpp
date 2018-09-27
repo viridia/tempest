@@ -12,6 +12,9 @@ namespace tempest::support {
   public:
     /** Make a copy of this array within the allocator. */
     template<class T> llvm::ArrayRef<T> copyOf(llvm::ArrayRef<T> array) {
+      if (array.size() == 0) {
+        return array;
+      }
       auto data = static_cast<T*>(Allocate(array.size() * sizeof (T), sizeof (T)));
       std::copy(array.begin(), array.end(), data);
       return llvm::ArrayRef((T*) data, array.size());
@@ -19,6 +22,9 @@ namespace tempest::support {
 
     /** Make a copy of this array within the allocator. */
     template<class T> llvm::ArrayRef<T> copyOf(const llvm::SmallVectorImpl<T>& array) {
+      if (array.size() == 0) {
+        return array;
+      }
       auto data = static_cast<T*>(Allocate(array.size() * sizeof (T), sizeof (T)));
       std::copy(array.begin(), array.end(), data);
       return llvm::ArrayRef((T*) data, array.size());
@@ -26,6 +32,9 @@ namespace tempest::support {
 
     /** Make a copy of this string within the allocator. */
     llvm::StringRef copyOf(llvm::StringRef str) {
+      if (str.size() == 0) {
+        return str;
+      }
       auto data = static_cast<char*>(Allocate(str.size(), 1));
       std::copy(str.begin(), str.end(), data);
       return llvm::StringRef((char*) data, str.size());

@@ -5,12 +5,21 @@
   * String
   * Boolean
 * Unary operators
+  * NOT
+  * COMPLEMENT
+  * MINUS
+* Boolean coercion
+  * isTruthy function
+* ADL lookup
 * Member access operator
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
   * inferred source types
   * structural typing in unification
   * structural typing for field definitions
   * narrower doesn't handle type vars (except inferred)
+* Support for "core" libraries
+  * Multiple compilation units
+  * Extern symbols
 * Statements:
   * For
   * Match
@@ -41,3 +50,32 @@
 * Closures
 * Array literals
 * Set literals
+
+## TODOs from code:
+
+* format() should escape control chars.
+* decode std::error codes from LLVM fs methods.
+* cgTypeBuilder doesn't handle varargs
+* integer literal suffixes
+* varargs in function type expressions
+* handle aliases in isAssignable
+* finish structural typing in isAssignable
+* implements.cpp uses isAssignable in a way that may be incorrect
+* narrower.cpp compares function signatures in a way that may be incorrect
+* subtype.cpp structural typing
+* evalconst.cpp add cyclic checks for variable references
+* defn.cpp implement 'friend'
+* constraintsolver needs tests for error cases
+* constraintsolver "more specific" should not consider return types in some cases.
+* constraintsolver support other types of constraints
+* paramassignments should include argIndex in rejection
+* check for circular imports
+* make sure we don't load a module twice in one file.
+* support for 'int' and 'uint' types.
+* nameresolution.cpp: various TODOs
+* keyword argument support
+* variadic params should be slice type
+* transform default args
+* coerce empty collections to boolean type.
+
+74keazz24dqlzk4nzm6lwlbid3q6kfvwpbczpjkglygtjyaee2sa

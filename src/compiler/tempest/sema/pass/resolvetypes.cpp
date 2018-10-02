@@ -326,7 +326,6 @@ namespace tempest::sema::pass {
       }
 
       if (diag.errorCount() == 0) {
-        // TODO: Collect all return statement types.
         // Add in all implicit type casts.
         body = coerceExpr(body, const_cast<Type*>(_functionReturnType));
       }
@@ -1350,7 +1349,7 @@ namespace tempest::sema::pass {
     }
 
     callExpr->args = _alloc->copyOf(argList);
-    callExpr->type = const_cast<Type *>(st.transform(cc->returnType)); // TODO: Transform
+    callExpr->type = const_cast<Type *>(st.transform(cc->returnType));
   }
 
   // Coerce types

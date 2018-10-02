@@ -18,7 +18,6 @@ namespace tempest::gen {
     if (defn && defn->definedIn()) {
       if (defn->definedIn()->kind == Member::Kind::MODULE) {
         auto mod = static_cast<const Module*>(defn->definedIn());
-        // TODO: Not sure this is correct. We really want a qualified package name.
         out.append(mod->name().begin(), mod->name().end());
         out.push_back('.');
       } else {

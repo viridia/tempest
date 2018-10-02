@@ -17,7 +17,7 @@ struct Slice[T] implements Iterable[T] {
       This is marked as unsafe because `offset` and `size` need to be within the bounds of the
       memory allocated for `base`.
   */
-  unsafe new(base:Object, offset: uint; size: int) {
+  unsafe fn new(base:Object, offset: uint; size: int) {
     self = { base, offset, size };
   }
 
@@ -34,7 +34,7 @@ struct Slice[T] implements Iterable[T] {
       @param start Defaults to zero, will be clamped between 0 and the size of this slice.
       @param end Defaults to the end of the slice, will be clamped between start and end.
   */
-  fn slice (start: int = 0, end: int = int.MAX_VAL): Slice[T] {
+  fn slice(start: int = 0, end: int = int.MAX_VAL): Slice[T] {
     const startClamped = Math.clamp(start, 0, .size);
     const endClamped = Math.clamp(end, start, .size);
     Slice { base, offset + start * sizeof(T), end - start }

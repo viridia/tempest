@@ -105,7 +105,6 @@ namespace tempest::gen {
   llvm::DISubroutineType* CGDebugTypeBuilder::createFunctionType(
       const FunctionType* ft, ArrayRef<const Type*> typeArgs) {
     llvm::SmallVector<llvm::Metadata*, 8> paramTypes;
-    // TODO: This should be param type or return type.
     paramTypes.push_back(getMemberType(ft->returnType, typeArgs));
     for (auto paramType : ft->paramTypes) {
       paramTypes.push_back(getMemberType(paramType, typeArgs));

@@ -917,7 +917,6 @@ namespace tempest::sema::pass {
           return &Type::ERROR;
         }
 
-        // TODO: make sure that all of the lookups are compatible kinds.
         llvm::SmallVector<Type*, 8> types;
         for (auto member : lookupResult) {
           if (member->kind == Member::Kind::TYPE) {

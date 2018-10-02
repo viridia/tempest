@@ -767,7 +767,6 @@ namespace tempest::parse {
           readCh();
         }
         if (len == 0) {
-          // TODO: Report it
           _errorCode = MALFORMED_ESCAPE_SEQUENCE;
           return false;
         }

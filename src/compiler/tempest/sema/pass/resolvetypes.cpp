@@ -234,6 +234,9 @@ namespace tempest::sema::pass {
 
   void ResolveTypesPass::visitFunctionDefn(FunctionDefn* fd) {
     auto prevSubject = setSubject(fd);
+    auto prevReturnType = _functionReturnType;
+    std::vector<Type*> prevReturnTypes;
+    prevReturnTypes.swap(_returnTypes);
 //     savedTempVars = self.tempVarTypes
 //     self.tempVarTypes = {}
 
@@ -246,36 +249,44 @@ namespace tempest::sema::pass {
     }
 
     if (fd->body()) {
-      const Type* returnType = fd->type() ? fd->type()->returnType : nullptr;
+      _functionReturnType = fd->type() ? fd->type()->returnType : nullptr;
       if (fd->isConstructor() && !fd->isStatic()) {
-        returnType = &VoidType::VOID;
+        _functionReturnType = &VoidType::VOID;
       }
 
       LowerOperatorsTransform transform(_cu, *_alloc);
       auto body = transform.visit(fd->body());
-      auto exprType = assignTypes(body, returnType);
+      auto exprType = assignTypes(body, _functionReturnType);
 
       // If return type was not explicitly specified, infer it from the expression type.
-      if (!returnType) {
-        returnType = chooseIntegerType(exprType);
+      if (!_functionReturnType) {
+        _functionReturnType = chooseIntegerType(exprType);
+      }
+
+      // If there were return statements in the function body, and the function return type
+      // is not known, compute the minimal return type.
+      if (!_returnTypes.empty() && !fd->type()) {
+        _returnTypes.push_back(const_cast<Type*>(_functionReturnType));
+        _functionReturnType = combineTypes(_returnTypes);
       }
 
       if (diag.errorCount() == 0) {
         // TODO: Collect all return statement types.
         // Add in all implicit type casts.
-        body = coerceExpr(body, const_cast<Type*>(returnType));
+        body = coerceExpr(body, const_cast<Type*>(_functionReturnType));
       }
 
       fd->setBody(body);
 
       // Compute function type signature from inferred return type.
-      if (returnType && !fd->type()) {
+      if (_functionReturnType && !fd->type()) {
         SmallVector<Type*, 8> paramTypes;
         for (auto param : fd->params()) {
           paramTypes.push_back(param->type());
         }
 
-        fd->setType(_cu.types().createFunctionType(returnType, paramTypes, fd->isVariadic()));
+        fd->setType(_cu.types().createFunctionType(
+            _functionReturnType, paramTypes, fd->isVariadic()));
       }
     }
 //     if func.hasBody() and not isinstance(func.getBody(), graph.Intrinsic):
@@ -293,6 +304,8 @@ namespace tempest::sema::pass {
 //       assert func.hasSelfType(), debug.format(func, func.getType())
 //     self.tempVarTypes = savedTempVars
 //     self.nameLookup.setSubject(savedSubject)
+    prevReturnTypes.swap(_returnTypes);
+    _functionReturnType = prevReturnType;
     setSubject(prevSubject);
   }
 
@@ -430,12 +443,12 @@ namespace tempest::sema::pass {
 
       case Expr::Kind::RETURN: {
         auto ret = static_cast<UnaryOp*>(e);
-        auto fd = dyn_cast<FunctionDefn>(_subject);
         if (ret->arg) {
-          ret->type = assignTypes(ret->arg, fd ? fd->type()->returnType : nullptr);
+          ret->type = assignTypes(ret->arg, _functionReturnType);
         } else {
           ret->type = &VoidType::VOID;
         }
+        _returnTypes.push_back(ret->type);
         return &Type::NO_RETURN;
       }
 
@@ -1418,8 +1431,7 @@ namespace tempest::sema::pass {
       case Expr::Kind::RETURN: {
         auto ret = static_cast<UnaryOp*>(e);
         if (ret->arg && _subject) {
-          auto fd = dyn_cast<FunctionDefn>(_subject);
-          ret->arg = coerceExpr(ret->arg, const_cast<Type*>(fd->type()->returnType));
+          ret->arg = coerceExpr(ret->arg, const_cast<Type*>(_functionReturnType));
         }
         ret->type = &Type::NO_RETURN; // Flow of control does not continue.
         return ret;

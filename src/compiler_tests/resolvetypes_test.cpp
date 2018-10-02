@@ -647,6 +647,20 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("void | i32"));
   }
 
+  SECTION("If statement - disjoint return statements") {
+    auto mod = compile(cu,
+        "fn x(a: i32) {\n"
+        "  if a {\n"
+        "    return a\n"
+        "  } else {\n"
+        "    return false;\n"
+        "  }\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool | i32"));
+  }
+
   SECTION("While statement") {
     auto mod = compile(cu,
         "fn x(a: i32) {\n"

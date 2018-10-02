@@ -87,6 +87,8 @@ namespace tempest::sema::pass {
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
     GenericDefn* _subject = nullptr;
     Module* _module = nullptr;
+    std::vector<Type*> _returnTypes;
+    const Type* _functionReturnType;
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);

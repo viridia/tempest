@@ -39,8 +39,6 @@ namespace tempest::intrinsic {
     std::unique_ptr<FunctionDefn> bitXor;
     std::unique_ptr<FunctionDefn> lt;
     std::unique_ptr<FunctionDefn> le;
-    std::unique_ptr<FunctionDefn> gt;
-    std::unique_ptr<FunctionDefn> ge;
   };
 
   /** Class to contain all of the various intrinsic definitions. */

@@ -32,10 +32,12 @@ namespace tempest::sema::graph {
   class LocalVarStmt : public Expr {
   public:
     ValueDefn* defn;
+    size_t localVarIndex;
 
-    LocalVarStmt(Location location, ValueDefn* defn)
+    LocalVarStmt(Location location, ValueDefn* defn, size_t localVarIndex)
       : Expr(Kind::LOCAL_VAR, location)
       , defn(defn)
+      , localVarIndex(localVarIndex)
     {}
 
     /** Dynamic casting support. */

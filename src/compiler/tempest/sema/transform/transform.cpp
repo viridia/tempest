@@ -306,7 +306,7 @@ namespace tempest::sema::transform {
               st->defn->definedIn());
           var->setInit(init);
           var->setType(type);
-          return new (_alloc) LocalVarStmt(st->location, var);
+          return new (_alloc) LocalVarStmt(st->location, var, st->localVarIndex);
         }
         return st;
       }

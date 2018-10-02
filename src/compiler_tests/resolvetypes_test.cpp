@@ -114,13 +114,14 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto body = cast<BlockStmt>(fd->body());
     REQUIRE_THAT(body->type, TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+    REQUIRE(fd->numLocalVars() == 0);
   }
 
   SECTION("Implicit type promotion of integer variable") {
     auto mod = compile(cu,
         "fn x() -> i32 {\n"
-        "  const EEE: i8 = 0;\n"
-        "  EEE\n"
+        "  const e: i8 = 0;\n"
+        "  e\n"
         "}\n"
     );
     auto fd = cast<FunctionDefn>(mod->members().back());
@@ -130,6 +131,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(bodyRes->type, TypeEQ("i32"));
     REQUIRE_THAT(body->type, TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+    REQUIRE(fd->numLocalVars() == 1);
   }
 
   SECTION("Implicit cast of integer literal (no block)") {
@@ -525,6 +527,10 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(cast<LocalVarStmt>(body->stmts[0])->defn->type(), TypeEQ("i16"));
     REQUIRE_THAT(cast<LocalVarStmt>(body->stmts[1])->defn->type(), TypeEQ("i32"));
     REQUIRE_THAT(cast<LocalVarStmt>(body->stmts[2])->defn->type(), TypeEQ("i64"));
+    REQUIRE(cast<LocalVarStmt>(body->stmts[0])->localVarIndex == 0);
+    REQUIRE(cast<LocalVarStmt>(body->stmts[1])->localVarIndex == 1);
+    REQUIRE(cast<LocalVarStmt>(body->stmts[2])->localVarIndex == 2);
+    REQUIRE(fd->numLocalVars() == 3);
   }
 
   SECTION("Type constraint failure") {

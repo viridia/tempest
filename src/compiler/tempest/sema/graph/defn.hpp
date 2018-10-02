@@ -598,8 +598,12 @@ namespace tempest::sema::graph {
     void setIntrinsic(IntrinsicFn intrinsic) { _intrinsic = intrinsic; }
 
     /** Method index for this function in a dispatch table. */
-    int32_t methodIndex() const { return _methodIndex; }
-    void setMethodIndex(int32_t index) { _methodIndex = index; }
+    size_t methodIndex() const { return _methodIndex; }
+    void setMethodIndex(size_t index) { _methodIndex = index; }
+
+    /** Number of local variables in this function, used in code flow analysis. */
+    size_t numLocalVars() const { return _numLocalVars; }
+    void setNumLocalVars(size_t numLocalVars) { _numLocalVars = numLocalVars; }
 
     /** Dynamic casting support. */
     static bool classof(const FunctionDefn* m) { return true; }
@@ -618,7 +622,8 @@ namespace tempest::sema::graph {
     bool _requirement;
     bool _native;
     bool _variadic;
-    int32_t _methodIndex;
+    size_t _methodIndex;
+    size_t _numLocalVars = 0;
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
   };
 

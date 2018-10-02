@@ -340,7 +340,12 @@ namespace tempest::sema::pass {
 
     if (fd->ast()->body) {
       FunctionScope fnScope(scope, fd);
+      auto saveNumLocalVars = _numLocalVars;
+      _numLocalVars = 0;
+
       fd->setBody(visitExpr(&fnScope, fd->ast()->body));
+      fd->setNumLocalVars(_numLocalVars);
+      _numLocalVars = saveNumLocalVars;
     }
 
     // If we know the return type now, then create a function type, otherwise we'll do it
@@ -790,7 +795,9 @@ namespace tempest::sema::pass {
           diag.error(node) << "Invalid scope for local definition.";
         }
 
-        return new (*_alloc) LocalVarStmt(node->location, defn);
+        auto st = new (*_alloc) LocalVarStmt(node->location, defn, _numLocalVars);
+        _numLocalVars += 1;
+        return st;
       }
 
       case ast::Node::Kind::IF: {

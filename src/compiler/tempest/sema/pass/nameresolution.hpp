@@ -86,6 +86,7 @@ namespace tempest::sema::pass {
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
+    size_t _numLocalVars = 0;
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
 
     void visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast);

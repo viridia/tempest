@@ -532,6 +532,10 @@ namespace tempest::sema::pass {
   }
 
   Type* ResolveTypesPass::visitBlock(BlockStmt* blk, ConstraintSolver& cs) {
+    auto prevScope = _scope;
+    LocalScope lScope(_scope);
+    _scope = &lScope;
+
     bool earlyExit = false;
     auto errorCount = diag.errorCount();
     for (auto st : blk->stmts) {
@@ -540,7 +544,11 @@ namespace tempest::sema::pass {
       }
       auto sTy = assignTypes(st, nullptr);
       if (diag.errorCount() != errorCount) {
+        _scope = prevScope;
         return &Type::ERROR;
+      }
+      if (auto localVar = dyn_cast<LocalVarStmt>(st)) {
+        lScope.addMember(localVar->defn);
       }
       if (sTy->kind == Type::Kind::NEVER) {
         earlyExit = true;
@@ -551,9 +559,13 @@ namespace tempest::sema::pass {
       if (earlyExit) {
         diag.error(blk->result) << "Unreachable code.";
       }
-      return assignTypes(blk->result, nullptr);
+      auto resultType = assignTypes(blk->result, nullptr);
+      _scope = prevScope;
+      return resultType;
+
     }
 
+    _scope = prevScope;
     return earlyExit ? &Type::NO_RETURN : &VoidType::VOID;
   }
 

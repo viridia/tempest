@@ -413,10 +413,16 @@ namespace tempest::sema::graph {
         out << "<error>";
         break;
 
+      case Expr::Kind::BOOLEAN_LITERAL: {
+        auto boolLit = static_cast<const BooleanLiteral*>(e);
+        out << (boolLit->value() ? "true" : "false");
+        break;
+      }
+
       case Expr::Kind::INTEGER_LITERAL: {
         auto intLit = static_cast<const IntegerLiteral*>(e);
         llvm::SmallString<16> str;
-        intLit->value().toString(str, 10, !intLit->isUnsigned);
+        intLit->asAPInt().toString(str, 10, !intLit->intType()->isUnsigned());
         out << str;
         break;
       }
@@ -520,6 +526,46 @@ namespace tempest::sema::graph {
       case Expr::Kind::LOCAL_VAR: {
         auto lvar = static_cast<const LocalVarStmt*>(e);
         out << lvar->defn;
+        break;
+      }
+
+      case Expr::Kind::CAST_SIGN_EXTEND: {
+        auto op = static_cast<const UnaryOp*>(e);
+        out << "(sext ";
+        visitExpr(op->arg);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::CAST_ZERO_EXTEND: {
+        auto op = static_cast<const UnaryOp*>(e);
+        out << "(zext ";
+        visitExpr(op->arg);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::CAST_INT_TRUNCATE: {
+        auto op = static_cast<const UnaryOp*>(e);
+        out << "(trunc ";
+        visitExpr(op->arg);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::CAST_FP_EXTEND: {
+        auto op = static_cast<const UnaryOp*>(e);
+        out << "(fext ";
+        visitExpr(op->arg);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::CAST_FP_TRUNC: {
+        auto op = static_cast<const UnaryOp*>(e);
+        out << "(ftrunc ";
+        visitExpr(op->arg);
+        out << ")";
         break;
       }
 

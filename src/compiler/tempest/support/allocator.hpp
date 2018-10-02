@@ -5,6 +5,7 @@
   #include "tempest/common.hpp"
 #endif
 
+#include <llvm/ADT/APInt.h>
 #include <llvm/Support/Allocator.h>
 
 namespace tempest::support {
@@ -38,6 +39,14 @@ namespace tempest::support {
       auto data = static_cast<char*>(Allocate(str.size(), 1));
       std::copy(str.begin(), str.end(), data);
       return llvm::StringRef((char*) data, str.size());
+    }
+
+    /** Make a copy of this APInt within the allocator. */
+    llvm::ArrayRef<llvm::APInt::WordType> copyOf(const llvm::APInt &intVal) {
+      auto data = static_cast<llvm::APInt::WordType*>(
+          Allocate(intVal.getNumWords(), sizeof(llvm::APInt::WordType)));
+      std::copy(intVal.getRawData(), intVal.getRawData() + intVal.getNumWords(), data);
+      return llvm::ArrayRef((llvm::APInt::WordType*) data, intVal.getNumWords());
     }
   };
 }

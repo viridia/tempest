@@ -34,6 +34,7 @@ namespace tempest::gen {
   class CGFunction;
   class CGModule;
   class CGStringLiteral;
+  class SymbolStore;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
   class CodeGen {
@@ -51,11 +52,14 @@ namespace tempest::gen {
     /** Create a new module. */
     CGModule* createModule(llvm::StringRef name);
 
+    /** Generate all symbols in the symbol store. */
+    void genSymbols(SymbolStore& symbols);
+
     /** Generate a declaration for a function in the current module. */
-    llvm::Function* genFunctionValue(FunctionDefn* func);
+    llvm::Function* genFunctionValue(FunctionDefn* func, ArrayRef<const Type*> typeArgs);
 
     /** Generate a definition for a function in the current module. */
-    llvm::Function* genFunction(FunctionDefn* func);
+    llvm::Function* genFunction(FunctionDefn* func, ArrayRef<const Type*> typeArgs);
 
   private:
     CGModule* _module;

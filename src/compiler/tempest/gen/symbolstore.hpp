@@ -25,11 +25,22 @@ namespace tempest::gen {
   private:
     tempest::support::BumpPtrAllocator _alloc;
 
-    std::unordered_map<SpecializationKey, FunctionSym*, SpecializationKeyHash> _functions;
-    std::unordered_map<SpecializationKey, ClassDescriptorSym*, SpecializationKeyHash> _classes;
-    std::unordered_map<SpecializationKey, InterfaceDescriptorSym*, SpecializationKeyHash>
-        _interfaces;
-    std::unordered_map<SpecializationKey, GlobalVarSym*, SpecializationKeyHash> _globals;
+    std::unordered_map<
+        SpecializationKey<FunctionDefn>,
+        FunctionSym*,
+        SpecializationKeyHash<FunctionDefn>> _functions;
+    std::unordered_map<
+        SpecializationKey<TypeDefn>,
+        ClassDescriptorSym*,
+        SpecializationKeyHash<TypeDefn>> _classes;
+    std::unordered_map<
+        SpecializationKey<TypeDefn>,
+        InterfaceDescriptorSym*,
+        SpecializationKeyHash<TypeDefn>> _interfaces;
+    std::unordered_map<
+        SpecializationKey<ValueDefn>,
+        GlobalVarSym*,
+        SpecializationKeyHash<ValueDefn>> _globals;
     std::vector<OutputSym*> _list;
   };
 }

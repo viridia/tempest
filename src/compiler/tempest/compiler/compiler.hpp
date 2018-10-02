@@ -5,6 +5,10 @@
   #include "tempest/compiler/compilationunit.hpp"
 #endif
 
+namespace tempest::gen {
+  class CGModule;
+}
+
 namespace tempest::compiler {
 
   /** Represents a compilation job - all of the source files and libraries to be compiled. */
@@ -18,6 +22,8 @@ namespace tempest::compiler {
     CompilationUnit _cu;
 
     int addSourceFiles();
+    void selectTarget(tempest::gen::CGModule* mod);
+    void outputModule(tempest::gen::CGModule* mod);
   };
 }
 

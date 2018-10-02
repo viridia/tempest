@@ -68,7 +68,7 @@ namespace tempest::sema::infer {
     tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
     bool empty() const {
-      return _bindings.empty() && _sites.empty();
+      return _bindings.empty() && _sites.empty() && _assignments.empty();
     //   return and len(self.anonFns) == 0
     }
 
@@ -108,6 +108,8 @@ namespace tempest::sema::infer {
     void findBestRankedOverloads(const llvm::ArrayRef<OverloadSite*>& sites, size_t index);
 
     void cullCandidatesBySpecificity();
+
+    void checkNonCandidateConstraints();
 
     /** True if a set of conditions has not yet been precluded by overload pruning. */
     bool isViable(const Conditions& cond);

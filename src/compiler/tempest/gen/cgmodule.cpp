@@ -68,7 +68,7 @@ namespace tempest::gen {
 
   void CGModule::makeEntryPoint(FunctionDefn* fdef) {
     std::string linkageName;
-    getLinkageName(linkageName, fdef);
+    getLinkageName(linkageName, fdef, {});
 
     llvm::Function * fn = _irModule->getFunction(linkageName);
     if (fn == NULL) {

@@ -10,7 +10,7 @@ namespace tempest::gen {
   using tempest::gen::getLinkageName;
   using tempest::intrinsic::IntrinsicDefns;
 
-  llvm::Type* CGTypeBuilder::get(const Type* ty) {
+  llvm::Type* CGTypeBuilder::get(const Type* ty, ArrayRef<const Type*> typeArgs) {
     switch (ty->kind) {
       case Type::Kind::VOID: {
         return llvm::Type::getVoidTy(_context);
@@ -36,7 +36,7 @@ namespace tempest::gen {
         auto tupleTy = static_cast<const TupleType*>(ty);
         llvm::SmallVector<llvm::Type*, 16> elts;
         for (auto member : tupleTy->members) {
-          elts.push_back(getMemberType(member));
+          elts.push_back(getMemberType(member, typeArgs));
         }
         return llvm::StructType::create(elts);
       }
@@ -44,15 +44,16 @@ namespace tempest::gen {
       case Type::Kind::CLASS: {
         auto cls = static_cast<const UserDefinedType*>(ty);
         auto td = cls->defn();
-        auto it = _typeDefns.find(td);
+        SpecializationKey<TypeDefn> key(td, typeArgs);
+        auto it = _typeDefns.find(key);
         if (it != _typeDefns.end()) {
           return it->second;
         }
         if (td->kind == Defn::Kind::SPECIALIZED) {
           assert(false && "Implement");
         } else {
-          auto irType = createClass(cls);
-          _typeDefns[td] = irType;
+          auto irType = createClass(cls, typeArgs);
+          _typeDefns[key] = irType;
           return irType;
         }
       }
@@ -70,9 +71,9 @@ namespace tempest::gen {
         llvm::SmallVector<llvm::Type*, 16> paramTypes;
         for (auto param : fty->paramTypes) {
           // TODO: getParamType or getInternalParamType
-          paramTypes.push_back(getMemberType(param));
+          paramTypes.push_back(getMemberType(param, typeArgs));
         }
-        auto returnType = getMemberType(fty->returnType);
+        auto returnType = getMemberType(fty->returnType, typeArgs);
         return llvm::FunctionType::get(returnType, paramTypes, false);
       }
 
@@ -89,22 +90,24 @@ namespace tempest::gen {
     }
   }
 
-  llvm::Type* CGTypeBuilder::getMemberType(const Type* ty) {
-    llvm::Type* result = get(ty);
+  llvm::Type* CGTypeBuilder::getMemberType(const Type* ty, ArrayRef<const Type*> typeArgs) {
+    llvm::Type* result = get(ty, typeArgs);
     if (ty->kind == Type::Kind::CLASS) {
       return llvm::PointerType::get(result, 1); // GC address space
     }
     return result;
   }
 
-  llvm::Type* CGTypeBuilder::createClass(const UserDefinedType* cls) {
+  llvm::Type* CGTypeBuilder::createClass(
+      const UserDefinedType* cls,
+      ArrayRef<const Type*> typeArgs) {
     auto td = cls->defn();
     llvm::SmallVector<llvm::Type*, 16> elts;
 
     // Qualified name
     std::string linkageName;
     linkageName.reserve(64);
-    getLinkageName(linkageName, td);
+    getLinkageName(linkageName, td, typeArgs);
 
     // Base class
     if (td->intrinsic() != IntrinsicType::NONE) {
@@ -122,17 +125,17 @@ namespace tempest::gen {
       }
     } else if (td->extends().empty()) {
       // Object base class.
-      elts.push_back(get(IntrinsicDefns::get()->objectClass->type()));
+      elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
       auto base = td->extends()[0];
       auto baseType = llvm::cast<TypeDefn>(base)->type();
-      elts.push_back(get(baseType));
+      elts.push_back(get(baseType, typeArgs));
     }
     // Data members
     for (auto member : td->members()) {
       if (member->kind == Defn::Kind::LET_DEF && !member->isStatic()) {
         auto vd = static_cast<ValueDefn*>(member);
-        elts.push_back(getMemberType(vd->type()));
+        elts.push_back(getMemberType(vd->type(), typeArgs));
       }
     }
     return llvm::StructType::create(elts, linkageName);

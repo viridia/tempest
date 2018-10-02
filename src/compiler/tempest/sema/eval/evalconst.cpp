@@ -38,10 +38,10 @@ namespace tempest::sema::eval {
     switch (e->kind) {
       case Expr::Kind::INTEGER_LITERAL: {
         auto intLit = static_cast<const IntegerLiteral*>(e);
-        result.intResult = intLit->value();
+        result.intResult = intLit->asAPInt().sext(64);
         result.type = EvalResult::INT;
-        result.hasSize = !llvm::cast<IntegerType>(intLit->type)->isImplicitlySized();
-        result.isUnsigned = llvm::cast<IntegerType>(intLit->type)->isUnsigned();
+        result.hasSize = !intLit->intType()->isImplicitlySized();
+        result.isUnsigned = intLit->intType()->isUnsigned();
         return true;
       }
 

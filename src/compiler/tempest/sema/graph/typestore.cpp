@@ -19,10 +19,11 @@ namespace tempest::sema::graph {
       case Expr::Kind::INTEGER_LITERAL: {
         auto lhs = static_cast<const IntegerLiteral*>(_value);
         auto rhs = static_cast<const IntegerLiteral*>(sk._value);
-        size_t maxWidth = std::max(lhs->value().getBitWidth(), rhs->value().getBitWidth());
-        llvm::APInt lhsValue(lhs->value().sext(maxWidth));
-        llvm::APInt rhsValue(rhs->value().sext(maxWidth));
-        return lhsValue.eq(rhsValue);
+        size_t maxWidth = std::max(lhs->intType()->bits(), rhs->intType()->bits());
+        // Ugh, memory allocation in a key comparison.
+        auto lhsVal = lhs->asAPInt().sext(maxWidth);
+        auto rhsVal = rhs->asAPInt().sext(maxWidth);
+        return lhsVal.eq(rhsVal);
       }
 
       case Expr::Kind::STRING_LITERAL: {

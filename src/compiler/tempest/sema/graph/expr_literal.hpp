@@ -29,44 +29,48 @@ namespace tempest::sema::graph {
     bool _value;
   };
 
+  /** A way to store a multi-precision integer in a bump-pointer allocator. */
+  typedef ArrayRef<llvm::APInt::WordType> MPInt;
+
   /** Integer literal. */
   class IntegerLiteral : public Expr {
   public:
-    /** Whether this literal had an unsigned suffix when parsed. */
-    bool isUnsigned = false;
-
     IntegerLiteral(
           Location location,
-          const llvm::APInt& value,
-          bool isUnsigned = false,
+          const MPInt& value,
           IntegerType* type = nullptr)
       : Expr(Kind::INTEGER_LITERAL, location)
-      , isUnsigned(isUnsigned)
       , _value(value)
     {
       this->type = type;
     }
-    IntegerLiteral(int32_t value, IntegerType* type)
+    IntegerLiteral(
+          const MPInt& value,
+          IntegerType* type = nullptr)
       : Expr(Kind::INTEGER_LITERAL, Location())
-      , isUnsigned(false)
-      , _value(llvm::APInt(32, value, true))
+      , _value(value)
     {
       this->type = type;
     }
 
+    /** Type downcast to integer type. */
+    IntegerType* intType() const { return cast <IntegerType>(type); }
+
     /** The value as an arbitrary-precision integer. */
-    llvm::APInt& value() { return _value; }
-    const llvm::APInt& value() const { return _value; }
+    MPInt value() { return _value; }
+    const MPInt& value() const { return _value; }
+
+    /** The value as an LLVM APInt. */
+    const llvm::APInt asAPInt() const {
+      return llvm::APInt(intType()->bits(), _value);
+    }
 
     /** Dynamic casting support. */
     static bool classof(const IntegerLiteral* e) { return true; }
     static bool classof(const Expr* e) { return e->kind == Kind::INTEGER_LITERAL; }
 
   private:
-    // TODO: This leaks member because we never call IntegerLiteral's destructor. We should
-    // instead store the word array directly on the BumpPtrAllocator and synthesize an APInt
-    // when needed.
-    llvm::APInt _value;
+    MPInt _value;
   };
 
   /** Floating-point literal. */

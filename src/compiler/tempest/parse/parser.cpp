@@ -261,6 +261,8 @@ namespace tempest::parse {
       case TOKEN_LET:
         if (scope == DECL_MEMBER) {
           diag.error(location()) << "'let' keyword not needed for member declaration.";
+          next();
+          return nullptr;
         } else {
           result = fieldDef();
         }
@@ -268,6 +270,8 @@ namespace tempest::parse {
       case TOKEN_ID:
         if (scope == DECL_GLOBAL) {
           diag.error(location()) << "Declaration expected.";
+          next();
+          return nullptr;
         } else {
           result = fieldDef();
         }

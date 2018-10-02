@@ -40,29 +40,6 @@ namespace tempest::sema::graph {
       case Kind::REF_NE: return "REF_NE";
       case Kind::REF_EQ: return "REF_EQ";
       case Kind::ASSIGN: return "ASSIGN";
-    //   case Kind::UP_CAST: return "UP_CAST";
-    //   case Kind::DOWN_CAST: return "DOWN_CAST";
-    //   case Kind::TRY_CAST: return "TRY_CAST";
-    //   case Kind::IFACE_CAST: return "IFACE_CAST";
-    //   case Kind::DYN_IFACE_CAST: return "DYN_IFACE_CAST";
-    //   case Kind::UNION_CTOR_CAST: return "UNION_CTOR_CAST";
-    //   case Kind::UNION_MEMBER_CAST: return "UNION_MEMBER_CAST";
-    //   case Kind::BOX_CAST: return "BOX_CAST";
-    //   case Kind::UNBOX_CAST: return "UNBOX_CAST";
-    // #  case Kind::DYNAMIC_CAST: return "DYNAMIC_CAST";                 # Cast from base/iface to case Kind::subclass: return "subclass"; null if fail
-    // #  EXPR_TYPE(QualCast)       // Cast that changes only qualifiers (no effect)
-    // #  EXPR_TYPE(UnionMemberCast)// Cast from a union type.
-    // #  EXPR_TYPE(CheckedUnionMemberCast)// Cast from a union case Kind::type: return "type"; with type check.
-    //   case Kind::REP_CAST: return "REP_CAST";
-    //   case Kind::TRUNCATE: return "TRUNCATE";
-    //   case Kind::SIGN_EXTEND: return "SIGN_EXTEND";
-    //   case Kind::ZERO_EXTEND: return "ZERO_EXTEND";
-    //   case Kind::FP_EXTEND: return "FP_EXTEND";
-    //   case Kind::FP_TRUNC: return "FP_TRUNC";
-    //   case Kind::INT_TO_FLOAT: return "INT_TO_FLOAT";
-    //   case Kind::INTERFACE_DATA: return "INTERFACE_DATA";
-    // # EXPR_TYPE(BitCast)        // Reinterpret cast
-
       case Kind::LOGICAL_AND: return "LOGICAL_AND";
       case Kind::LOGICAL_OR: return "LOGICAL_OR";
     //   case Kind::RANGE: return "RANGE";
@@ -124,6 +101,13 @@ namespace tempest::sema::graph {
     //   case Kind::TYPEDESC: return "TYPEDESC";
     //   case Kind::PTR_DEREF: return "PTR_DEREF";
     //   case Kind::ADDRESS_OF: return "ADDRESS_OF";
+
+      case Kind::CAST_INT_TRUNCATE: return "CAST_INT_TRUNCATE";
+      case Kind::CAST_SIGN_EXTEND: return "CAST_SIGN_EXTEND";
+      case Kind::CAST_ZERO_EXTEND: return "CAST_ZERO_EXTEND";
+      case Kind::CAST_FP_EXTEND: return "CAST_FP_EXTEND";
+      case Kind::CAST_FP_TRUNC: return "CAST_FP_TRUNC";
+      case Kind::CAST_CREATE_UNION: return "CAST_CREATE_UNION";
 
     //
     //   case Kind::BASE: return "BASE";

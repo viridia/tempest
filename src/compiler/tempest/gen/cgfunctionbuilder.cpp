@@ -22,19 +22,21 @@ namespace tempest::gen {
   using llvm::DISubprogram;
   using llvm::Value;
 
-  CGFunctionBuilder::CGFunctionBuilder(CodeGen& gen, CGModule* module)
+  CGFunctionBuilder::CGFunctionBuilder(
+      CodeGen& gen,
+      CGModule* module,
+      ArrayRef<const Type*> typeArgs)
     : _gen(gen)
     , _module(module)
+    , _typeArgs(typeArgs)
     , _builder(gen.context)
     , _irModule(module->irModule())
-  {
-    (void)_module;
-  }
+  {}
 
   llvm::Function* CGFunctionBuilder::genFunctionValue(FunctionDefn* func) {
     std::string linkageName;
     linkageName.reserve(64);
-    getLinkageName(linkageName, func);
+    getLinkageName(linkageName, func, _typeArgs);
 
     // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ParameterTypePass), fdef);
     llvm::Function * fn = _irModule->getFunction(linkageName);
@@ -51,7 +53,7 @@ namespace tempest::gen {
     // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ReturnTypePass), fdef);
     // DASSERT_OBJ(fdef->defnType() != Defn::Macro, fdef);
 
-    llvm::Type* funcType = _module->types().get(func->type());
+    llvm::Type* funcType = _module->types().get(func->type(), _typeArgs);
 
     // // If it's a function from a different module...
     // if (fdef->module() != module_) {
@@ -78,7 +80,7 @@ namespace tempest::gen {
     return fn;
   }
 
-  llvm::Function* CGFunctionBuilder::genFunction(FunctionDefn* func) {
+  llvm::Function* CGFunctionBuilder::genFunction(FunctionDefn* func, Expr* body) {
     _irFunction = genFunctionValue(func);
 
     // Don't generate undefined functions.
@@ -121,13 +123,13 @@ namespace tempest::gen {
       if (_module->isDebug()) {
         std::string linkageName;
         linkageName.reserve(64);
-        getLinkageName(linkageName, func);
+        getLinkageName(linkageName, func, _typeArgs);
         // TODO: get this from the module
         DIScope* enclosingScope = _module->diCompileUnit();
         DIFile* diFile = _module->getDIFile(func->location().source);
         DISubprogram* sp = diBuilder().createFunction(
             enclosingScope, func->name(), linkageName, diFile, func->location().startLine,
-            _module->diTypeBuilder().createFunctionType(func->type()),
+            _module->diTypeBuilder().createFunctionType(func->type(), _typeArgs),
             false /* internal linkage */, true /* definition */, 0,
             DINode::FlagPrototyped, false);
         _irFunction->setSubprogram(sp);
@@ -252,16 +254,23 @@ namespace tempest::gen {
 
         BasicBlock * blkEntry = createBlock("entry");
         _builder.SetInsertPoint(blkEntry);
-        visitExpr(func->body());
-
+        auto retVal = visitExpr(body);
         if (!atTerminator()) {
-          // if (func->type()->returnType->isVoidType()) {
-          //   _builder.CreateRetVoid();
-          // } else {
-            // TODO: Use the location from the last statement of the function.
-            diag.error(func) << "Missing return statement at end of non-void function.";
-          // }
+          if (retVal->getType()->isVoidTy()) {
+            _builder.CreateRetVoid();
+          } else {
+            _builder.CreateRet(retVal);
+          }
         }
+
+        // if (!atTerminator()) {
+        //   // if (func->type()->returnType->isVoidType()) {
+        //   //   _builder.CreateRetVoid();
+        //   // } else {
+        //     // TODO: Use the location from the last statement of the function.
+        //     diag.error(func) << "Missing return statement at end of non-void function.";
+        //   // }
+        // }
 
         // gcAllocContext_ = NULL;
   #if 0
@@ -475,6 +484,37 @@ namespace tempest::gen {
 
       case Expr::Kind::INTEGER_LITERAL:
         return visitIntegerLiteral(static_cast<IntegerLiteral*>(expr));
+
+      case Expr::Kind::CAST_SIGN_EXTEND: {
+        auto op = static_cast<const UnaryOp*>(expr);
+        auto ty = _module->types().get(op->type, _typeArgs);
+        return _builder.CreateSExt(visitExpr(op->arg), ty);
+      }
+
+      case Expr::Kind::CAST_ZERO_EXTEND: {
+        auto op = static_cast<const UnaryOp*>(expr);
+        auto ty = _module->types().get(op->type, _typeArgs);
+        return _builder.CreateZExt(visitExpr(op->arg), ty);
+      }
+
+      case Expr::Kind::CAST_INT_TRUNCATE: {
+        auto op = static_cast<const UnaryOp*>(expr);
+        auto ty = _module->types().get(op->type, _typeArgs);
+        return _builder.CreateTrunc(visitExpr(op->arg), ty);
+      }
+
+      case Expr::Kind::CAST_FP_EXTEND: {
+        auto op = static_cast<const UnaryOp*>(expr);
+        auto ty = _module->types().get(op->type, _typeArgs);
+        return _builder.CreateFPExt(visitExpr(op->arg), ty);
+      }
+
+      case Expr::Kind::CAST_FP_TRUNC: {
+        auto op = static_cast<const UnaryOp*>(expr);
+        auto ty = _module->types().get(op->type, _typeArgs);
+        return _builder.CreateFPTrunc(visitExpr(op->arg), ty);
+      }
+
       default:
         assert(false && "Invalid expression type");
     }
@@ -615,7 +655,7 @@ namespace tempest::gen {
     // setDebugLocation(in->location());
     if (in->expr == NULL) {
       // Return nothing
-      _builder.CreateRet(NULL);
+      _builder.CreateRetVoid();
     } else {
       // Generate the return value.
       Expr* returnVal = in->expr;
@@ -697,7 +737,9 @@ namespace tempest::gen {
   }
 
   Value* CGFunctionBuilder::visitIntegerLiteral(IntegerLiteral* value) {
-    return llvm::Constant::getIntegerValue(_module->types().get(value->type), value->value());
+    return llvm::Constant::getIntegerValue(
+      _module->types().get(value->type, _typeArgs),
+      value->asAPInt());
   }
 
   Value* CGFunctionBuilder::voidValue() const {

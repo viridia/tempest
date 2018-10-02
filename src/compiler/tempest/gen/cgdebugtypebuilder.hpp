@@ -9,6 +9,10 @@
   #include "tempest/sema/graph/defn.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_SPECKEY_HPP
+  #include "tempest/sema/graph/speckey.hpp"
+#endif
+
 #ifndef TEMPEST_SOURCE_LOCATION_HPP
   #include "tempest/source/location.hpp"
 #endif
@@ -26,6 +30,8 @@
 namespace tempest::gen {
   using tempest::source::ProgramSource;
   using tempest::sema::graph::FunctionType;
+  using tempest::sema::graph::SpecializationKey;
+  using tempest::sema::graph::SpecializationKeyHash;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
@@ -49,20 +55,28 @@ namespace tempest::gen {
     void setCompileUnit(llvm::DICompileUnit* diCompileUnit) { _diCompileUnit = diCompileUnit; }
     void setDataLayout(const llvm::DataLayout* dataLayout) { _dataLayout = dataLayout; }
 
-    llvm::DIType* get(const Type*);
-    llvm::DIType* getMemberType(const Type*);
+    llvm::DIType* get(const Type*, ArrayRef<const Type*> typeArgs);
+    llvm::DIType* getMemberType(const Type*, ArrayRef<const Type*> typeArgs);
 
-    llvm::DISubroutineType* createFunctionType(const FunctionType* ft);
-    llvm::DICompositeType* createClass(const UserDefinedType*);
-    llvm::DIDerivedType* createMember(const ValueDefn*);
+    llvm::DISubroutineType* createFunctionType(
+        const FunctionType* ft,
+        ArrayRef<const Type*> typeArgs);
+    llvm::DICompositeType* createClass(const UserDefinedType*, ArrayRef<const Type*> typeArgs);
+    llvm::DIDerivedType* createMember(const ValueDefn*, ArrayRef<const Type*> typeArgs);
 
     /** Get a file from a program source. */
     llvm::DIFile* getDIFile(ProgramSource* src);
 
   private:
 
-    typedef std::unordered_map<const Type*, llvm::DIType*> TypeMap;
-    typedef std::unordered_map<const TypeDefn*, llvm::DIType*> TypeDefnMap;
+    typedef std::unordered_map<
+        SpecializationKey<Type>,
+        llvm::DIType*,
+        SpecializationKeyHash<Type>> TypeMap;
+    typedef std::unordered_map<
+        SpecializationKey<TypeDefn>,
+        llvm::DIType*,
+        SpecializationKeyHash<TypeDefn>> TypeDefnMap;
 
     llvm::DIBuilder& _builder;
     CGTypeBuilder& _typeBuilder;

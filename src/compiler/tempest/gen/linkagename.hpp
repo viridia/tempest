@@ -9,14 +9,20 @@ namespace tempest::gen {
   using tempest::sema::graph::Member;
   using tempest::sema::graph::Type;
 
-  void getDefnLinkageName(std::string& out, const Member* m, llvm::ArrayRef<Type*> typeArgs);
-  void getTypeLinkageName(std::string& out, const Type* ty, llvm::ArrayRef<Type*> typeArgs);
+  void getDefnLinkageName(std::string& out, const Member* m, llvm::ArrayRef<const Type*> typeArgs);
+  void getTypeLinkageName(std::string& out, const Type* ty, llvm::ArrayRef<const Type*> typeArgs);
 
-  inline void getLinkageName(std::string& out, const Member* m) {
-    getDefnLinkageName(out, m, {});
+  inline void getLinkageName(
+      std::string& out,
+      const Member* m,
+      llvm::ArrayRef<const Type*> typeArgs) {
+    getDefnLinkageName(out, m, typeArgs);
   }
-  inline void getLinkageName(std::string& out, const Type* ty) {
-    getTypeLinkageName(out, ty, {});
+  inline void getLinkageName(
+      std::string& out,
+      const Type* ty,
+      llvm::ArrayRef<const Type*> typeArgs) {
+    getTypeLinkageName(out, ty, typeArgs);
   }
 }
 

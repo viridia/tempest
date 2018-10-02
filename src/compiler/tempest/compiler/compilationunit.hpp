@@ -1,6 +1,10 @@
 #ifndef TEMPEST_COMPILER_COMPILATIONUNIT_HPP
 #define TEMPEST_COMPILER_COMPILATIONUNIT_HPP 1
 
+#ifndef TEMPEST_COMMON_HPP
+  #include "tempest/common.hpp"
+#endif
+
 #ifndef TEMPEST_SEMA_GRAPH_SPECSTORE_HPP
   #include "tempest/sema/graph/specstore.hpp"
 #endif
@@ -38,6 +42,12 @@ namespace tempest::compiler {
         import-reachable from the set of source modules. */
     std::vector<Module*> &importSourceModules() { return _importSourceModules; }
 
+    /** File to write output bitcode. */
+    SmallString<32>& outputFile() { return _outputFile; }
+
+    /** File to write output bitcode. */
+    SmallString<32>& outputModName() { return _outputModName; }
+
     // addModule
     // addExternModule
 
@@ -63,6 +73,8 @@ namespace tempest::compiler {
     ImportMgr _importMgr;
     std::vector<Module*> _sourceModules;
     std::vector<Module*> _importSourceModules;
+    SmallString<32> _outputFile;
+    SmallString<32> _outputModName;
   };
 }
 

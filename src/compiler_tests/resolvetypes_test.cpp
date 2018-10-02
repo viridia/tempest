@@ -5,8 +5,9 @@
 #include "tempest/ast/module.hpp"
 #include "tempest/parse/lexer.hpp"
 #include "tempest/parse/parser.hpp"
-#include "tempest/sema/graph/expr_stmt.hpp"
+#include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
+#include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
@@ -33,6 +34,7 @@ public:
 namespace {
   /** Parse a module definition and apply buildgraph & nameresolution pass. */
   std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
+    auto prevErrorCount = diag.errorCount();
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
     CompilationUnit::theCU = &cu;
@@ -45,6 +47,7 @@ namespace {
     ResolveTypesPass rtPass(cu);
     rtPass.process(mod.get());
     CompilationUnit::theCU = nullptr;
+    REQUIRE(diag.errorCount() == prevErrorCount);
     return mod;
   }
 
@@ -99,6 +102,41 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE(vdef->type()->kind == Type::Kind::FLOAT);
     REQUIRE(vdef->init()->kind == Expr::Kind::FLOAT_LITERAL);
     REQUIRE_THAT(vdef->type(), TypeEQ("f64"));
+  }
+
+  SECTION("Implicit cast of integer literal") {
+    auto mod = compile(cu,
+        "fn x() -> i32 {\n"
+        "  0\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto body = cast<BlockStmt>(fd->body());
+    REQUIRE_THAT(body->type, TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Implicit type promotion of integer variable") {
+    auto mod = compile(cu,
+        "fn x() -> i32 {\n"
+        "  const EEE: i8 = 0;\n"
+        "  EEE\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto body = cast<BlockStmt>(fd->body());
+    REQUIRE(isa<UnaryOp>(body->result));
+    auto bodyRes = cast<UnaryOp>(body->result);
+    REQUIRE_THAT(bodyRes->type, TypeEQ("i32"));
+    REQUIRE_THAT(body->type, TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Implicit cast of integer literal (no block)") {
+    auto mod = compile(cu, "fn x() -> i32 => 0;\n");
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    REQUIRE_THAT(fd->body()->type, TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
   }
 
   SECTION("Resolve local variable type") {
@@ -284,7 +322,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
         "fn y() -> i16 { 0 }\n"
         "fn y() -> i32 { 0 }\n"
         "fn y() -> i64 { 0 }\n"
-        "fn y() -> f32 { 0. }\n"
+        "fn y() -> f32 { 0f }\n"
     );
     auto fd = cast<FunctionDefn>(mod->members().front());
     auto body = cast<BlockStmt>(fd->body());
@@ -421,7 +459,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
         "fn x() {\n"
         "  let result: i32 = y();\n"
         "}\n"
-        "fn y[T]() -> T { 0 }\n"
+        "fn y[T]() -> T { const x: T; x }\n"
     );
     auto fd = cast<FunctionDefn>(mod->members().front());
     auto body = cast<BlockStmt>(fd->body());
@@ -448,12 +486,12 @@ TEST_CASE("ResolveTypes", "[sema]") {
         "fn x() -> i32 {\n"
         "  return y();\n"
         "}\n"
-        "fn y[T]() -> T { 0 }\n"
+        "fn y[T]() -> T { const x: T; x }\n"
     );
     auto fd = cast<FunctionDefn>(mod->members().front());
     auto body = cast<BlockStmt>(fd->body());
-    auto retSt = body->stmts[0];
-    REQUIRE_THAT(retSt->type, TypeEQ("i32"));
+    auto retSt = cast<ReturnStmt>(body->stmts[0]);
+    REQUIRE_THAT(retSt->expr->type, TypeEQ("i32"));
   }
 
   SECTION("Generic function with type constraint") {

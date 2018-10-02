@@ -29,7 +29,7 @@ namespace tempest::gen {
   // SingleInheritance = 65536_u32
   // MultipleInheritance = 131072_u32
 
-  llvm::DIType* CGDebugTypeBuilder::get(const Type* ty) {
+  llvm::DIType* CGDebugTypeBuilder::get(const Type* ty, ArrayRef<const Type*> typeArgs) {
     switch (ty->kind) {
       case Type::Kind::VOID: {
         return _builder.createUnspecifiedType("void");
@@ -67,12 +67,13 @@ namespace tempest::gen {
       case Type::Kind::CLASS: {
         auto cls = static_cast<const UserDefinedType*>(ty);
         auto td = cls->defn();
-        auto it = _typeDefns.find(td);
+        SpecializationKey<TypeDefn> key(td, typeArgs);
+        auto it = _typeDefns.find(key);
         if (it != _typeDefns.end()) {
           return it->second;
         }
-        auto irType = createClass(cls);
-        _typeDefns[td] = irType;
+        auto irType = createClass(cls, typeArgs);
+        _typeDefns[key] = irType;
         return irType;
       }
 
@@ -85,7 +86,7 @@ namespace tempest::gen {
       // CONST,          // Const type modifier
 
       case Type::Kind::FUNCTION: {
-        return createFunctionType(static_cast<const FunctionType*>(ty));
+        return createFunctionType(static_cast<const FunctionType*>(ty), typeArgs);
       }
 
       // TODO: We shouldn't need this; Everything should be expanded at this point.
@@ -101,29 +102,32 @@ namespace tempest::gen {
     }
   }
 
-  llvm::DISubroutineType* CGDebugTypeBuilder::createFunctionType(const FunctionType* ft) {
+  llvm::DISubroutineType* CGDebugTypeBuilder::createFunctionType(
+      const FunctionType* ft, ArrayRef<const Type*> typeArgs) {
     llvm::SmallVector<llvm::Metadata*, 8> paramTypes;
     // TODO: This should be param type or return type.
-    paramTypes.push_back(getMemberType(ft->returnType));
+    paramTypes.push_back(getMemberType(ft->returnType, typeArgs));
     for (auto paramType : ft->paramTypes) {
-      paramTypes.push_back(getMemberType(paramType));
+      paramTypes.push_back(getMemberType(paramType, typeArgs));
     }
     return _builder.createSubroutineType(_builder.getOrCreateTypeArray(paramTypes));
   }
 
-  llvm::DIType* CGDebugTypeBuilder::getMemberType(const Type* ty) {
-    llvm::DIType* result = get(ty);
+  llvm::DIType* CGDebugTypeBuilder::getMemberType(const Type* ty, ArrayRef<const Type*> typeArgs) {
+    llvm::DIType* result = get(ty, typeArgs);
     if (ty->kind == Type::Kind::CLASS) {
       return _builder.createPointerType(result, 0);
     }
     return result;
   }
 
-  DICompositeType* CGDebugTypeBuilder::createClass(const UserDefinedType* cls) {
+  DICompositeType* CGDebugTypeBuilder::createClass(
+      const UserDefinedType* cls, ArrayRef<const Type*> typeArgs) {
     auto td = cls->defn();
     llvm::SmallVector<llvm::Metadata*, 16> elts;
+    SpecializationKey<TypeDefn> key(td, typeArgs);
 
-    auto it = _typeDefns.find(td);
+    auto it = _typeDefns.find(key);
     if (it != _typeDefns.end()) {
       return llvm::cast<DICompositeType>(it->second);
     }
@@ -131,12 +135,12 @@ namespace tempest::gen {
     // Qualified name
     std::string linkageName;
     linkageName.reserve(64);
-    getLinkageName(linkageName, td);
+    getLinkageName(linkageName, td, typeArgs);
 
     DIFile* diFile = getDIFile(td->location().source);
     DIScope* diScope = _diCompileUnit;
 
-    auto irCls = llvm::cast<llvm::StructType>(_typeBuilder.get(cls));
+    auto irCls = llvm::cast<llvm::StructType>(_typeBuilder.get(cls, typeArgs));
     auto structLayout = _dataLayout->getStructLayout(irCls);
 
     // Base class
@@ -170,25 +174,25 @@ namespace tempest::gen {
       }
     } else if (td->extends().empty()) {
       // Object base class.
-      elts.push_back(get(IntrinsicDefns::get()->objectClass->type()));
+      elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
       auto base = td->extends()[0];
       auto baseType = llvm::cast<TypeDefn>(base)->type();
-      elts.push_back(get(baseType));
+      elts.push_back(get(baseType, typeArgs));
     }
     // Data members
     int32_t memberIndex = 1; // Start from 1.
     for (auto member : td->members()) {
       if (member->kind == Defn::Kind::LET_DEF && !member->isStatic()) {
         auto vd = static_cast<ValueDefn*>(member);
-        auto memberType = _typeBuilder.getMemberType(vd->type());
+        auto memberType = _typeBuilder.getMemberType(vd->type(), typeArgs);
         elts.push_back(
           _builder.createMemberType(
             diScope, member->name(), diFile, member->location().startLine,
             _dataLayout->getTypeSizeInBits(memberType),
             _dataLayout->getPrefTypeAlignment(memberType),
             structLayout->getElementOffsetInBits(memberIndex),
-            DINode::DIFlags::FlagZero, getMemberType(vd->type())));
+            DINode::DIFlags::FlagZero, getMemberType(vd->type(), typeArgs)));
       }
       memberIndex += 1;
     }
@@ -197,11 +201,12 @@ namespace tempest::gen {
         structLayout->getSizeInBits(),
         structLayout->getAlignment(), 0,
         DINode::DIFlags::FlagZero, nullptr, _builder.getOrCreateArray(elts));
-    _typeDefns[td] = diCls;
+    _typeDefns[key] = diCls;
     return diCls;
   }
 
-  llvm::DIDerivedType* CGDebugTypeBuilder::createMember(const ValueDefn*) {
+  llvm::DIDerivedType* CGDebugTypeBuilder::createMember(
+      const ValueDefn*, ArrayRef<const Type*> typeArgs) {
     return nullptr;
   }
 

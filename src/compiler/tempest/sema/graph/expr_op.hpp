@@ -27,6 +27,11 @@ namespace tempest::sema::graph {
     static bool classof(const Expr* e) {
       switch (e->kind) {
         case Kind::NOT:
+        case Kind::CAST_SIGN_EXTEND:
+        case Kind::CAST_ZERO_EXTEND:
+        case Kind::CAST_INT_TRUNCATE:
+        case Kind::CAST_FP_EXTEND:
+        case Kind::CAST_FP_TRUNC:
           return true;
         default:
           return false;

@@ -338,7 +338,12 @@ namespace tempest::sema::transform {
       }
 
       case Expr::Kind::RETURN:
-      case Expr::Kind::THROW: {
+      case Expr::Kind::THROW:
+      case Expr::Kind::CAST_SIGN_EXTEND:
+      case Expr::Kind::CAST_ZERO_EXTEND:
+      case Expr::Kind::CAST_INT_TRUNCATE:
+      case Expr::Kind::CAST_FP_EXTEND:
+      case Expr::Kind::CAST_FP_TRUNC: {
         auto ret = static_cast<UnaryOp*>(expr);
         auto arg = transform(ret->arg);
         auto type = transformType(ret->type);

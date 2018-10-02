@@ -9,10 +9,12 @@
 #include "tempest/sema/graph/typestore.hpp"
 #include "tempest/opt/basicopts.hpp"
 
-#include <llvm/IR/Verifier.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Support/TargetSelect.h>
+#include "llvm/IR/Verifier.h"
+#include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetSelect.h"
 
 using namespace tempest::sema::graph;
 using namespace tempest::gen;
@@ -28,6 +30,11 @@ TEST_CASE("CodeGen", "[gen]") {
 
   llvm::InitializeNativeTarget();
 
+  auto makeIntegerLiteral = [&ts](int64_t val) -> IntegerLiteral* {
+    llvm::APInt intVal(32, val, true);
+    return new (ts.alloc()) IntegerLiteral(ts.alloc().copyOf(intVal), &IntegerType::I32);
+  };
+
   SECTION("Empty function") {
     ReturnStmt ret(nullptr);
     BlockStmt blk(Location(), { &ret });
@@ -36,15 +43,14 @@ TEST_CASE("CodeGen", "[gen]") {
     fdef.setType(ts.createFunctionType(&VoidType::VOID, { &FloatType::F32 }));
     CodeGen gen(context);
     auto mod = gen.createModule("TestMod");
-    auto fn = gen.genFunction(&fdef);
+    auto fn = gen.genFunction(&fdef, {});
     REQUIRE(fn != nullptr);
-
-    verifyModule(*mod->irModule(), &(llvm::errs()));
+    // mod->irModule()->print(llvm::errs(), nullptr);
+    REQUIRE_FALSE(verifyModule(*mod->irModule(), &llvm::errs()));
   }
 
   SECTION("Function with return") {
-    IntegerLiteral intLit(1, &IntegerType::I32);
-    ReturnStmt ret(&intLit);
+    ReturnStmt ret(makeIntegerLiteral(1));
     BlockStmt block(loc, {}, &ret);
     FunctionDefn fdef(loc, "testReturn");
     fdef.setBody(&block);
@@ -52,12 +58,12 @@ TEST_CASE("CodeGen", "[gen]") {
     CodeGen gen(context);
     auto mod = gen.createModule("TestMod");
     mod->diInit("testmod.te", "");
-    auto fn = gen.genFunction(&fdef);
+    auto fn = gen.genFunction(&fdef, {});
     mod->makeEntryPoint(&fdef);
     REQUIRE(fn != nullptr);
     mod->diFinalize();
 
-    verifyModule(*mod->irModule(), &(llvm::errs()));
+    REQUIRE_FALSE(verifyModule(*mod->irModule(), &(llvm::errs())));
 
     BasicOpts opts(mod);
     opts.run(fn);
@@ -69,9 +75,7 @@ TEST_CASE("CodeGen", "[gen]") {
   }
 
   SECTION("Function with expression") {
-    IntegerLiteral intLit(1, &IntegerType::I32);
-    IntegerLiteral intLit1(2, &IntegerType::I32);
-    BinaryOp add(Expr::Kind::ADD, &intLit, &intLit1, &IntegerType::I32);
+    BinaryOp add(Expr::Kind::ADD, makeIntegerLiteral(1), makeIntegerLiteral(2), &IntegerType::I32);
     ReturnStmt ret(&add);
     BlockStmt block(loc, {}, &ret);
     FunctionDefn fdef(loc, "testReturn");
@@ -80,12 +84,12 @@ TEST_CASE("CodeGen", "[gen]") {
     CodeGen gen(context);
     auto mod = gen.createModule("TestMod");
     mod->diInit("testmod.te", "");
-    auto fn = gen.genFunction(&fdef);
+    auto fn = gen.genFunction(&fdef, {});
     mod->makeEntryPoint(&fdef);
     REQUIRE(fn != nullptr);
     mod->diFinalize();
 
-    verifyModule(*mod->irModule(), &(llvm::errs()));
+    REQUIRE_FALSE(verifyModule(*mod->irModule(), &(llvm::errs())));
 
     BasicOpts opts(mod);
     opts.run(fn);

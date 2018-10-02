@@ -71,6 +71,8 @@ namespace tempest::sema::pass {
         const llvm::ArrayRef<Expr*>& exprs,
         ConstraintSolver& cs);
 
+    Expr* coerceExpr(Expr* expr, Type* dstType);
+
     // Inference
 
     /** Solve type inference for this expression subtree. Note that if there are subtrees within
@@ -109,9 +111,12 @@ namespace tempest::sema::pass {
     void applySolution(ConstraintSolver& cs, SolutionTransform& st);
     void updateCallSite(ConstraintSolver& cs, CallSite* site, SolutionTransform& st);
     void reorderCallingArgs(
-        ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc);
+        ConstraintSolver& cs, SolutionTransform& st, ApplyFnOp* callExpr,
+        CallSite* site, CallCandidate* cc);
     bool lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes);
-    Type* chooseIntegerType(Expr* expr, Type* ty);
+    Expr* addCastIfNeeded(Expr* expr, Type* ty);
+    Type* combineTypes(llvm::ArrayRef<Type*> types);
+    Type* chooseIntegerType(Type* ty);
 
     GenericDefn* setSubject(GenericDefn* subject) {
       auto prevSubject = _subject;

@@ -28,7 +28,7 @@ namespace tempest::sema::graph {
           return intLhs->bits() < intRhs->bits();
         }
         if (intLhs->isUnsigned() != intRhs->isUnsigned()) {
-          return intLhs->isUnsigned() < intRhs->bits();
+          return intLhs->isUnsigned() < intRhs->isUnsigned();
         }
         return false;
       }
@@ -179,9 +179,9 @@ namespace tempest::sema::graph {
         if (lhsInt->type != rhsInt->type) {
           return operator()(lhsInt->type, rhsInt->type);
         }
-        size_t maxWidth = std::max(lhsInt->value().getBitWidth(), rhsInt->value().getBitWidth());
-        llvm::APInt lhsValue(lhsInt->value().sext(maxWidth));
-        llvm::APInt rhsValue(rhsInt->value().sext(maxWidth));
+        size_t maxWidth = std::max(lhsInt->intType()->bits(), rhsInt->intType()->bits());
+        llvm::APInt lhsValue = lhsInt->asAPInt().sext(maxWidth);
+        llvm::APInt rhsValue = rhsInt->asAPInt().sext(maxWidth);
         return lhsValue.slt(rhsValue);
       }
 

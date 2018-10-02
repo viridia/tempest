@@ -1,4 +1,6 @@
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/type.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/gen/linkagename.hpp"
@@ -7,14 +9,22 @@
 
 namespace tempest::gen {
   using namespace tempest::sema::graph;
+  using tempest::error::diag;
   using llvm::dyn_cast;
 
-  void getDefnLinkageName(std::string& out, const Member* m, llvm::ArrayRef<Type*> typeArgs) {
+  void getDefnLinkageName(std::string& out, const Member* m, llvm::ArrayRef<const Type*> typeArgs) {
     assert(m != nullptr);
     auto defn = llvm::dyn_cast<const Defn>(m);
     if (defn && defn->definedIn()) {
-      getDefnLinkageName(out, defn->definedIn(), typeArgs);
-      out.push_back('.');
+      if (defn->definedIn()->kind == Member::Kind::MODULE) {
+        auto mod = static_cast<const Module*>(defn->definedIn());
+        // TODO: Not sure this is correct. We really want a qualified package name.
+        out.append(mod->name().begin(), mod->name().end());
+        out.push_back('.');
+      } else {
+        getDefnLinkageName(out, defn->definedIn(), typeArgs);
+        out.push_back('.');
+      }
     }
 
     switch (m->kind) {
@@ -55,15 +65,19 @@ namespace tempest::gen {
       // FUNCTION_PARAM,
 
       // MODULE,
-      // PACKAGE,
 
+      case Member::Kind::MODULE: {
+        diag.fatal() << "Attempt to generate linkage name for module: " << m->name();
+        break;
+      }
 
       default:
+        diag.error() << "Bad member kind: " << m;
         assert(false && "Unsupported member kind");
     }
   }
 
-  void getTypeLinkageName(std::string& out, const Type* ty, llvm::ArrayRef<Type*> typeArgs) {
+  void getTypeLinkageName(std::string& out, const Type* ty, llvm::ArrayRef<const Type*> typeArgs) {
     assert(ty != nullptr);
     switch (ty->kind) {
       case Type::Kind::VOID: {

@@ -1,6 +1,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
+#include "tempest/sema/convert/casting.hpp"
 #include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/eval/evalconst.hpp"
 #include "tempest/sema/graph/env.hpp"
@@ -71,8 +72,7 @@ namespace tempest::sema::pass {
             auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
             return new (_alloc) IntegerLiteral(
               op->location,
-              result.intResult,
-              result.isUnsigned,
+              _alloc.copyOf(result.intResult),
               intType);
           }
           case eval::EvalResult::FLOAT: {
@@ -252,8 +252,23 @@ namespace tempest::sema::pass {
       }
 
       LowerOperatorsTransform transform(_cu, *_alloc);
-      fd->setBody(transform.visit(fd->body()));
-      returnType = chooseIntegerType(fd->body(), assignTypes(fd->body(), returnType));
+      auto body = transform.visit(fd->body());
+      auto exprType = assignTypes(body, returnType);
+
+      // If return type was not explicitly specified, infer it from the expression type.
+      if (!returnType) {
+        returnType = chooseIntegerType(exprType);
+      }
+
+      if (diag.errorCount() == 0) {
+        // TODO: Collect all return statement types.
+        // Add in all implicit type casts.
+        body = coerceExpr(body, const_cast<Type*>(returnType));
+      }
+
+      fd->setBody(body);
+
+      // Compute function type signature from inferred return type.
       if (returnType && !fd->type()) {
         SmallVector<Type*, 8> paramTypes;
         for (auto param : fd->params()) {
@@ -288,7 +303,7 @@ namespace tempest::sema::pass {
       vd->setInit(transform.visit(vd->init()));
       auto initType = assignTypes(vd->init(), vd->type());
       if (!vd->type() && !Type::isError(initType)) {
-        vd->setType(chooseIntegerType(vd->init(), initType));
+        vd->setType(chooseIntegerType(initType));
       }
     }
   }
@@ -356,14 +371,8 @@ namespace tempest::sema::pass {
     if (!cs.empty()) {
       return doTypeInference(e, exprType, cs);
     }
-    //   if not cs.empty():
-    //     return self.doTypeInference(expr, exprType, cs)
-    //   return typesubstitution.UnbindTypeParams().traverseType(exprType)
-    // except AssertionError:
-    //   self.errorAt(expr, 'Assertion error')
-    //   raise
+
     return exprType;
-    // assert(false && "Implement");
   }
 
   // Expressions
@@ -401,11 +410,11 @@ namespace tempest::sema::pass {
       case Expr::Kind::VAR_REF:
         return visitVarName(static_cast<DefnRef*>(e), cs);
 
-      case Expr::Kind::FUNCTION_REF:
-        return visitFunctionName(static_cast<DefnRef*>(e), cs);
+      // case Expr::Kind::FUNCTION_REF:
+      //   return visitFunctionName(static_cast<DefnRef*>(e), cs);
 
-      case Expr::Kind::TYPE_REF:
-        return visitTypeName(static_cast<DefnRef*>(e), cs);
+      // case Expr::Kind::TYPE_REF:
+      //   return visitTypeName(static_cast<DefnRef*>(e), cs);
 
       case Expr::Kind::BLOCK:
         return visitBlock(static_cast<BlockStmt*>(e), cs);
@@ -482,13 +491,17 @@ namespace tempest::sema::pass {
     auto vd = expr->defn;
     if (vd->init()) {
       auto initType = assignTypes(vd->init(), vd->type());
-      if (!vd->type() && !Type::isError(initType)) {
-        vd->setType(chooseIntegerType(vd->init(), initType));
+      if (!Type::isError(initType)) {
+        if (!vd->type()) {
+          vd->setType(chooseIntegerType(initType));
+        }
+        vd->setInit(coerceExpr(vd->init(), vd->type()));
       }
     } else if (!vd->type()) {
       diag.error(expr) << "Local definition has no type and no initializer.";
     }
 
+    expr->type = &Type::NOT_EXPR;
     return &Type::NOT_EXPR;
   }
 
@@ -1098,71 +1111,7 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::applySolution(ConstraintSolver& cs, SolutionTransform& st) {
-//   def applySolution(self, cs, root, solutionEnv):
-//     nonContextualTypeVars = cs.renamer.getNonContextualTypeVars()
-
-//     if solutionEnv:
-//       solutionTransform = typesubstitution.ApplyEnv(solutionEnv)
-
     for (auto site : cs.sites()) {
-
-//     for site in cs.sites:
-//       if not isinstance(site, callsite.CallSite):
-//         continue
-//       candidate = site.getSingleViableCandidate()
-//       assert candidate is not None
-//       assert isinstance(candidate.returnType, graph.Type)
-//       method = candidate.member
-//       methodEnv = environ.EMPTY
-//       if isinstance(method, graph.InstantiatedMember):
-//         methodEnv = method.getEnv()
-//         method = method.getBase()
-//       needsBaseExpr = method and not defns.isStaticallyCallable(method)
-//       candidate.methodEnv = methodEnv
-//       if candidate.typeVars:
-// #         transformMap = {}
-//         transformMap = dict(solutionTransform.traverseEnv(candidate.typeVars).items())
-// #         for tv, inferredVar in candidate.typeVars.items():
-// #           if inferredVar in solutionEnv:
-// #             mappedVar = solutionTransform.traverseType(inferredVar)
-// #             if tv == mappedVar and isinstance(mappedVar, graph.TypeVar):
-// #               debug.write(root)
-// #               debug.write(tv, '-->', inferredVar, '-->', mappedVar, typeVars=candidate.typeVars, solutionEnv=solutionEnv)
-// # #               continue
-// #             transformMap[tv] = mappedVar
-// # #           debug.write('mapping', inferredVar, 'to', transformMap[tv])
-
-//         # Add in other solution entries that are not associated with any candidate.
-//         for inferredVar in nonContextualTypeVars:
-//           explicitVar = inferredVar.getParam().getTypeVar()
-//           assert explicitVar is not inferredVar
-//           if inferredVar in solutionEnv:
-//             value = solutionEnv[inferredVar]
-//             if explicitVar not in transformMap and explicitVar is not value:
-//               transformMap[explicitVar] = value
-
-//         for tvar, value in methodEnv.items():
-//           if tvar not in transformMap:
-// #             debug.write('Additional methodEnv mapping', tvar, ':', value)
-//             transformMap[tvar] = value
-
-//         methodEnv = environ.Env(transformMap)
-//         candidate.methodEnv = methodEnv
-//       transform = None
-//       replaceMethods = None
-//       if len(candidate.requiredMethodMap) > 0:
-//         replaceMethods = methodsubstitution.MethodSubsitution()
-//         replaceMethods.methodMap.update(candidate.requiredMethodMap)
-//       if len(methodEnv) > 0:
-// #         debug.write('solution method', method, methodEnv)
-//         assert not isinstance(method, graph.InstantiatedMember), 'optimize'
-//         method = graph.InstantiatedMember().setName(method.getName()).setEnv(methodEnv).setBase(method)
-//         transform = typesubstitution.ApplyEnv(methodEnv)
-// #         solutionTransform = typesubstitution.ApplyEnv(solutionEnv)
-//         candidate.returnType = solutionTransform.traverseType(candidate.returnType)
-// #         candidate.paramList = transform.traverseParamList(candidate.paramList)
-//         candidate.paramTypes = solutionTransform.traverseTypeList(candidate.paramTypes)
-//         renamer.EnsureAllTypeVarsAreNormalized().traverseTypeList(candidate.paramTypes)
       if (site->kind == OverloadKind::CALL) {
         CallSite* c = static_cast<CallSite*>(site);
         updateCallSite(cs, c, st);
@@ -1219,20 +1168,27 @@ namespace tempest::sema::pass {
 
     // Patch the call expression with a new callable
     if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
+      // Original function reference
       auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
+      auto fn = cast<FunctionDefn>(method);
+      Type* fnType = fn->type();
+      // Specialize the method with the resolved type arguments.
       if (candidate->typeArgs.size() > 0) {
         llvm::SmallVector<const Type*, 8> typeArgs;
         st.transformArray(typeArgs, candidate->typeArgs);
         candidate->returnType = st.transform(candidate->returnType);
         method = _cu.spec().specialize(cast<GenericDefn>(method), typeArgs);
+        fnType = const_cast<Type*>(st.transform(fnType));
       }
+      // Create a new signular function reference.
       callExpr->function =
-          new (*_alloc) DefnRef(Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem);
+          new (*_alloc) DefnRef(
+              Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem, fnType);
     } else {
       assert(false && "Implement other callable types");
     }
 
-    reorderCallingArgs(cs, callExpr, site, candidate);
+    reorderCallingArgs(cs, st, callExpr, site, candidate);
   }
 //       self.reorderCallingArgs(site.callExpr, candidate, transform, replaceMethods)
 
@@ -1270,36 +1226,9 @@ namespace tempest::sema::pass {
 //             cs.applyEnv.visit(func.getType().getReturnType(), (transformEnv,)))
 //         self.assignTypes(func.getBody(), func.getType().getReturnType())
 
-//     # Check to make sure that the result is concrete
-//     for site in cs.sites:
-//       candidate = site.getSingleViableCandidate()
-//       if isinstance(site, callsite.CallSite):
-//         method = candidate.member
-//         if method:
-//           mlist = site.callExpr.getArgs()[0]
-//           if mlist.hasBase():
-//             if self.nameLookup.subject.getName() == 'copyFrom' or True:
-//               subjectEnv = environ.Env({tp.getTypeVar(): primitivetypes.VOID for tp in cs.outerParams})
-//               try:
-//                 graphtools.ASSERT_CONCRETE_VISITOR.visit(mlist.getBase(), (subjectEnv,))
-//               except:
-//                 debug.write('  in subject:', self.nameLookup.subject)
-//                 debug.write('  with method env:', candidate.methodEnv)
-//                 debug.write('  with subject vars:', set(subjectEnv.keys()))
-//                 debug.write('  with outer params:', cs.outerParams)
-//                 debug.write('  with non-contextual:', nonContextualTypeVars)
-//                 raise
-//             renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(mlist.getBase())
-//       elif isinstance(site, callsite.TypeChoicePoint):
-//         pass
-// #         t = candidate.member
-// #         debug.write('t', t)
-
-// #     typesubstitution.ApplyEnv(solutionEnv).traverseExpr(root)
-//     renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(root)
-
   void ResolveTypesPass::reorderCallingArgs(
-      ConstraintSolver& cs, ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc) {
+      ConstraintSolver& cs, SolutionTransform& st,
+      ApplyFnOp* callExpr, CallSite* site, CallCandidate* cc) {
     size_t argIndex = 0;
     SmallVector<Expr*, 8> argList;
     SmallVector<Expr*, 8> varArgList;
@@ -1308,15 +1237,19 @@ namespace tempest::sema::pass {
     // Assign explicit arguments
     for (auto arg : site->argList) {
       size_t paramIndex = cc->paramAssignments[argIndex++];
+      auto paramType = const_cast<Type*>(st.transform(cc->paramTypes[paramIndex]));
       if (cc->isVariadic && paramIndex == cc->paramTypes.size() - 1) {
+        arg = coerceExpr(arg, paramType);
         varArgList.push_back(arg);
       } else {
+        arg = coerceExpr(arg, paramType);
         argList[paramIndex] = arg;
       }
     }
 
     // Handle rest args
     if (cc->isVariadic) {
+      // TODO: This needs to be an array or slice type
       MultiOp* restArgs = new (*_alloc) MultiOp(
           Expr::Kind::REST_ARGS, callExpr->location, _alloc->copyOf(varArgList),
           const_cast<Type*>(cc->paramTypes.back()));
@@ -1325,7 +1258,7 @@ namespace tempest::sema::pass {
 
     // Now, fill in defaults
     for (size_t i = 0; i < cc->params.size(); i += 1) {
-      if (!argList[i]) {
+      if (argList[i] == nullptr) {
         auto param = cc->params[i];
         if (param->init()) {
           // TODO: Transform
@@ -1335,7 +1268,183 @@ namespace tempest::sema::pass {
     }
 
     callExpr->args = _alloc->copyOf(argList);
-    callExpr->type = const_cast<Type *>(cc->returnType); // TODO: Transform
+    callExpr->type = const_cast<Type *>(st.transform(cc->returnType)); // TODO: Transform
+  }
+
+  // Coerce types
+
+  Expr* ResolveTypesPass::coerceExpr(Expr* e, Type* dstType) {
+    if (e == nullptr) {
+      return e;
+    }
+
+    switch (e->kind) {
+      case Expr::Kind::VOID:
+        e->type = &VoidType::VOID;
+        return e;
+
+      case Expr::Kind::BOOLEAN_LITERAL:
+        e->type = &BooleanType::BOOL;
+        return e;
+
+      case Expr::Kind::INTEGER_LITERAL: {
+        assert(e->type);
+        auto intLit = static_cast<IntegerLiteral*>(e);
+        auto intType = intLit->intType();
+        // If it's an untyped integer literal, then just create a new literal of the desired size.
+        if (auto dstInt = dyn_cast_or_null<IntegerType>(dstType)) {
+          if (intType->isImplicitlySized()) {
+            // intLit->type = dstInt;
+            // return intLit;
+            llvm::APInt intVal;
+            if (intType->bits() > dstInt->bits()) {
+              intVal = intLit->asAPInt().trunc(dstInt->bits());
+            } else if (intType->bits() < dstInt->bits()) {
+              if (intType->isUnsigned()) {
+                intVal = intLit->asAPInt().zext(dstInt->bits());
+              } else {
+                intVal = intLit->asAPInt().sext(dstInt->bits());
+              }
+            }
+            auto ni = new (*_alloc) IntegerLiteral(
+              intLit->location,
+              _alloc->copyOf(intVal),
+              dstInt);
+            return ni;
+          }
+        }
+
+        return addCastIfNeeded(e, dstType);
+      }
+
+      case Expr::Kind::FLOAT_LITERAL: {
+        assert(e->type);
+        return addCastIfNeeded(e, dstType);
+      }
+
+      case Expr::Kind::CALL: {
+        assert(e->type);
+        auto callExpr = static_cast<ApplyFnOp*>(e);
+        coerceExpr(callExpr->function, nullptr);
+        // Deep coercion of arg trees should already have been handled.
+        return addCastIfNeeded(callExpr, dstType);
+      }
+
+      case Expr::Kind::VAR_REF: {
+        // Reference to a variable name.
+        auto dref = static_cast<DefnRef*>(e);
+        auto vd = cast<ValueDefn>(dref->defn);
+        coerceExpr(dref->stem, nullptr);
+        dref->type = vd->type();
+        return addCastIfNeeded(dref, dstType);
+      }
+
+      case Expr::Kind::FUNCTION_REF: {
+        // Reference to a function name.
+        auto dref = static_cast<DefnRef*>(e);
+        Member* method = dref->defn;
+        coerceExpr(dref->stem, nullptr);
+        Env env;
+        if (auto spec = dyn_cast<SpecializedDefn>(dref->defn)) {
+          env.args.assign(spec->typeArgs().begin(), spec->typeArgs().end());
+          env.params = spec->typeParams();
+          method = spec->generic();
+        }
+
+        if (auto fd = dyn_cast<FunctionDefn>(method)) {
+          ApplySpecialization transform(env.args);
+          dref->type = const_cast<Type*>(transform.transform(fd->type()));
+        } else {
+          assert(false && "Invalid function ref");
+        }
+        return dref;
+      }
+
+      case Expr::Kind::TYPE_REF: {
+        auto dref = static_cast<DefnRef*>(e);
+        if (auto spec = dyn_cast<SpecializedDefn>(dref->defn)) {
+          dref->type = spec->type();
+        } else if (auto td = dyn_cast<TypeDefn>(dref->defn)) {
+          dref->type = td->type();
+        }
+        return addCastIfNeeded(dref, dstType);
+      }
+
+      case Expr::Kind::BLOCK: {
+        auto blk = static_cast<BlockStmt*>(e);
+        for (auto stmt : blk->stmts) {
+          coerceExpr(stmt, nullptr);
+        }
+        if (blk->result) {
+          blk->result = coerceExpr(blk->result, dstType);
+          blk->type = blk->result->type;
+        } else {
+          blk->type = &VoidType::VOID;
+        }
+        return blk;
+      }
+
+      case Expr::Kind::LOCAL_VAR: {
+        // Already done.
+        return e;
+      }
+
+      case Expr::Kind::IF: {
+        auto st = static_cast<IfStmt*>(e);
+        st->test = coerceExpr(st->test, &BooleanType::BOOL);
+        if (st->elseBlock != nullptr) {
+          st->thenBlock = coerceExpr(st->thenBlock, dstType);
+          st->elseBlock = coerceExpr(st->elseBlock, dstType);
+          auto combined = combineTypes({ st->thenBlock->type, st->elseBlock->type });
+          st->type = combined;
+        } else {
+          coerceExpr(st->thenBlock, dstType);
+          auto combined = combineTypes({ st->thenBlock->type, &VoidType::VOID });
+          st->thenBlock = addCastIfNeeded(st->thenBlock, combined);
+          st->type = combined;
+        }
+
+        return st;
+      }
+
+      case Expr::Kind::WHILE: {
+        auto st = static_cast<WhileStmt*>(e);
+        st->test = coerceExpr(st->test, &BooleanType::BOOL);
+        st->body = coerceExpr(st->test, nullptr);
+        st->type = &VoidType::VOID;
+        return st;
+      }
+
+      case Expr::Kind::RETURN: {
+        auto ret = static_cast<UnaryOp*>(e);
+        if (ret->arg && _subject) {
+          auto fd = dyn_cast<FunctionDefn>(_subject);
+          ret->arg = coerceExpr(ret->arg, const_cast<Type*>(fd->type()->returnType));
+        }
+        ret->type = &Type::NO_RETURN; // Flow of control does not continue.
+        return ret;
+      }
+
+  // def visitThrow(self, expr, cs):
+  //   '''@type expr: spark.graph.graph.Throw
+  //      @type cs: constraintsolver.ConstraintSolver'''
+  //   if expr.hasArg():
+  //     self.assignTypes(expr.getArg(), self.typeStore.getEssentialTypes()['throwable'].getType())
+  //   return self.NO_RETURN
+
+      case Expr::Kind::EQ:
+      case Expr::Kind::NE: {
+        auto op = static_cast<BinaryOp*>(e);
+        coerceExpr(op->args[0], nullptr);
+        coerceExpr(op->args[1], nullptr);
+        op->type = &BooleanType::BOOL;
+        return addCastIfNeeded(op, dstType);
+      }
+
+      default:
+        diag.debug() << "Invalid expression kind: " << Expr::KindName(e->kind);
+        assert(false && "Invalid expression kind");
+    }
   }
 
   // Utilities
@@ -1345,7 +1454,9 @@ namespace tempest::sema::pass {
     if (type->kind == Type::Kind::BOOLEAN) {
       return expr;
     } else if (type->kind == Type::Kind::INTEGER) {
-      return new BinaryOp(Expr::Kind::NE, expr, new IntegerLiteral(0, cast<IntegerType>(type)));
+      auto intTy = cast<IntegerType>(type);
+      llvm::APInt(intTy->bits(), 0, false);
+      return new BinaryOp(Expr::Kind::NE, expr, new IntegerLiteral(0, intTy));
     } else {
       // TODO: Check for collections
       diag.error(expr) << "Cannot coerce value to boolean type.";
@@ -1357,8 +1468,66 @@ namespace tempest::sema::pass {
     assert(false);
   }
 
-  Type* ResolveTypesPass::chooseIntegerType(Expr* expr, Type* ty) {
-    assert(expr);
+  Expr* ResolveTypesPass::addCastIfNeeded(Expr* expr, Type* ty) {
+    if (expr == nullptr || ty == nullptr || Expr::isError(expr) || Type::isError(ty)) {
+      return expr;
+    }
+    TypeCasts casting(*_alloc);
+    return casting.cast(ty, expr);
+  }
+
+  /** Given a set of alternative types, determine the smallest set of types that is assigable
+      from all the input types. If it's a single type, return it, otherwise return a union of
+      the results. */
+  Type* ResolveTypesPass::combineTypes(ArrayRef<Type*> types) {
+    SmallVector<Type*, 8> results;
+
+    std::function<void(Type*)> addtype;
+    addtype = [&results, &addtype](Type* t) {
+      // Don't include error types or types that don't yield a value.
+      if (Type::isError(t) || t->kind == Type::Kind::NEVER) {
+        return;
+      }
+
+      if (auto ut = dyn_cast<UnionType>(t)) {
+        for (auto el : ut->members) {
+          addtype(const_cast<Type*>(el));
+        }
+      } else {
+        SmallVector<Type*, 8> preserved;
+        auto addNew = true;
+        for (auto ot : results) {
+          if (isAssignable(ot, t).rank > ConversionRank::INEXACT) {
+            // There's already a type in the list that is more general.
+            addNew = false;
+            preserved.push_back(ot);
+          } else if (isAssignable(t, ot).rank <= ConversionRank::INEXACT) {
+            // Preserve the old type, since the new type is not more general.
+            preserved.push_back(ot);
+          }
+        }
+
+        if (addNew) {
+          preserved.push_back(t);
+        }
+        results.swap(preserved);
+      }
+    };
+
+    for (auto t : types) {
+      addtype(t);
+    }
+
+    if (results.size() == 0) {
+      return &Type::NO_RETURN;
+    } else if (results.size() == 1) {
+      return results.front();
+    } else {
+      return _cu.types().createUnionType(results);
+    }
+  }
+
+  Type* ResolveTypesPass::chooseIntegerType(Type* ty) {
     assert(ty);
     // if isinstance(expr, graph.Pack):
     //   assert isinstance(ty, graph.TupleType)
@@ -1370,11 +1539,10 @@ namespace tempest::sema::pass {
     if (ty->kind != Type::Kind::INTEGER) {
       return ty;
     }
-    if (expr->kind == Expr::Kind::INTEGER_LITERAL) {
-      auto intLit = static_cast<IntegerLiteral*>(expr);
-      auto bits = intLit->isUnsigned
-          ? intLit->value().getActiveBits() : intLit->value().getMinSignedBits();
-      if (intLit->isUnsigned) {
+    auto intTy = static_cast<IntegerType*>(ty);
+    if (intTy->isImplicitlySized()) {
+      auto bits = intTy->isUnsigned() ? intTy->bits() - 1 : intTy->bits();
+      if (intTy->isUnsigned()) {
         return bits <= 32 ? &IntegerType::U32 : &IntegerType::U64;
       } else {
         return bits <= 32 ? &IntegerType::I32 : &IntegerType::I64;

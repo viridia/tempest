@@ -34,7 +34,7 @@ namespace tempest::gen {
   /** Basic block in the code flow graph. */
   class CGFunctionBuilder {
   public:
-    CGFunctionBuilder(CodeGen& codeGen, CGModule* module);
+    CGFunctionBuilder(CodeGen& codeGen, CGModule* module, ArrayRef<const Type*> typeArgs);
     CGFunctionBuilder(const CGFunctionBuilder&) = delete;
     ~CGFunctionBuilder() {}
 
@@ -42,7 +42,7 @@ namespace tempest::gen {
     llvm::Function* genFunctionValue(FunctionDefn* func);
 
     /** Generate a definition for a function. */
-    llvm::Function* genFunction(FunctionDefn* func);
+    llvm::Function* genFunction(FunctionDefn* func, Expr* body);
 
     /** Convenience function to get the DIBuilder. */
     llvm::DIBuilder& diBuilder() const {
@@ -62,10 +62,11 @@ namespace tempest::gen {
   private:
     CodeGen& _gen;
     CGModule* _module;
+    ArrayRef<const Type*> _typeArgs;
     llvm::IRBuilder<> _builder;
     llvm::Module* _irModule;
-    llvm::Function* _irFunction;
-    llvm::DIScope* _lexicalScope;
+    llvm::Function* _irFunction = nullptr;
+    llvm::DIScope* _lexicalScope = nullptr;
 
     llvm::Value* visitExpr(Expr* expr);
     llvm::Value* visitBlockStmt(BlockStmt* blk);

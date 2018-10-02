@@ -13,7 +13,7 @@ namespace tempest::sema::graph {
   }
 
   SpecializedDefn* SpecializationStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
-    SpecializationKey key(base, typeArgs);
+    SpecializationKey<Defn> key(base, typeArgs);
     auto it = _specs.find(key);
     if (it != _specs.end()) {
       return it->second;
@@ -23,7 +23,7 @@ namespace tempest::sema::graph {
     if (auto typeDefn = llvm::dyn_cast<TypeDefn>(base)) {
       spec->setType(new (_alloc) SpecializedType(spec));
     }
-    SpecializationKey newKey(base, _alloc.copyOf(typeArgs));
+    SpecializationKey<Defn> newKey(base, _alloc.copyOf(typeArgs));
     _specs[newKey] = spec;
     return spec;
   }

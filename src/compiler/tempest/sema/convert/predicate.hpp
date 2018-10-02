@@ -44,7 +44,8 @@ namespace tempest::sema::convert {
       const TypeDefn* st, Env& stEnv,
       const TypeDefn* bt, Env& btEnv);
 
-  /** Similar to isSubtype, but takes into account upper and lower bounds on type variables.
+  /** Returns true if the left type is equal to or narrower than the right type.
+      Similar to isSubtype, but takes into account upper and lower bounds on type variables.
       Returns true if both sides are equally specific. */
   bool isEqualOrNarrower(const Type* lt, const Type* rt);
   bool isEqualOrNarrower(const Type* lt, Env& lEnv, const Type* rt, Env& rEnv);

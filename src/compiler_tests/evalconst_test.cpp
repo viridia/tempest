@@ -76,7 +76,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 2));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 2));
   }
 
   SECTION("Multiplication") {
@@ -88,7 +88,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 15));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 15));
   }
 
   SECTION("Division") {
@@ -100,7 +100,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 3));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 3));
   }
 
   SECTION("Remainder") {
@@ -112,7 +112,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 1));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 1));
   }
 
   SECTION("BitOr") {
@@ -124,7 +124,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 7));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 7));
   }
 
   SECTION("BitAnd") {
@@ -136,7 +136,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 1));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 1));
   }
 
   SECTION("BitXor") {
@@ -148,7 +148,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 6));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 6));
   }
 
   SECTION("RShift") {
@@ -160,7 +160,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 3));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 3));
   }
 
   SECTION("LShift") {
@@ -172,7 +172,7 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.isUnsigned);
     REQUIRE_FALSE(result.hasSize);
     REQUIRE_FALSE(result.error);
-    REQUIRE(result.intResult == llvm::APInt(64, 60));
+    REQUIRE(result.intResult.sext(64) == llvm::APInt(64, 60));
   }
 
   SECTION("EQ") {

@@ -1,5 +1,6 @@
 #include "tempest/gen/codegen.hpp"
 #include "tempest/gen/cgfunctionbuilder.hpp"
+#include "tempest/gen/symbolstore.hpp"
 
 namespace tempest::gen {
   CGModule* CodeGen::createModule(llvm::StringRef name) {
@@ -7,13 +8,22 @@ namespace tempest::gen {
     return _module;
   }
 
-  llvm::Function* CodeGen::genFunctionValue(FunctionDefn* func) {
-    CGFunctionBuilder builder(*this, _module);
+  void CodeGen::genSymbols(SymbolStore& symbols) {
+    for (auto sym : symbols.list()) {
+      if (auto fsym = dyn_cast<FunctionSym>(sym)) {
+        CGFunctionBuilder builder(*this, _module, fsym->typeArgs);
+        builder.genFunction(fsym->function, fsym->body);
+      }
+    }
+  }
+
+  llvm::Function* CodeGen::genFunctionValue(FunctionDefn* func, ArrayRef<const Type*> typeArgs) {
+    CGFunctionBuilder builder(*this, _module, typeArgs);
     return builder.genFunctionValue(func);
   }
 
-  llvm::Function* CodeGen::genFunction(FunctionDefn* func) {
-    CGFunctionBuilder builder(*this, _module);
-    return builder.genFunction(func);
+  llvm::Function* CodeGen::genFunction(FunctionDefn* func, ArrayRef<const Type*> typeArgs) {
+    CGFunctionBuilder builder(*this, _module, typeArgs);
+    return builder.genFunction(func, func->body());
   }
 }

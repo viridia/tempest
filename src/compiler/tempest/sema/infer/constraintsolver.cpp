@@ -63,6 +63,7 @@ namespace tempest::sema::infer {
     }
 
     if (!_failed) {
+      checkNonCandidateConstraints();
       computeUniqueValueForTypeVars();
     }
   }
@@ -716,6 +717,42 @@ namespace tempest::sema::infer {
     }
   }
 
+  void ConstraintSolver::checkNonCandidateConstraints() {
+    for (auto assign : _assignments) {
+      auto result = isAssignable(assign.dstType, assign.srcType);
+      if (result.rank <= ConversionRank::WARNING) {
+        switch (result.error) {
+          case ConversionError::INCOMPATIBLE:
+            diag.error(assign.location)
+                << "Can't convert from " << assign.srcType << " to " << assign.dstType << ".";
+            break;
+          case ConversionError::QUALIFIER_LOSS:
+            diag.error(assign.location)
+                << "Conversion from " << assign.srcType << " to " << assign.dstType
+                << " loses qualifiers.";
+            break;
+          case ConversionError::SIGNED_UNSIGNED:
+            diag.error(assign.location)
+                << "Signed / unsigned mismatch converting from " << assign.srcType
+                << " to " << assign.dstType << ".";
+            break;
+          case ConversionError::TRUNCATION:
+            diag.warn(assign.location)
+                << "Truncation of value converting from " << assign.srcType
+                << " to " << assign.dstType << ".";
+            break;
+          case ConversionError::PRECISION_LOSS:
+            diag.warn(assign.location)
+                << "Loss of precision converting from " << assign.srcType
+                << " to " << assign.dstType << ".";
+            break;
+          case ConversionError::NONE:
+            break;
+        }
+      }
+    }
+  }
+
   void ConstraintSolver::computeUniqueValueForTypeVars() {
     llvm::EquivalenceClasses<const InferredType*> ec;
 
@@ -724,7 +761,7 @@ namespace tempest::sema::infer {
       auto oc = site->singularCandidate();
       assert(oc != nullptr);
       for (auto typeArg : oc->typeArgs) {
-        if (auto inferred = dyn_cast<InferredType>(typeArg)) {
+        if (auto inferred = dyn_cast_or_null<InferredType>(typeArg)) {
           inferred->value = nullptr;
           ec.insert(inferred);
           for (auto& constraint : inferred->constraints) {

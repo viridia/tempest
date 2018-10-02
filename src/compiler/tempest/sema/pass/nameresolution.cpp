@@ -285,7 +285,7 @@ namespace tempest::sema::pass {
         }
       }
       ev->setInit(new (*_alloc) IntegerLiteral(
-          ev->location(), index++, base->isUnsigned(), base));
+          ev->location(), _alloc->copyOf(index++), base));
     }
   }
 
@@ -491,10 +491,10 @@ namespace tempest::sema::pass {
           diag.error(node) << "Character literal can only hold a single character";
           return &Expr::ERROR;
         } else {
+          llvm::APInt wcharIntVal(32, wideValue[0], false);
           return new (*_alloc) IntegerLiteral(
             node->location,
-            llvm::APInt(32, wideValue[0], false),
-            true,
+            _alloc->copyOf(wcharIntVal),
             &IntegerType::CHAR);
         }
       }
@@ -522,8 +522,7 @@ namespace tempest::sema::pass {
         APInt intVal(64, value, radix);
         return new (*_alloc) IntegerLiteral(
           node->location,
-          intVal,
-          isUnsigned,
+          _alloc->copyOf(intVal),
           _cu.types().createIntegerType(intVal, isUnsigned));
       }
 

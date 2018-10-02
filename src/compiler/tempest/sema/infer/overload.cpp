@@ -9,7 +9,7 @@ namespace tempest::sema::infer {
     // Delete any inferred types (and the tables they contain) that got allocated.
     // Everything else can be left since it's pool-allocated.
     for (auto type : typeArgs) {
-      if (type->kind == Type::Kind::INFERRED) {
+      if (type && type->kind == Type::Kind::INFERRED) {
         delete type;
       }
     }

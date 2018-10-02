@@ -67,30 +67,6 @@ namespace tempest::sema::graph {
       // Assignment operators
       ASSIGN,
 
-      // Cast operators
-    //   UP_CAST,                      # Cast from subclass to base type.
-    //   DOWN_CAST,                    # Cast from base type to subclass (unconditional)
-    //   TRY_CAST,                     # Cast from base to subclass, throw if fail.
-    //   IFACE_CAST,                   # Cast from type to interface which it is known to support.
-    //   DYN_IFACE_CAST,               # Cast from type to interface, throw if fail.
-    //   UNION_CTOR_CAST,              # Cast to a union type
-    //   UNION_MEMBER_CAST,            # Cast from a union type
-    //   BOX_CAST,                     # Cast from value type to reference type.
-    //   UNBOX_CAST,                   # Cast from reference type to value type.
-    // #  DYNAMIC_CAST,                 # Cast from base/iface to subclass, null if fail
-    // #  EXPR_TYPE(QualCast)       // Cast that changes only qualifiers (no effect)
-    // #  EXPR_TYPE(UnionMemberCast)// Cast from a union type.
-    // #  EXPR_TYPE(CheckedUnionMemberCast)// Cast from a union type, with type check.
-    //   REP_CAST,                     # Cast between types that have the exact same machine representation (example: char and u32).
-    //   TRUNCATE,                     # Number truncation.
-    //   SIGN_EXTEND,                  # Signed integer extend.
-    //   ZERO_EXTEND,                  # Unsigned integer extend.
-    //   FP_EXTEND,                    # Floating-point extend.
-    //   FP_TRUNC,                     # Floating-point truncate.
-    //   INT_TO_FLOAT,                 # Convert integer to float.
-    //   INTERFACE_DATA,               # Extract interface payload.
-    // # EXPR_TYPE(BitCast)        // Reinterpret cast
-
       // Misc operators
       LOGICAL_AND, LOGICAL_OR,
     //   RANGE,
@@ -171,6 +147,31 @@ namespace tempest::sema::graph {
     //   UNARY_OP,
     //   BINARY_OP,
     //   CAST_OP,
+
+      // Cast operators
+      CAST_INT_TRUNCATE,        // Number truncation.
+      CAST_SIGN_EXTEND,         // Signed integer extend.
+      CAST_ZERO_EXTEND,         // Unsigned integer extend.
+      CAST_FP_EXTEND,           // Floating-point extend.
+      CAST_FP_TRUNC,            // Floating-point truncate.
+    //   UP_CAST,                      # Cast from subclass to base type.
+    //   DOWN_CAST,                    # Cast from base type to subclass (unconditional)
+    //   TRY_CAST,                     # Cast from base to subclass, throw if fail.
+    //   IFACE_CAST,                   # Cast from type to interface which it is known to support.
+    //   DYN_IFACE_CAST,               # Cast from type to interface, throw if fail.
+      CAST_CREATE_UNION,        // Construct a union type from one of it's members.
+    //   UNION_CTOR_CAST,              # Cast to a union type
+    //   UNION_MEMBER_CAST,            # Cast from a union type
+    //   BOX_CAST,                     # Cast from value type to reference type.
+    //   UNBOX_CAST,                   # Cast from reference type to value type.
+    // #  DYNAMIC_CAST,                 # Cast from base/iface to subclass, null if fail
+    // #  EXPR_TYPE(QualCast)       // Cast that changes only qualifiers (no effect)
+    // #  EXPR_TYPE(UnionMemberCast)// Cast from a union type.
+    // #  EXPR_TYPE(CheckedUnionMemberCast)// Cast from a union type, with type check.
+    //   REP_CAST,                     # Cast between types that have the exact same machine representation (example: char and u32).
+    //   INT_TO_FLOAT,                 # Convert integer to float.
+    //   INTERFACE_DATA,               # Extract interface payload.
+    // # EXPR_TYPE(BitCast)        // Reinterpret cast
 
       INFIX_START = ADD,
       INFIX_END = REF_EQ,

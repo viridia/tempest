@@ -44,10 +44,6 @@ namespace tempest::sema::graph {
   public:
     Expr* args[2];
 
-    // In many cases, binary ops wil be lowered to a function call. This provides a place to
-    // stash that.
-    Expr* lowered = nullptr;
-
     BinaryOp(
           Kind kind,
           Location location,

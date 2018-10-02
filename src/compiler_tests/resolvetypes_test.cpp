@@ -599,6 +599,30 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
   }
 
+  SECTION("Resolve less-than operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg < 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
+  SECTION("Resolve less-than-or-equal operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg <= 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
+  SECTION("Resolve greater-than operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg > 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
+  SECTION("Resolve greater-than-or-equal operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg >= 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
   SECTION("Conflicting types for generic parameter") {
     REQUIRE_THAT(
       compileError(cu,

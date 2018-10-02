@@ -27,6 +27,10 @@ namespace tempest::sema::infer {
   class SolutionTransform;
 }
 
+namespace tempest::sema::names {
+  struct LookupScope;
+}
+
 namespace tempest::sema::pass {
   using tempest::compiler::CompilationUnit;
   using tempest::sema::graph::Module;
@@ -89,6 +93,7 @@ namespace tempest::sema::pass {
     Module* _module = nullptr;
     std::vector<Type*> _returnTypes;
     const Type* _functionReturnType;
+    names::LookupScope* _scope = nullptr;
 
     Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);

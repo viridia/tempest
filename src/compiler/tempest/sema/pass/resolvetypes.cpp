@@ -14,6 +14,8 @@
 #include "tempest/sema/infer/paramassignments.hpp"
 #include "tempest/sema/infer/solution.hpp"
 #include "tempest/sema/infer/types.hpp"
+#include "tempest/sema/names/createnameref.hpp"
+#include "tempest/sema/names/unqualnamelookup.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
 #include "tempest/sema/transform/visitor.hpp"
@@ -25,6 +27,7 @@ namespace tempest::sema::pass {
   using tempest::error::diag;
   using namespace tempest::sema::convert;
   using namespace tempest::sema::graph;
+  using namespace tempest::sema::names;
   using tempest::sema::infer::CallCandidate;
   using tempest::sema::infer::CallSite;
   using tempest::sema::infer::Conditions;
@@ -40,8 +43,10 @@ namespace tempest::sema::pass {
 
   class LowerOperatorsTransform : public transform::ExprVisitor {
   public:
-    LowerOperatorsTransform(CompilationUnit& cu, support::BumpPtrAllocator& alloc)
+    LowerOperatorsTransform(
+        CompilationUnit& cu, LookupScope* scope, support::BumpPtrAllocator& alloc)
       : _cu(cu)
+      , _scope(scope)
       , _alloc(alloc)
     {}
 
@@ -56,6 +61,10 @@ namespace tempest::sema::pass {
         case Expr::Kind::MULTIPLY:
         case Expr::Kind::DIVIDE:
         case Expr::Kind::REMAINDER:
+        case Expr::Kind::LE:
+        case Expr::Kind::LT:
+        case Expr::Kind::GE:
+        case Expr::Kind::GT:
           return visitInfixOperator(static_cast<BinaryOp*>(e));
 
         default:
@@ -98,6 +107,7 @@ namespace tempest::sema::pass {
       }
 
       StringRef funcName;
+      llvm::ArrayRef<Expr*> args(op->args);
       switch (op->kind) {
         case Expr::Kind::ADD:
           funcName = "infixAdd";
@@ -114,16 +124,49 @@ namespace tempest::sema::pass {
         case Expr::Kind::REMAINDER:
           funcName = "infixRemainder";
           break;
+        case Expr::Kind::LT:
+          funcName = "isLessThan";
+          break;
+        case Expr::Kind::LE:
+          funcName = "isLessThanOrEqual";
+          break;
+        case Expr::Kind::GT:
+          funcName = "isLessThan";
+          // Swap arg order
+          args = _alloc.copyOf(llvm::ArrayRef<Expr*>({ args[1], args[0] }));
+          break;
+        case Expr::Kind::GE:
+          funcName = "isLessThanOrEqual";
+          // Swap arg order
+          args = _alloc.copyOf(llvm::ArrayRef<Expr*>({ args[1], args[0] }));
+          break;
         default:
           assert(false && "Invalid binary op");
       }
 
-      return new (_alloc) ApplyFnOp(
-          Expr::Kind::CALL, op->location, op->lowered, op->args);
+      auto fnRef = resolveOperatorName(op->location, funcName);
+      return new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, args);
+    }
+
+    Expr* resolveOperatorName(const Location& loc, const StringRef& name) {
+      NameLookupResult result;
+      _scope->lookup(name, result);
+      if (result.size() > 0) {
+        return createNameRef(_alloc, loc, result,
+            cast_or_null<Defn>(_scope->subject()),
+            nullptr, false, true);
+      } else {
+        auto mref = new (_alloc) MemberListExpr(
+            Expr::Kind::FUNCTION_REF_OVERLOAD, loc, name,
+            llvm::ArrayRef<Member*>());
+        mref->useADL = true;
+        return mref;
+      }
     }
 
   private:
     CompilationUnit& _cu;
+    LookupScope* _scope;
     support::BumpPtrAllocator& _alloc;
   };
 
@@ -138,6 +181,8 @@ namespace tempest::sema::pass {
 
   void ResolveTypesPass::process(Module* mod) {
     begin(mod);
+    ModuleScope scope(nullptr, mod);
+    _scope = &scope;
     visitList(mod->members());
   }
 
@@ -213,6 +258,11 @@ namespace tempest::sema::pass {
 
   void ResolveTypesPass::visitTypeDefn(TypeDefn* td) {
     auto prevSubject = setSubject(td);
+    auto prevScope = _scope;
+    TypeParamScope tpScope(_scope, td);
+    TypeDefnScope tdScope(&tpScope, td);
+    _scope = &tdScope;
+
     visitAttributes(td);
     if (td->type()->kind == Type::Kind::ALIAS) {
       // Should be already resolved.
@@ -222,6 +272,7 @@ namespace tempest::sema::pass {
       visitCompositeDefn(td);
     }
     setSubject(prevSubject);
+    _scope = prevScope;
   }
 
   void ResolveTypesPass::visitCompositeDefn(TypeDefn* td) {
@@ -249,12 +300,16 @@ namespace tempest::sema::pass {
     }
 
     if (fd->body()) {
+      auto prevScope = _scope;
+      FunctionScope fdScope(_scope, fd);
+      _scope = &fdScope;
+
       _functionReturnType = fd->type() ? fd->type()->returnType : nullptr;
       if (fd->isConstructor() && !fd->isStatic()) {
         _functionReturnType = &VoidType::VOID;
       }
 
-      LowerOperatorsTransform transform(_cu, *_alloc);
+      LowerOperatorsTransform transform(_cu, _scope, *_alloc);
       auto body = transform.visit(fd->body());
       auto exprType = assignTypes(body, _functionReturnType);
 
@@ -288,6 +343,8 @@ namespace tempest::sema::pass {
         fd->setType(_cu.types().createFunctionType(
             _functionReturnType, paramTypes, fd->isVariadic()));
       }
+
+      _scope = prevScope;
     }
 //     if func.hasBody() and not isinstance(func.getBody(), graph.Intrinsic):
 //       if func.isConstructor() and not func.isStatic():
@@ -312,7 +369,7 @@ namespace tempest::sema::pass {
   void ResolveTypesPass::visitValueDefn(ValueDefn* vd) {
     visitAttributes(vd);
     if (vd->init()) {
-      LowerOperatorsTransform transform(_cu, *_alloc);
+      LowerOperatorsTransform transform(_cu, _scope, *_alloc);
       vd->setInit(transform.visit(vd->init()));
       auto initType = assignTypes(vd->init(), vd->type());
       if (!vd->type() && !Type::isError(initType)) {

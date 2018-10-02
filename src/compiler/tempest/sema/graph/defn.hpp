@@ -670,6 +670,18 @@ namespace tempest::sema::graph {
     }
     return llvm::dyn_cast<Defn>(m);
   }
+
+  /** Return true if member is defined within the enclosing definition. */
+  bool isDefinedIn(Member* subject, Member* enclosing);
+
+  /** Return true if member is defined within a base type of the enclosing definition. */
+  bool isDefinedInBaseType(Member* subject, Member* enclosing);
+
+  /** True if target is visible from subject. */
+  bool isVisibleMember(Member* subject, Member* target);
+
+  /** True if target is visible from subject. */
+  bool isVisible(Defn* subject, Defn* target);
 }
 
 #endif

@@ -12,6 +12,7 @@
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/nameresolution.hpp"
 #include "tempest/sema/names/closestname.hpp"
+#include "tempest/sema/names/createnameref.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ConvertUTF.h"
@@ -33,42 +34,6 @@ namespace tempest::sema::pass {
         return td->type()->kind;
       }
       return Type::Kind::INVALID;
-    }
-
-    /** Return true if member is defined within the enclosing definition. */
-    bool isDefinedIn(Member* subject, Member* enclosing) {
-      while (subject) {
-        if (subject == enclosing) {
-          return true;
-        } else if (auto defn = dyn_cast<Defn>(subject)) {
-          subject = defn->definedIn();
-        } else {
-          break;
-        }
-      }
-      return false;
-    }
-
-    /** Return true if member is defined within a base type of the enclosing definition. */
-    bool isDefinedInBaseType(Member* subject, Member* enclosing) {
-      while (subject) {
-        if (subject == enclosing) {
-          return true;
-        } else if (auto enclosingType = dyn_cast<TypeDefn>(enclosing)) {
-          for (auto extDef : enclosingType->extends()) {
-            if (isDefinedInBaseType(subject, extDef)) {
-              return true;
-            }
-          }
-        }
-
-        if (auto defn = dyn_cast<Defn>(subject)) {
-          subject = defn->definedIn();
-        } else {
-          break;
-        }
-      }
-      return false;
     }
   }
 
@@ -461,9 +426,9 @@ namespace tempest::sema::pass {
           return &Expr::ERROR;
         }
 
-        return createNameRef(node->location, result,
+        return createNameRef(*_alloc, node->location, result,
           cast_or_null<Defn>(scope->subject()),
-          nullptr);
+          nullptr, false, false);
       }
 
       // MEMBER,
@@ -583,7 +548,6 @@ namespace tempest::sema::pass {
         auto rhs = visitExpr(scope, op->operands[1]);
         auto expr = new (*_alloc) BinaryOp(
             Expr::Kind::ADD, lhs->location | rhs->location, lhs, rhs);
-        expr->lowered = resolveOperatorName(op->location, scope, "infixAdd");
         return expr;
       }
 
@@ -593,7 +557,6 @@ namespace tempest::sema::pass {
         auto rhs = visitExpr(scope, op->operands[1]);
         auto expr = new (*_alloc) BinaryOp(
             Expr::Kind::SUBTRACT, lhs->location | rhs->location, lhs, rhs);
-        expr->lowered = resolveOperatorName(op->location, scope, "infixSubtract");
         return expr;
       }
 
@@ -603,7 +566,6 @@ namespace tempest::sema::pass {
         auto rhs = visitExpr(scope, op->operands[1]);
         auto expr = new (*_alloc) BinaryOp(
             Expr::Kind::MULTIPLY, lhs->location | rhs->location, lhs, rhs);
-        expr->lowered = resolveOperatorName(op->location, scope, "infixMultiply");
         return expr;
       }
 
@@ -613,7 +575,6 @@ namespace tempest::sema::pass {
         auto rhs = visitExpr(scope, op->operands[1]);
         auto expr = new (*_alloc) BinaryOp(
             Expr::Kind::DIVIDE, lhs->location | rhs->location, lhs, rhs);
-        expr->lowered = resolveOperatorName(op->location, scope, "infixDivide");
         return expr;
       }
 
@@ -623,7 +584,6 @@ namespace tempest::sema::pass {
         auto rhs = visitExpr(scope, op->operands[1]);
         auto expr = new (*_alloc) BinaryOp(
             Expr::Kind::REMAINDER, lhs->location | rhs->location, lhs, rhs);
-        expr->lowered = resolveOperatorName(op->location, scope, "infixRemainder");
         return expr;
       }
 
@@ -1116,7 +1076,7 @@ namespace tempest::sema::pass {
       }
 
       if (result.size() > 0) {
-        return createNameRef(node->location, result,
+        return createNameRef(*_alloc, node->location, result,
             cast_or_null<Defn>(scope->subject()),
             nullptr, false, true);
       } else {
@@ -1136,7 +1096,7 @@ namespace tempest::sema::pass {
     NameLookupResult result;
     scope->lookup(name, result);
     if (result.size() > 0) {
-      return createNameRef(loc, result,
+      return createNameRef(*_alloc, loc, result,
           cast_or_null<Defn>(scope->subject()),
           nullptr, false, true);
     } else {
@@ -1146,82 +1106,6 @@ namespace tempest::sema::pass {
       mref->useADL = true;
       return mref;
     }
-  }
-
-  Expr* NameResolutionPass::createNameRef(
-      const Location& loc,
-      const NameLookupResultRef& result,
-      Defn* subject,
-      Expr* stem,
-      bool preferPrivate,
-      bool useADL) {
-    NameLookupResult vars;
-    NameLookupResult functions;
-    NameLookupResult types;
-    NameLookupResult privateMembers;
-    NameLookupResult protectedMembers;
-
-    for (auto member : result) {
-      auto m = unwrapSpecialization(member);
-      if (!isVisibleMember(subject, m)) {
-        if (m->visibility() == PRIVATE) {
-          privateMembers.push_back(m);
-        } else if (m->visibility() == PROTECTED) {
-          protectedMembers.push_back(m);
-        }
-      }
-
-      if (m->kind == Member::Kind::TYPE || m->kind == Member::Kind::TYPE_PARAM) {
-        types.push_back(member);
-      } else if (m->kind == Member::Kind::FUNCTION) {
-        functions.push_back(member);
-      } else if (m->kind == Member::Kind::CONST_DEF
-          || m->kind == Member::Kind::LET_DEF
-          || m->kind == Member::Kind::ENUM_VAL
-          || m->kind == Member::Kind::FUNCTION_PARAM
-          || m->kind == Member::Kind::TUPLE_MEMBER) {
-        vars.push_back(member);
-      } else {
-        assert(false && "Other member types not allowed here.");
-      }
-    }
-
-    if (privateMembers.size() > 0) {
-      auto p = unwrapSpecialization(privateMembers[0]);
-      diag.error(loc) << "Cannot access private member '" << p->name() << "'.";
-      diag.info(p->location()) << "Defined here.";
-    } else if (protectedMembers.size() > 0) {
-      auto p = unwrapSpecialization(protectedMembers[0]);
-      diag.error(loc) << "Cannot access protected member '" << p->name() << "'.";
-      diag.info(p->location()) << "Defined here.";
-    } else {
-      auto m = unwrapSpecialization(result[0]);
-      if (vars.size() > 0) {
-        if (functions.size() > 0 || types.size() > 0) {
-          diag.error(loc) << "Conflicting definitions for '" << m->name() << "'.";
-        } else if (vars.size() > 1) {
-          diag.error(loc) << "Reference to '" << m->name() << "' is ambiguous.";
-        } else {
-          return new (*_alloc) DefnRef(Expr::Kind::VAR_REF, loc, result[0], stem);
-        }
-      } else if (types.size() > 0) {
-        if (functions.size() > 0) {
-          diag.error(loc) << "Conflicting definitions for '" << m->name() << "'.";
-        } else {
-          auto tref = new (*_alloc) MemberListExpr(
-              Expr::Kind::TYPE_REF_OVERLOAD, loc, result[0]->name(), _alloc->copyOf(types));
-          tref->stem = stem;
-          return tref;
-        }
-      } else {
-        auto mref = new (*_alloc) MemberListExpr(
-            Expr::Kind::FUNCTION_REF_OVERLOAD, loc, result[0]->name(), _alloc->copyOf(functions));
-        mref->useADL = useADL;
-        mref->stem = stem;
-        return mref;
-      }
-    }
-    return nullptr;
   }
 
   // This handles compound names such as A, A.B.C, A[X].B[Y], but not (expression).B.
@@ -1544,38 +1428,5 @@ namespace tempest::sema::pass {
 
     // Otherwise, just return the specialized type.
     return specDefn->type();
-  }
-
-  bool NameResolutionPass::isVisibleMember(Member* subject, Member* target) {
-    auto subjectDefn = unwrapSpecialization(subject);
-    auto targetDefn = unwrapSpecialization(target);
-    if (subjectDefn && targetDefn) {
-      return isVisible(subjectDefn, targetDefn);
-    }
-    return false;
-  }
-
-  bool NameResolutionPass::isVisible(Defn* subject, Defn* target) {
-    // If the target has a visibility of PUBLIC then it's visible.
-    if (target->visibility() == PUBLIC) {
-      return true;
-    }
-
-    // If the subject is transitively contained within the immediate parent scope of target, then
-    // target is visible.
-    auto targetParent = target->definedIn();
-    if (isDefinedIn(subject, targetParent)) {
-      return true;
-    }
-
-    // If target is protected and subject is contained within a type that inherits from
-    // target's parent, then target is visible.
-    if (target->visibility() == PROTECTED && isDefinedInBaseType(subject, targetParent)) {
-      return true;
-    }
-
-    // TODO: friends
-
-    return false;
   }
 }

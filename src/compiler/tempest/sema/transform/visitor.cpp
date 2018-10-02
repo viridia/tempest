@@ -89,7 +89,13 @@ namespace tempest::sema::transform {
       case Expr::Kind::SUBTRACT:
       case Expr::Kind::MULTIPLY:
       case Expr::Kind::DIVIDE:
-      case Expr::Kind::REMAINDER: {
+      case Expr::Kind::REMAINDER:
+      case Expr::Kind::EQ:
+      case Expr::Kind::NE:
+      case Expr::Kind::LT:
+      case Expr::Kind::LE:
+      case Expr::Kind::GE:
+      case Expr::Kind::GT: {
         auto op = static_cast<BinaryOp*>(expr);
         op->args[0] = visit(op->args[0]);
         op->args[1] = visit(op->args[1]);

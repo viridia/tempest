@@ -5,7 +5,6 @@
 #include "tempest/sema/graph/symboltable.hpp"
 
 #include <cassert>
-#include <llvm/Support/Casting.h>
 
 namespace tempest::sema::names {
   using tempest::sema::graph::Module;

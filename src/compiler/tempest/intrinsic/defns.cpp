@@ -61,20 +61,12 @@ namespace tempest::intrinsic {
     floatOps.bitXor = makeInfixOp("infixBitXOr", &FloatType::F64, IntrinsicFn::BIT_XOR);
 
     intOps.lt = makeRelationalOp("isLessThan", &IntegerType::I64, IntrinsicFn::LT);
-    uintOps.lt = makeInfixOp("isLessThan", &IntegerType::U64, IntrinsicFn::LT);
-    floatOps.lt = makeInfixOp("isLessThan", &FloatType::F64, IntrinsicFn::LT);
+    uintOps.lt = makeRelationalOp("isLessThan", &IntegerType::U64, IntrinsicFn::LT);
+    floatOps.lt = makeRelationalOp("isLessThan", &FloatType::F64, IntrinsicFn::LT);
 
     intOps.le = makeRelationalOp("isLessThanOrEqual", &IntegerType::I64, IntrinsicFn::LE);
-    uintOps.le = makeInfixOp("isLessThanOrEqual", &IntegerType::U64, IntrinsicFn::LE);
-    floatOps.le = makeInfixOp("isLessThanOrEqual", &FloatType::F64, IntrinsicFn::LE);
-
-    intOps.gt = makeRelationalOp("isGreaterThan", &IntegerType::I64, IntrinsicFn::GT);
-    uintOps.gt = makeInfixOp("isGreaterThan", &IntegerType::U64, IntrinsicFn::GT);
-    floatOps.gt = makeInfixOp("isGreaterThan", &FloatType::F64, IntrinsicFn::GT);
-
-    intOps.ge = makeRelationalOp("isGreaterThanOrEqual", &IntegerType::I64, IntrinsicFn::GE);
-    uintOps.ge = makeInfixOp("isGreaterThanOrEqual", &IntegerType::U64, IntrinsicFn::GE);
-    floatOps.ge = makeInfixOp("isGreaterThanOrEqual", &FloatType::F64, IntrinsicFn::GE);
+    uintOps.le = makeRelationalOp("isLessThanOrEqual", &IntegerType::U64, IntrinsicFn::LE);
+    floatOps.le = makeRelationalOp("isLessThanOrEqual", &FloatType::F64, IntrinsicFn::LE);
   }
 
   std::unique_ptr<TypeDefn> IntrinsicDefns::makeTypeDefn(Type::Kind kind, llvm::StringRef name) {

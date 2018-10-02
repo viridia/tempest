@@ -90,20 +90,9 @@ namespace tempest::sema::pass {
 
     void visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast);
     void visitTypeParams(LookupScope* scope, GenericDefn* defn);
-    Expr* createNameRef(
-        const source::Location& loc,
-        const NameLookupResultRef& result,
-        Defn* subject,
-        Expr* stem = nullptr,
-        bool preferPrivate = false,
-        bool useADL = false);
     void eagerResolveBaseTypes(TypeDefn* td);
     void resolveBaseTypes(LookupScope* scope, TypeDefn* td);
     Type* simplifyTypeSpecialization(SpecializedDefn* specDefn);
-
-    // Return true if target is visible from within currentScope.
-    bool isVisibleMember(Member* subject, Member* target);
-    bool isVisible(Defn* subject, Defn* target);
 
     /** Make a copy of this string within the current alloc. */
     llvm::StringRef copyOf(llvm::StringRef str) {

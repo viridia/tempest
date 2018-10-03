@@ -61,6 +61,9 @@ namespace tempest::sema::pass {
         case Expr::Kind::MULTIPLY:
         case Expr::Kind::DIVIDE:
         case Expr::Kind::REMAINDER:
+        case Expr::Kind::BIT_OR:
+        case Expr::Kind::BIT_AND:
+        case Expr::Kind::BIT_XOR:
         case Expr::Kind::LE:
         case Expr::Kind::LT:
         case Expr::Kind::GE:
@@ -123,6 +126,15 @@ namespace tempest::sema::pass {
           break;
         case Expr::Kind::REMAINDER:
           funcName = "infixRemainder";
+          break;
+        case Expr::Kind::BIT_OR:
+          funcName = "infixBitOr";
+          break;
+        case Expr::Kind::BIT_AND:
+          funcName = "infixBitAnd";
+          break;
+        case Expr::Kind::BIT_XOR:
+          funcName = "infixBitXOr";
           break;
         case Expr::Kind::LT:
           funcName = "isLessThan";

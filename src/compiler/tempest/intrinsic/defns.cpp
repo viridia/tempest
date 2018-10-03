@@ -42,23 +42,18 @@ namespace tempest::intrinsic {
 
     intOps.lsh = makeInfixOp("infixLeftShift", &IntegerType::I64, IntrinsicFn::LSHIFT);
     uintOps.lsh = makeInfixOp("infixLeftShift", &IntegerType::U64, IntrinsicFn::LSHIFT);
-    floatOps.lsh = makeInfixOp("infixLeftShift", &FloatType::F64, IntrinsicFn::LSHIFT);
 
     intOps.rsh = makeInfixOp("infixRightShift", &IntegerType::I64, IntrinsicFn::RSHIFT);
     uintOps.rsh = makeInfixOp("infixRightShift", &IntegerType::U64, IntrinsicFn::RSHIFT);
-    floatOps.rsh = makeInfixOp("infixRightShift", &FloatType::F64, IntrinsicFn::RSHIFT);
 
     intOps.bitOr = makeInfixOp("infixBitOr", &IntegerType::I64, IntrinsicFn::BIT_OR);
     uintOps.bitOr = makeInfixOp("infixBitOr", &IntegerType::U64, IntrinsicFn::BIT_OR);
-    floatOps.bitOr = makeInfixOp("infixBitOr", &FloatType::F64, IntrinsicFn::BIT_OR);
 
     intOps.bitAnd = makeInfixOp("infixBitAnd", &IntegerType::I64, IntrinsicFn::BIT_AND);
     uintOps.bitAnd = makeInfixOp("infixBitAnd", &IntegerType::U64, IntrinsicFn::BIT_AND);
-    floatOps.bitAnd = makeInfixOp("infixBitAnd", &FloatType::F64, IntrinsicFn::BIT_AND);
 
     intOps.bitXor = makeInfixOp("infixBitXOr", &IntegerType::I64, IntrinsicFn::BIT_XOR);
     uintOps.bitXor = makeInfixOp("infixBitXOr", &IntegerType::U64, IntrinsicFn::BIT_XOR);
-    floatOps.bitXor = makeInfixOp("infixBitXOr", &FloatType::F64, IntrinsicFn::BIT_XOR);
 
     intOps.lt = makeRelationalOp("isLessThan", &IntegerType::I64, IntrinsicFn::LT);
     uintOps.lt = makeRelationalOp("isLessThan", &IntegerType::U64, IntrinsicFn::LT);

@@ -605,6 +605,24 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
   }
 
+  SECTION("Resolve bit-or operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg | 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve bit-and operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg & 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve bit-xor operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg ^ 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
   SECTION("Resolve less-than operator") {
     auto mod = compile(cu, "fn x(arg: u32) => arg < 1;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());

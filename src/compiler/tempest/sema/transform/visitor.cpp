@@ -90,6 +90,9 @@ namespace tempest::sema::transform {
       case Expr::Kind::MULTIPLY:
       case Expr::Kind::DIVIDE:
       case Expr::Kind::REMAINDER:
+      case Expr::Kind::BIT_AND:
+      case Expr::Kind::BIT_OR:
+      case Expr::Kind::BIT_XOR:
       case Expr::Kind::EQ:
       case Expr::Kind::NE:
       case Expr::Kind::LT:

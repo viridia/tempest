@@ -39,6 +39,8 @@ namespace tempest::intrinsic {
     std::unique_ptr<FunctionDefn> bitXor;
     std::unique_ptr<FunctionDefn> lt;
     std::unique_ptr<FunctionDefn> le;
+    std::unique_ptr<FunctionDefn> uminus;
+    std::unique_ptr<FunctionDefn> comp;
   };
 
   /** Class to contain all of the various intrinsic definitions. */
@@ -65,6 +67,8 @@ namespace tempest::intrinsic {
     TypeStore _types;
     std::unique_ptr<TypeDefn> makeTypeDefn(Type::Kind kind, llvm::StringRef name);
     std::unique_ptr<FunctionDefn> makeInfixOp(
+        llvm::StringRef name, Type* argType, IntrinsicFn intrinsic);
+    std::unique_ptr<FunctionDefn> makeUnaryOp(
         llvm::StringRef name, Type* argType, IntrinsicFn intrinsic);
     std::unique_ptr<FunctionDefn> makeRelationalOp(
         llvm::StringRef name, Type* argType, IntrinsicFn intrinsic);

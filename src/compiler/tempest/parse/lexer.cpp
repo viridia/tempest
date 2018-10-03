@@ -458,6 +458,10 @@ namespace tempest::parse {
 
   TokenType Lexer::punc() {
     switch (_ch) {
+      case '~':
+        readCh();
+        return TOKEN_TILDE;
+
       case ':':
         readCh();
         if (_ch == '>') {

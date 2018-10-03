@@ -271,6 +271,9 @@ namespace tempest::sema::graph {
     /** Indicate that we want to use argument-dependent lookup during type resolution. */
     bool useADL = false;
 
+    /** Indicate that this refers to the name of an operator. */
+    bool isOperator = false;
+
     MemberListExpr(
         Expr::Kind kind,
         Location location,

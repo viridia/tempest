@@ -236,6 +236,7 @@ namespace tempest::sema::infer {
     ApplyFnOp* callExpr;
     llvm::SmallVector<Expr*, 8> argList;
     const llvm::SmallVector<Type*, 8> argTypes;
+    bool isOperator = false;
 
     CallSite(
         const source::Location& location,

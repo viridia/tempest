@@ -2101,6 +2101,12 @@ namespace tempest::parse {
         return nullptr;
       }
       return new (_alloc) ast::UnaryOp(Node::Kind::NEGATE, loc | expr->location, expr);
+    } else if (match(TOKEN_TILDE)) {
+      auto expr = primary();
+      if (expr == nullptr) {
+        return nullptr;
+      }
+      return new (_alloc) ast::UnaryOp(Node::Kind::COMPLEMENT, loc | expr->location, expr);
     } else if (match(TOKEN_PLUS)) {
       return primary();
     } else if (match(TOKEN_INC)) {

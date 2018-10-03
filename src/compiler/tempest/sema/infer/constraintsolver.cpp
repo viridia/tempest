@@ -520,7 +520,11 @@ namespace tempest::sema::infer {
   void ConstraintSolver::reportSiteRejections(OverloadSite* site) {
     if (site->kind == OverloadKind::CALL) {
       auto callSite = static_cast<CallSite*>(site);
-      diag.error(callSite->location) << "No suitable method found for call:";
+      if (callSite->isOperator) {
+        diag.error(callSite->location) << "No suitable method found for operator:";
+      } else {
+        diag.error(callSite->location) << "No suitable method found for call:";
+      }
       diag.info() << "Possible methods are:";
       reportCandidateStatus(site);
     } else {

@@ -605,6 +605,18 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
   }
 
+  SECTION("Resolve unary minus") {
+    auto mod = compile(cu, "fn x(arg: f32) => -arg;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("f32"));
+  }
+
+  SECTION("Resolve unary complement") {
+    auto mod = compile(cu, "fn x(arg: u32) => ~arg;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
   SECTION("Resolve bit-or operator") {
     auto mod = compile(cu, "fn x(arg: u32) => arg | 1;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());
@@ -619,6 +631,18 @@ TEST_CASE("ResolveTypes", "[sema]") {
 
   SECTION("Resolve bit-xor operator") {
     auto mod = compile(cu, "fn x(arg: u32) => arg ^ 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve left-shift operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg << 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
+  }
+
+  SECTION("Resolve right-shift operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg >> 1;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("u32"));
   }
@@ -645,6 +669,24 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto mod = compile(cu, "fn x(arg: u32) => arg >= 1;\n");
     auto fd = cast<FunctionDefn>(mod->members().front());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
+  SECTION("No bitwise for floats") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x(arg: f32) => arg | 1.;\n"
+      ),
+      Catch::Contains("No suitable method found for operator"));
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x(arg: f32) => arg & 1.;\n"
+      ),
+      Catch::Contains("No suitable method found for operator"));
+    REQUIRE_THAT(
+      compileError(cu,
+          "fn x(arg: f32) => arg ^ 1.;\n"
+      ),
+      Catch::Contains("No suitable method found for operator"));
   }
 
   SECTION("Conflicting types for generic parameter") {

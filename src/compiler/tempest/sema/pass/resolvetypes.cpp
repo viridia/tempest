@@ -61,6 +61,8 @@ namespace tempest::sema::pass {
         case Expr::Kind::MULTIPLY:
         case Expr::Kind::DIVIDE:
         case Expr::Kind::REMAINDER:
+        case Expr::Kind::LSHIFT:
+        case Expr::Kind::RSHIFT:
         case Expr::Kind::BIT_OR:
         case Expr::Kind::BIT_AND:
         case Expr::Kind::BIT_XOR:
@@ -70,43 +72,18 @@ namespace tempest::sema::pass {
         case Expr::Kind::GT:
           return visitInfixOperator(static_cast<BinaryOp*>(e));
 
+        case Expr::Kind::NEGATE:
+        case Expr::Kind::COMPLEMENT:
+          return visitUnaryOperator(static_cast<UnaryOp*>(e));
+
         default:
           return ExprVisitor::visit(e);
       }
     }
 
     Expr* visitInfixOperator(BinaryOp* op) {
-      eval::EvalResult result;
-      result.failSilentIfNonConst = true;
-      if (eval::evalConstExpr(op, result)) {
-        switch (result.type) {
-          case eval::EvalResult::INT: {
-            auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
-            return new (_alloc) IntegerLiteral(
-              op->location,
-              _alloc.copyOf(result.intResult),
-              intType);
-          }
-          case eval::EvalResult::FLOAT: {
-            FloatType* ftype = &FloatType::F64;
-            if (result.size == eval::EvalResult::F32) {
-              ftype = &FloatType::F32;
-            }
-            return new (_alloc) FloatLiteral(
-              op->location,
-              result.floatResult,
-              false,
-              ftype);
-          }
-          case eval::EvalResult::BOOL:
-            assert(false && "Implement");
-            break;
-          case eval::EvalResult::STRING:
-            assert(false && "Implement");
-            break;
-        }
-      } else if (result.error) {
-        return &Expr::ERROR;
+      if (auto evalResult = evalConstOperator(op)) {
+        return evalResult;
       }
 
       StringRef funcName;
@@ -126,6 +103,12 @@ namespace tempest::sema::pass {
           break;
         case Expr::Kind::REMAINDER:
           funcName = "infixRemainder";
+          break;
+        case Expr::Kind::LSHIFT:
+          funcName = "infixLeftShift";
+          break;
+        case Expr::Kind::RSHIFT:
+          funcName = "infixRightShift";
           break;
         case Expr::Kind::BIT_OR:
           funcName = "infixBitOr";
@@ -160,18 +143,81 @@ namespace tempest::sema::pass {
       return new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, args);
     }
 
+    Expr* visitUnaryOperator(UnaryOp* op) {
+      if (auto evalResult = evalConstOperator(op)) {
+        return evalResult;
+      }
+
+      StringRef funcName;
+      switch (op->kind) {
+        case Expr::Kind::NEGATE:
+          funcName = "unaryNegation";
+          break;
+        case Expr::Kind::COMPLEMENT:
+          funcName = "unaryComplement";
+          break;
+        default:
+          assert(false && "Invalid unary op");
+      }
+
+      auto fnRef = resolveOperatorName(op->location, funcName);
+      return new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, op->arg);
+    }
+
+    Expr* evalConstOperator(Expr* op) {
+      eval::EvalResult result;
+      result.failSilentIfNonConst = true;
+      if (eval::evalConstExpr(op, result)) {
+        switch (result.type) {
+          case eval::EvalResult::INT: {
+            auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
+            return new (_alloc) IntegerLiteral(
+              op->location,
+              _alloc.copyOf(result.intResult),
+              intType);
+          }
+          case eval::EvalResult::FLOAT: {
+            FloatType* ftype = &FloatType::F64;
+            if (result.size == eval::EvalResult::F32) {
+              ftype = &FloatType::F32;
+            }
+            return new (_alloc) FloatLiteral(
+              op->location,
+              result.floatResult,
+              false,
+              ftype);
+          }
+          case eval::EvalResult::BOOL:
+            assert(false && "Implement");
+            break;
+          case eval::EvalResult::STRING:
+            assert(false && "Implement");
+            break;
+        }
+      } else if (result.error) {
+        return &Expr::ERROR;
+      }
+
+      return nullptr;
+    }
+
     Expr* resolveOperatorName(const Location& loc, const StringRef& name) {
       NameLookupResult result;
       _scope->lookup(name, result);
       if (result.size() > 0) {
-        return createNameRef(_alloc, loc, result,
+        auto nr = createNameRef(_alloc, loc, result,
             cast_or_null<Defn>(_scope->subject()),
             nullptr, false, true);
+        if (auto mref = dyn_cast<MemberListExpr>(nr)) {
+          mref->isOperator = true;
+        }
+        return nr;
       } else {
         auto mref = new (_alloc) MemberListExpr(
             Expr::Kind::FUNCTION_REF_OVERLOAD, loc, name,
             llvm::ArrayRef<Member*>());
         mref->useADL = true;
+        mref->isOperator = true;
         return mref;
       }
     }
@@ -704,8 +750,17 @@ namespace tempest::sema::pass {
 //     cs.renamer.renamerChecker.traverseTypeList(argTypes)
 
     if (fn->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
-      auto fnRef = static_cast<MemberListExpr*>(fn);
-      return addCallSite(callExpr, fn, fnRef->members, args, argTypes, cs);
+      auto mref = static_cast<MemberListExpr*>(fn);
+      // TODO: ADL lookup.
+      if (mref->members.empty()) {
+        if (mref->isOperator) {
+          diag.error(fn) << "Operator '" << mref->name << "' not found.";
+        } else {
+          diag.error(fn) << "Method '" << mref->name << "' not found.";
+        }
+        return &Type::ERROR;
+      }
+      return addCallSite(callExpr, fn, mref->members, args, argTypes, cs);
     }
 
 //     if isinstance(func, graph.ExplicitSpecialize):
@@ -749,6 +804,11 @@ namespace tempest::sema::pass {
       ConstraintSolver& cs) {
     auto site = new CallSite(callExpr->location, callExpr, args, argTypes);
     cs.addSite(site);
+
+    // Record whether the call was generated by an operator, used for tailoring error messages.
+    if (auto mref = dyn_cast<MemberListExpr>(fn)) {
+      site->isOperator = mref->isOperator;
+    }
 
     // The return type will depend on which overload type gets chosen.
     SmallVector<ContingentType::Entry, 8> returnTypes;

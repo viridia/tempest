@@ -26,6 +26,8 @@ namespace tempest::intrinsic {
     LT,
     GE,
     GT,
+    NEGATE,
+    COMPLEMENT,
 
     // SIN
     // COS

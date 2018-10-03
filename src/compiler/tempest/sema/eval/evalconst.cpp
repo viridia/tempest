@@ -99,6 +99,25 @@ namespace tempest::sema::eval {
           }
 
           return true;
+        } else if (argResult.type == EvalResult::FLOAT) {
+          result.type = EvalResult::FLOAT;
+          result.size = argResult.size;
+
+
+          switch (e->kind) {
+            case Expr::Kind::NEGATE:
+              result.floatResult = argResult.floatResult;
+              result.floatResult.changeSign();
+              break;
+
+            case Expr::Kind::COMPLEMENT:
+              diag.error(op) << "Can't complement a floating-point number";
+              result.error = true;
+              break;
+
+            default:
+              return false;
+          }
         } else {
           // float
           // string

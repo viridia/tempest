@@ -304,6 +304,30 @@ TEST_CASE("EvalConst.Integer", "[sema]") {
     REQUIRE_FALSE(result.error);
     REQUIRE(result.boolResult == true);
   }
+
+  SECTION("UnaryMinus") {
+    auto mod = compile(cu, "fn x() => -1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    EvalResult result;
+    evalConstExpr(fd->body(), result);
+    REQUIRE(result.type == EvalResult::INT);
+    REQUIRE_FALSE(result.isUnsigned);
+    REQUIRE_FALSE(result.hasSize);
+    REQUIRE_FALSE(result.error);
+    REQUIRE(result.intResult == llvm::APInt(64, -1));
+  }
+
+  SECTION("UnaryComplement") {
+    auto mod = compile(cu, "fn x() => ~1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    EvalResult result;
+    evalConstExpr(fd->body(), result);
+    REQUIRE(result.type == EvalResult::INT);
+    REQUIRE_FALSE(result.isUnsigned);
+    REQUIRE_FALSE(result.hasSize);
+    REQUIRE_FALSE(result.error);
+    REQUIRE(result.intResult == llvm::APInt(64, -2));
+  }
 }
 
 TEST_CASE("EvalConst.Integer.Unsigned", "[sema]") {
@@ -425,6 +449,31 @@ TEST_CASE("EvalConst.Integer.Unsigned", "[sema]") {
     REQUIRE(result.type == EvalResult::BOOL);
     REQUIRE_FALSE(result.error);
     REQUIRE(result.boolResult == false);
+  }
+
+  SECTION("UnaryMinus") {
+    auto mod = compile(cu, "fn x() => -1u;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    UseMockReporter umr;
+    EvalResult result;
+    evalConstExpr(fd->body(), result);
+    REQUIRE(MockReporter::INSTANCE.errorCount() > 0);
+    REQUIRE(result.error);
+    REQUIRE_THAT(
+        MockReporter::INSTANCE.content().str(),
+        Catch::Contains("Can't negate"));
+  }
+
+  SECTION("UnaryComplement") {
+    auto mod = compile(cu, "fn x() => ~1u;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    EvalResult result;
+    evalConstExpr(fd->body(), result);
+    REQUIRE(result.type == EvalResult::INT);
+    REQUIRE(result.isUnsigned);
+    REQUIRE_FALSE(result.hasSize);
+    REQUIRE_FALSE(result.error);
+    REQUIRE(result.intResult == llvm::APInt(64, -2));
   }
 }
 
@@ -664,5 +713,16 @@ TEST_CASE("EvalConst.Float", "[sema]") {
     REQUIRE(result.type == EvalResult::BOOL);
     REQUIRE_FALSE(result.error);
     REQUIRE(result.boolResult == false);
+  }
+
+  SECTION("UnaryMinus") {
+    auto mod = compile(cu, "fn x() => -1.;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    EvalResult result;
+    evalConstExpr(fd->body(), result);
+    REQUIRE(result.type == EvalResult::FLOAT);
+    REQUIRE(result.size == EvalResult::F64);
+    REQUIRE_FALSE(result.error);
+    REQUIRE_THAT(result.floatResult.convertToDouble(), Catch::WithinAbs(-1., 0.01));
   }
 }

@@ -105,6 +105,13 @@ namespace tempest::sema::transform {
         return op;
       }
 
+      case Expr::Kind::NEGATE:
+      case Expr::Kind::COMPLEMENT: {
+        auto op = static_cast<UnaryOp*>(expr);
+        op->arg = visit(op->arg);
+        return op;
+      }
+
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(expr->kind);
         assert(false && "Invalid expression kind");

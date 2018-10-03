@@ -62,6 +62,13 @@ namespace tempest::intrinsic {
     intOps.le = makeRelationalOp("isLessThanOrEqual", &IntegerType::I64, IntrinsicFn::LE);
     uintOps.le = makeRelationalOp("isLessThanOrEqual", &IntegerType::U64, IntrinsicFn::LE);
     floatOps.le = makeRelationalOp("isLessThanOrEqual", &FloatType::F64, IntrinsicFn::LE);
+
+    intOps.uminus = makeUnaryOp("unaryNegation", &IntegerType::I64, IntrinsicFn::NEGATE);
+    uintOps.uminus = makeUnaryOp("unaryNegation", &IntegerType::U64, IntrinsicFn::NEGATE);
+    floatOps.uminus = makeUnaryOp("unaryNegation", &FloatType::F64, IntrinsicFn::NEGATE);
+
+    intOps.comp = makeUnaryOp("unaryComplement", &IntegerType::I64, IntrinsicFn::COMPLEMENT);
+    uintOps.comp = makeUnaryOp("unaryComplement", &IntegerType::U64, IntrinsicFn::COMPLEMENT);
   }
 
   std::unique_ptr<TypeDefn> IntrinsicDefns::makeTypeDefn(Type::Kind kind, llvm::StringRef name) {
@@ -116,6 +123,27 @@ namespace tempest::intrinsic {
     fd->params().push_back(param1);
     paramTypes.push_back(T->typeVar());
     fd->setType(_types.createFunctionType(&BooleanType::BOOL, paramTypes, false));
+    fd->typeParams().push_back(T);
+    fd->allTypeParams().push_back(T);
+    builtinScope->addMember(fd.get());
+    return fd;
+  }
+
+  std::unique_ptr<FunctionDefn> IntrinsicDefns::makeUnaryOp(
+      llvm::StringRef name, Type* argType, IntrinsicFn intrinsic) {
+    auto fd = std::make_unique<FunctionDefn>(Location(), name);
+    fd->setIntrinsic(intrinsic);
+    auto T = new (_types.alloc()) TypeParameter(Location(), "T");
+    T->setTypeVar(new (_types.alloc()) TypeVar(T));
+    SmallVector<Type*, 1> subtypeConstraints;
+    subtypeConstraints.push_back(argType);
+    SmallVector<Type*, 2> paramTypes;
+    T->setSubtypeConstraints(_types.alloc().copyOf(subtypeConstraints));
+    auto param0 = new (_types.alloc()) ParameterDefn(Location(), "arg", fd.get());
+    param0->setType(T->typeVar());
+    fd->params().push_back(param0);
+    paramTypes.push_back(T->typeVar());
+    fd->setType(_types.createFunctionType(T->typeVar(), paramTypes, false));
     fd->typeParams().push_back(T);
     fd->allTypeParams().push_back(T);
     builtinScope->addMember(fd.get());

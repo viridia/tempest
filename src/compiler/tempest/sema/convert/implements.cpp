@@ -49,9 +49,9 @@ namespace tempest::sema::convert {
       if (member->kind == Member::Kind::FUNCTION ||
           member->kind == Member::Kind::LET_DEF ||
           member->kind == Member::Kind::CONST_DEF) {
-        MemberNameLookup lookup;
+        MemberNameLookup lookup(CompilationUnit::theCU->spec());
         NameLookupResult lookupResult;
-        lookup.lookup(member->name(), src, false, lookupResult);
+        lookup.lookup(member->name(), src, lookupResult);
         if (lookupResult.empty()) {
           return false;
         }

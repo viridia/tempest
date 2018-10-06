@@ -66,7 +66,11 @@ namespace tempest::sema::names {
         } else if (vars.size() > 1) {
           diag.error(loc) << "Reference to '" << m->name() << "' is ambiguous.";
         } else {
-          return new (alloc) DefnRef(Expr::Kind::VAR_REF, loc, result[0], stem);
+          auto vd = static_cast<Defn*>(result[0]);
+          if (stem && stem->kind == Expr::Kind::SELF && !vd->isMember()) {
+            stem = nullptr;
+          }
+          return new (alloc) DefnRef(Expr::Kind::VAR_REF, loc, vd, stem);
         }
       } else if (types.size() > 0) {
         if (functions.size() > 0) {

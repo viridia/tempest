@@ -2,46 +2,47 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/specstore.hpp"
 #include "tempest/sema/graph/symboltable.hpp"
 
 #include <cassert>
 
 namespace tempest::sema::names {
+  using tempest::sema::graph::Defn;
   using tempest::sema::graph::Module;
   using tempest::sema::graph::PrimitiveType;
+  using tempest::sema::graph::SpecializedDefn;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::TypeParameter;
   using tempest::sema::graph::UserDefinedType;
   using tempest::sema::graph::NameLookupResult;
   using tempest::sema::graph::NameLookupResultRef;
-  using llvm::dyn_cast;
-  using llvm::isa;
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const llvm::ArrayRef<Member*>& stem,
-      bool fromStatic,
-      NameLookupResultRef& result) {
+      NameLookupResultRef& result,
+      size_t flags) {
     for (auto m : stem) {
-      lookup(name, m, fromStatic, result);
+      lookup(name, m, result, flags);
     }
   }
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const llvm::ArrayRef<const Type*>& stem,
-      bool fromStatic,
-      NameLookupResultRef& result) {
+      NameLookupResultRef& result,
+      size_t flags) {
     for (auto t : stem) {
-      lookup(name, t, fromStatic, result);
+      lookup(name, t, result, flags);
     }
   }
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const Member* stem,
-      bool fromStatic,
-      NameLookupResultRef& result) {
+      NameLookupResultRef& result,
+      size_t flags) {
 
     NameLookupResult members;
     switch (stem->kind) {
@@ -51,7 +52,7 @@ namespace tempest::sema::names {
       case Member::Kind::TYPE: {
         auto td = static_cast<const TypeDefn*>(stem);
         if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
-          lookupInherited(name, udt, fromStatic, result);
+          lookupInherited(name, udt, result, flags);
         } else {
           td->memberScope()->lookupName(name, members);
         }
@@ -60,13 +61,19 @@ namespace tempest::sema::names {
       case Member::Kind::TYPE_PARAM: {
         auto tp = static_cast<const TypeParameter*>(stem);
         for (auto st : tp->subtypeConstraints()) {
-          lookup(name, st, fromStatic, result);
+          lookup(name, st, result, flags);
         }
         break;
       }
-      case Member::Kind::SPECIALIZED:
-        assert(false && "implement.");
-        break;
+      case Member::Kind::SPECIALIZED: {
+        auto sp = static_cast<const SpecializedDefn*>(stem);
+        lookup(name, sp->generic(), members, flags);
+        for (auto gm : members) {
+          // TODO: if gm is already specialized, then flatten
+          result.push_back(_specs.specialize(static_cast<graph::Defn*>(gm), sp->typeArgs()));
+        }
+        return;
+      }
       case Member::Kind::CONST_DEF:
       case Member::Kind::LET_DEF:
       case Member::Kind::FUNCTION_PARAM:
@@ -86,12 +93,12 @@ namespace tempest::sema::names {
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const Type* stem,
-      bool fromStatic,
-      NameLookupResultRef& result) {
+      NameLookupResultRef& result,
+      size_t flags) {
     if (auto udt = dyn_cast<UserDefinedType>(stem)) {
-      lookup(name, udt->defn(), fromStatic, result);
+      lookup(name, udt->defn(), result, flags);
     } else if (auto pr = dyn_cast<PrimitiveType>(stem)) {
-      lookup(name, pr->defn(), fromStatic, result);
+      lookup(name, pr->defn(), result, flags);
     } else {
       assert(false && "Implement lookup in type");
     }
@@ -100,18 +107,28 @@ namespace tempest::sema::names {
   void MemberNameLookup::lookupInherited(
       const llvm::StringRef& name,
       UserDefinedType* udt,
-      bool fromStatic,
-      NameLookupResultRef& result) {
-    NameLookupResult members;
-    udt->defn()->memberScope()->lookupName(name, members);
-    if (members.size() > 0) {
-      for (auto m : members) {
-        result.push_back(m);
+      NameLookupResultRef& result,
+      size_t flags) {
+    if (!(flags & INHERITED_ONLY)) {
+      NameLookupResult members;
+      udt->defn()->memberScope()->lookupName(name, members);
+
+      auto isStatic = [](Member* m) -> bool {
+        auto defn = dyn_cast<Defn>(m);
+        return defn && defn->isStatic();
+      };
+
+      if (members.size() > 0) {
+        for (auto m : members) {
+          if (isStatic(m) ? (flags & STATIC_MEMBERS) : (flags & INSTANCE_MEMBERS)) {
+            result.push_back(m);
+          }
+        }
+        return;
       }
-      return;
     }
     for (auto ext : udt->defn()->extends()) {
-      lookup(name, ext, fromStatic, result);
+      lookup(name, ext, result, flags & ~(INHERITED_ONLY));
     }
   }
 

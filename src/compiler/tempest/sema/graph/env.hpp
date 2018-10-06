@@ -6,9 +6,11 @@
 #endif
 
 namespace tempest::sema::graph {
+  class Member;
   class Type;
   class TypeVar;
   class TypeParameter;
+  class SpecializedDefn;
 
   /** Class used to temporarily contain a mapping from type parameter to type argument. */
   struct Env {
@@ -22,6 +24,13 @@ namespace tempest::sema::graph {
     /** Return the mapped value of this type parameter. */
     const Type* get(const TypeVar* tvar);
     const Type* get(const TypeParameter* param);
+
+    /** Initialize from a specialization. */
+    void fromSpecialization(SpecializedDefn* sd);
+
+    /** If a member is specialized, then return the generic definition and set the environment
+        to the type arguments of the specialization. */
+    Member* unwrap(Member* m);
   };
 }
 

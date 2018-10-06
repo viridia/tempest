@@ -114,7 +114,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto body = cast<BlockStmt>(fd->body());
     REQUIRE_THAT(body->type, TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
-    REQUIRE(fd->numLocalVars() == 0);
+    REQUIRE(fd->localDefns().empty());
   }
 
   SECTION("Implicit type promotion of integer variable") {
@@ -131,7 +131,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(bodyRes->type, TypeEQ("i32"));
     REQUIRE_THAT(body->type, TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
-    REQUIRE(fd->numLocalVars() == 1);
+    REQUIRE(fd->localDefns().size() == 1);
   }
 
   SECTION("Implicit cast of integer literal (no block)") {
@@ -311,6 +311,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto fnRef = cast<DefnRef>(callExpr->function);
     REQUIRE(fnRef->kind == Expr::Kind::FUNCTION_REF);
     REQUIRE(fnRef->defn->name() == "y");
+    REQUIRE_THAT(fnRef->type, TypeEQ("fn (i32, i32) -> i32"));
     auto fn = cast<FunctionDefn>(fnRef->defn);
     REQUIRE_THAT(fn->type(), TypeEQ("fn (i32, i32) -> i32"));
   }
@@ -530,7 +531,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE(cast<LocalVarStmt>(body->stmts[0])->localVarIndex == 0);
     REQUIRE(cast<LocalVarStmt>(body->stmts[1])->localVarIndex == 1);
     REQUIRE(cast<LocalVarStmt>(body->stmts[2])->localVarIndex == 2);
-    REQUIRE(fd->numLocalVars() == 3);
+    REQUIRE(fd->localDefns().size() == 3);
   }
 
   SECTION("Type constraint failure") {
@@ -761,5 +762,44 @@ TEST_CASE("ResolveTypes", "[sema]") {
     );
     auto fd = cast<FunctionDefn>(mod->members().back());
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("void"));
+  }
+
+  SECTION("constructor call") {
+    auto mod = compile(cu,
+      "class A {}\n"
+      "let x = A();"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE_THAT(vdef->type(), TypeEQ("class A"));
+    REQUIRE(isa<ApplyFnOp>(vdef->init()));
+    auto ctorCall = cast<ApplyFnOp>(vdef->init());
+    auto ctorExpr = cast<DefnRef>(ctorCall->function);
+    REQUIRE(ctorExpr->stem->kind == Expr::Kind::ALLOC_OBJ);
+    REQUIRE_THAT(ctorExpr->stem->type, TypeEQ("class A"));
+    auto ctorFunc = cast<FunctionDefn>(ctorExpr->defn);
+    REQUIRE(ctorFunc->name() == "new");
+    REQUIRE(ctorFunc->isConstructor());
+    auto ctorBody = cast<BlockStmt>(ctorFunc->body());
+    auto ctorSuperCall = cast<ApplyFnOp>(ctorBody->stmts[0]);
+    REQUIRE(ctorSuperCall->function->kind == Expr::Kind::FUNCTION_REF);
+    auto superRef = cast<DefnRef>(ctorSuperCall->function);
+    REQUIRE(superRef->defn->name() == "new");
+  }
+
+  SECTION("assignment") {
+    auto mod = compile(cu,
+      "let x: i32;\n"
+      "fn y() {\n"
+      "  x = 0;\n"
+      "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto blk = cast<BlockStmt>(fd->body());
+    REQUIRE(blk->stmts[0]->kind == Expr::Kind::ASSIGN);
+    auto assign = static_cast<BinaryOp*>(blk->stmts[0]);
+    auto lval = cast<DefnRef>(assign->args[0]);
+    auto rval = cast<IntegerLiteral>(assign->args[1]);
+    REQUIRE_THAT(lval->type, TypeEQ("i32"));
+    REQUIRE_THAT(rval->type, TypeEQ("i32"));
   }
 }

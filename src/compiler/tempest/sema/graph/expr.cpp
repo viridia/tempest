@@ -102,6 +102,8 @@ namespace tempest::sema::graph {
     //   case Kind::PTR_DEREF: return "PTR_DEREF";
     //   case Kind::ADDRESS_OF: return "ADDRESS_OF";
 
+      case Kind::ALLOC_OBJ: return "ALLOC_OBJ";
+
       case Kind::CAST_INT_TRUNCATE: return "CAST_INT_TRUNCATE";
       case Kind::CAST_SIGN_EXTEND: return "CAST_SIGN_EXTEND";
       case Kind::CAST_ZERO_EXTEND: return "CAST_ZERO_EXTEND";
@@ -109,7 +111,6 @@ namespace tempest::sema::graph {
       case Kind::CAST_FP_TRUNC: return "CAST_FP_TRUNC";
       case Kind::CAST_CREATE_UNION: return "CAST_CREATE_UNION";
 
-    //
     //   case Kind::BASE: return "BASE";
     //   case Kind::OPER: return "OPER";
     //   case Kind::UNARY_OP: return "UNARY_OP";

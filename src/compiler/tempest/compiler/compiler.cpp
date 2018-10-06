@@ -3,6 +3,7 @@
 #include "tempest/gen/cgmodule.hpp"
 #include "tempest/gen/codegen.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
+#include "tempest/sema/pass/dataflow.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
 #include "tempest/sema/pass/nameresolution.hpp"
 #include "tempest/sema/pass/loadimports.hpp"
@@ -61,6 +62,10 @@ namespace tempest::compiler {
     }
     if (diag.errorCount() == 0) {
       ResolveTypesPass pass(_cu);
+      pass.run();
+    }
+    if (diag.errorCount() == 0) {
+      DataFlowPass pass(_cu);
       pass.run();
     }
     if (diag.errorCount() == 0) {

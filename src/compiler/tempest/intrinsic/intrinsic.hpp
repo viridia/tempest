@@ -10,6 +10,7 @@ namespace tempest::intrinsic {
   enum class IntrinsicFn : int8_t {
     NONE = 0,
 
+    // Operators
     ADD,
     SUBTRACT,
     MULTIPLY,
@@ -38,6 +39,9 @@ namespace tempest::intrinsic {
     // MEMCPY
     // MEMMOVE
     // FLEX_ALLOC
+
+    // Builtin methods
+    OBJECT_CTOR,
   };
 }
 

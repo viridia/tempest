@@ -33,6 +33,7 @@ namespace tempest::sema::transform {
       case Type::Kind::EXTENSION:
       case Type::Kind::ENUM:
       case Type::Kind::ALIAS:
+      case Type::Kind::NOT_EXPR:
         return ty;
 
     //   case Type::Kind::ALIAS:
@@ -73,7 +74,8 @@ namespace tempest::sema::transform {
         if (transformArray(typeArgs, sd->typeArgs())) {
           auto nsd = new (_alloc) SpecializedDefn(
               sd->generic(), _alloc.copyOf(typeArgs), sd->typeParams());
-          return new (_alloc) SpecializedType(nsd);
+          nsd->setType(new (_alloc) SpecializedType(nsd));
+          return nsd->type();
         }
         return st;
       }

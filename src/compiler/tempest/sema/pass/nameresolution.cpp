@@ -10,10 +10,12 @@
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
-#include "tempest/sema/pass/nameresolution.hpp"
 #include "tempest/sema/names/closestname.hpp"
 #include "tempest/sema/names/createnameref.hpp"
+#include "tempest/sema/names/membernamelookup.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
+#include "tempest/sema/pass/nameresolution.hpp"
+#include "tempest/sema/transform/mapenv.hpp"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ConvertUTF.h"
 #include <assert.h>
@@ -24,6 +26,7 @@ namespace tempest::sema::pass {
   using namespace llvm;
   using namespace tempest::sema::graph;
   using namespace tempest::sema::names;
+  using tempest::sema::transform::MapEnvTransform;
 
   namespace {
     // Given a (possibly specialized) type definition, return what kind of type it is.
@@ -156,6 +159,13 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::visitCompositeDefn(LookupScope* scope, TypeDefn* td) {
+    auto enclosingType = dyn_cast_or_null<TypeDefn>(td->definedIn());
+    if (td->visibility() == Visibility::PRIVATE && !enclosingType) {
+      diag.error(td) << "Only inner types can have private visibility.";
+    } else if (td->visibility() == Visibility::PROTECTED && !enclosingType) {
+      diag.error(td) << "Only inner types can have protected visibility.";
+    }
+
     if (td->isFinal()) {
       if (td->isAbstract()) {
         diag.error(td) << "Type definition cannot be both abtract and final.";
@@ -189,13 +199,91 @@ namespace tempest::sema::pass {
     }
 
     resolveBaseTypes(scope, td);
+
+    auto prevNumInstanceVars = _numInstanceVars;
+    _numInstanceVars = 0;
+    if (td->extends().size() > 0) {
+      auto baseDef = unwrapSpecialization(td->extends()[0]);
+      _numInstanceVars = cast<TypeDefn>(baseDef)->numInstanceVars();
+    }
+
+    auto prevImplicitSelf = _implicitSelf;
+    _implicitSelf = new (*_alloc) SelfExpr(td->location());
+    _implicitSelf->type = td->type();
+
     TypeDefnScope tdScope(scope, td);
     visitList(&tdScope, td->members());
+
+    td->setNumInstanceVars(_numInstanceVars);
+    _numInstanceVars = prevNumInstanceVars;
+
+    // Create default/inherited constructors if needed.
+    if (td->type()->kind == Type::Kind::CLASS) {
+      NameLookupResult ctors;
+      td->memberScope()->lookupName("new", ctors);
+      if (ctors.empty()) {
+        // Find inherited constructors
+        MemberNameLookup lookup(_cu.spec());
+        lookup.lookup("new", td, ctors,
+            MemberNameLookup::INHERITED_ONLY | MemberNameLookup::INSTANCE_MEMBERS);
+
+        if (ctors.empty()) {
+          diag.error(td) << "Class has no constructor, and base class has no default constructor.";
+        }
+
+        // Create a constructor for this class for each inherited base constructor.
+        for (auto baseCtor : ctors) {
+          // Actually, we need to check if the base class has constructors...
+          // Create default constructor
+          auto defaultCtor = new (*_alloc) FunctionDefn(td->location(), "new", td);
+          defaultCtor->setConstructor(true);
+          defaultCtor->setDefault(true);
+          defaultCtor->setSelfType(td->type());
+          Env baseEnv;
+          baseCtor = baseEnv.unwrap(baseCtor);
+
+          MapEnvTransform transform(_cu.types(), _cu.spec(), baseEnv);
+          auto baseFn = cast<FunctionDefn>(baseCtor);
+          llvm::SmallVector<Type*, 8> paramTypes;
+          llvm::SmallVector<Expr*, 8> superParams;
+          llvm::SmallVector<Expr*, 8> ctorStmts;
+          for (auto param : baseFn->params()) {
+            auto paramType = const_cast<Type*>(transform.transform(param->type()));
+            auto np = new ParameterDefn(td->location(), param->name(), defaultCtor, paramType);
+            defaultCtor->params().push_back(np);
+            defaultCtor->paramScope()->addMember(np);
+            paramTypes.push_back(paramType);
+            superParams.push_back(
+              new (_alloc) DefnRef(Expr::Kind::VAR_REF, td->location(), np, nullptr));
+          }
+          defaultCtor->setType(_cu.types().createFunctionType(&VoidType::VOID, paramTypes, false));
+          td->members().insert(td->members().begin(), defaultCtor);
+          td->memberScope()->addMember(defaultCtor);
+          // TODO: Initialize other variables in this class.
+
+          auto superRef = new (*_alloc) SuperExpr(td->location());
+          auto superCall = new (*_alloc) ApplyFnOp(
+              Expr::Kind::CALL, td->location(), superRef, _alloc->copyOf(superParams), &VoidType::VOID);
+          ctorStmts.push_back(superCall);
+          defaultCtor->setBody(
+            new (*_alloc) BlockStmt(td->location(), _alloc->copyOf(ctorStmts)));
+        }
+      }
+    }
+
+    _implicitSelf = prevImplicitSelf;
   }
 
   void NameResolutionPass::visitEnumDefn(LookupScope* scope, TypeDefn* td) {
     visitAttributes(scope, td, td->ast());
     resolveBaseTypes(scope, td);
+
+    auto enclosingType = dyn_cast_or_null<TypeDefn>(td->definedIn());
+    if (td->visibility() == Visibility::PRIVATE && !enclosingType) {
+      diag.error(td) << "Only inner types can have private visibility.";
+    } else if (td->visibility() == Visibility::PROTECTED && !enclosingType) {
+      diag.error(td) << "Only inner types can have protected visibility.";
+    }
 
     if (td->isStatic()) {
       diag.error(td) << "Enumeration types cannot be declared as 'static'.";
@@ -257,6 +345,13 @@ namespace tempest::sema::pass {
   void NameResolutionPass::visitFunctionDefn(LookupScope* scope, FunctionDefn* fd) {
     auto enclosingType = dyn_cast_or_null<TypeDefn>(fd->definedIn());
     auto enclosingKind = enclosingType ? enclosingType->type()->kind : Type::Kind::VOID;
+
+    if (fd->visibility() == Visibility::PRIVATE && !enclosingType) {
+      diag.error(fd) << "Only member functions can have private visibility.";
+    } else if (fd->visibility() == Visibility::PROTECTED && !enclosingType) {
+      diag.error(fd) << "Only member functions can have protected visibility.";
+    }
+
     if (fd->isNative()) {
       if (fd->isAbstract()) {
         diag.error(fd) << "Native functions cannot be abstract.";
@@ -274,6 +369,8 @@ namespace tempest::sema::pass {
         diag.error(fd) << "Static function must have a function body.";
       } else if (enclosingKind == Type::Kind::INTERFACE) {
         diag.error(fd) << "Static function may not be defined within an interface.";
+      } else if (fd->isConstructor()) {
+        diag.error(fd) << "Constructor functions cannot be declared as 'static'.";
       }
     } else if (fd->isAbstract()) {
       if (fd->ast()->body) {
@@ -324,40 +421,7 @@ namespace tempest::sema::pass {
       diag.error(fd) << "No function body, function return type cannot be inferred.";
     }
 
-    SmallVector<Type*, 8> paramTypes;
-    for (auto param : fd->params()) {
-      visitAttributes(&tpScope, param, param->ast());
-      if (param->ast()->type) {
-        param->setType(resolveType(&tpScope, param->ast()->type));
-        paramTypes.push_back(param->type());
-      } else {
-        diag.error(param) << "Parameter type is required";
-      }
-      if (param->ast()->init) {
-        param->setInit(visitExpr(&tpScope, param->ast()->init));
-      }
-    }
-
-    if (fd->ast()->body) {
-      FunctionScope fnScope(scope, fd);
-      auto saveNumLocalVars = _numLocalVars;
-      _numLocalVars = 0;
-
-      fd->setBody(visitExpr(&fnScope, fd->ast()->body));
-      fd->setNumLocalVars(_numLocalVars);
-      _numLocalVars = saveNumLocalVars;
-    }
-
-    // If we know the return type now, then create a function type, otherwise we'll do it
-    // in the type resolution pass.
-    if (returnType) {
-      fd->setType(_cu.types().createFunctionType(returnType, paramTypes, fd->isVariadic()));
-    }
-
     // if defns.isGlobalDefn(func):
-    //   if func.isConstructor():
-    //     self.errorAt(func,
-    //         "Constructors cannot be declared at global scope.", func.getName())
     //   elif func.hasSelfType():
     //     self.errorAt(func,
     //         "Global function '(0)' cannot declare a 'self' parameter.", func.getName())
@@ -375,6 +439,39 @@ namespace tempest::sema::pass {
 
     // if func.getName() == 'new' and not func.isStatic():
     //   assert func.hasSelfType()
+
+    if (!fd->selfType() && enclosingType) {
+      assert(enclosingType->type());
+      fd->setSelfType(enclosingType->type());
+    }
+
+    SmallVector<Type*, 8> paramTypes;
+    for (auto param : fd->params()) {
+      visitAttributes(&tpScope, param, param->ast());
+      if (param->ast()->type) {
+        param->setType(resolveType(&tpScope, param->ast()->type));
+        paramTypes.push_back(param->type());
+      } else {
+        diag.error(param) << "Parameter type is required";
+      }
+      if (param->ast()->init) {
+        param->setInit(visitExpr(&tpScope, param->ast()->init));
+      }
+    }
+
+    if (fd->ast()->body) {
+      FunctionScope fnScope(scope, fd);
+      auto saveFunction = _func;
+      _func = fd;
+      fd->setBody(visitExpr(&fnScope, fd->ast()->body));
+      _func = saveFunction;
+    }
+
+    // If we know the return type now, then create a function type, otherwise we'll do it
+    // in the type resolution pass.
+    if (returnType) {
+      fd->setType(_cu.types().createFunctionType(returnType, paramTypes, fd->isVariadic()));
+    }
   }
 
   void NameResolutionPass::visitValueDefn(LookupScope* scope, ValueDefn* vd) {
@@ -384,6 +481,16 @@ namespace tempest::sema::pass {
     }
     if (vd->ast()->init) {
       vd->setInit(visitExpr(scope, vd->ast()->init));
+    }
+
+    if (!vd->type() && !vd->init()) {
+      diag.error(vd) << "No initializer, type cannot be inferred.";
+    } else if (vd->kind == Defn::Kind::CONST_DEF && vd->isStatic() && !vd->init()) {
+      diag.error(vd) << "Static constant must be initialized to a value.";
+    }
+
+    if (!vd->isStatic()) {
+      vd->setFieldIndex(_numInstanceVars++);
     }
   }
 
@@ -432,8 +539,8 @@ namespace tempest::sema::pass {
         }
 
         return createNameRef(*_alloc, node->location, result,
-          cast_or_null<Defn>(scope->subject()),
-          nullptr, false, false);
+            cast_or_null<Defn>(scope->subject()),
+            _implicitSelf, false, false);
       }
 
       // MEMBER,
@@ -517,7 +624,7 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::STRING_LITERAL: {
         auto literal = static_cast<const ast::Literal*>(node);
-        return new (*_alloc) StringLiteral(node->location, copyOf(literal->value));
+        return new (*_alloc) StringLiteral(node->location, _alloc->copyOf(literal->value));
       }
 
       case ast::Node::Kind::LOGICAL_NOT: {
@@ -782,7 +889,8 @@ namespace tempest::sema::pass {
         ValueDefn* defn = new (*_alloc) ValueDefn(
           node->kind == ast::Node::Kind::LOCAL_CONST ? Defn::Kind::CONST_DEF : Defn::Kind::LET_DEF,
           node->location,
-          copyOf(decl->name)
+          _alloc->copyOf(decl->name),
+          _func
         );
         if (decl->type) {
           defn->setType(resolveType(scope, decl->type));
@@ -795,8 +903,11 @@ namespace tempest::sema::pass {
           diag.error(node) << "Invalid scope for local definition.";
         }
 
-        auto st = new (*_alloc) LocalVarStmt(node->location, defn, _numLocalVars);
-        _numLocalVars += 1;
+        auto index = _func ? _func->localDefns().size() : 0;
+        auto st = new (*_alloc) LocalVarStmt(node->location, defn, index);
+        if (_func) {
+          _func->localDefns().push_back(defn);
+        }
         return st;
       }
 
@@ -1084,7 +1195,7 @@ namespace tempest::sema::pass {
       if (result.size() > 0) {
         return createNameRef(*_alloc, node->location, result,
             cast_or_null<Defn>(scope->subject()),
-            nullptr, false, true);
+            _implicitSelf, false, true);
       } else {
         auto mref = new (*_alloc) MemberListExpr(
             Expr::Kind::FUNCTION_REF_OVERLOAD, ident->location, ident->name,
@@ -1154,8 +1265,6 @@ namespace tempest::sema::pass {
           return false;
         }
 
-        // TODO: Ensure that all of the results are of a compatible kind
-        // Or possibly do that earlier if we can? Also?
         return true;
       }
 

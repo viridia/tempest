@@ -42,6 +42,7 @@ namespace tempest::sema::graph {
 
     // Built-in classes
     OBJECT_CLASS,
+    FLEXALLOC_CLASS,
 
     // Build-in traits
     ADDITION_TRAIT,
@@ -87,6 +88,10 @@ namespace tempest::sema::graph {
     bool isStatic() const { return _static; }
     void setStatic(bool value) { _static = value; }
 
+    /** Whether this definition is a member variable. */
+    bool isMember() const { return _member; }
+    void setMember(bool value) { _member = value; }
+
     /** Whether this definition has the 'override' modifier. */
     bool isOverride() const { return _override; }
     void setOverride(bool value) { _override = value; }
@@ -130,8 +135,6 @@ namespace tempest::sema::graph {
     /** Implemente Locatable. */
     const source::Location& getLocation() const { return location(); }
 
-    // Defn* asDefn() final { return this; }
-
     static bool classof(const Defn* m) { return true; }
     static bool classof(const Member* m) {
       return m->kind == Kind::TYPE
@@ -155,6 +158,7 @@ namespace tempest::sema::graph {
     bool _abstract;
     bool _undef;                  // Undefined method
     bool _static;                 // Was declared static
+    bool _member;                 // Is a member variable
     bool _getter;                 // Declared as 'get'
     bool _setter;                 // Declared as 'set'
     bool _resolving;              // Means type resolution pass in progress
@@ -195,22 +199,6 @@ namespace tempest::sema::graph {
     /** Scope containing all of the type parameters of this type. */
     SymbolTable* typeParamScope() const { return _typeParamScope.get(); }
 
-    /** List of required functions. */
-    // std::vector<RequiredFunction*>& requiredFunctions() { return _requiredFunctions; }
-    // const std::vector<RequiredFunction*>& requiredFunctions() const { return _requiredFunctions; }
-
-    /** Scope containing all of the type parameters of this type. */
-    // SymbolTable* requiredMethodScope() const { return _requiredMethodScope.get(); }
-
-    /** Scopes searched when resolving a reference to a qualified name that is mentioned in a
-        'where' clause. So for example, if a template has a constraint such as
-        'where hashing.hash(T)', then these scopes intercept the symbol lookup of 'hashing.hash'
-        and replace it with the required function placeholder. */
-    // std::unordered_map<Member*, SymbolTable*>& interceptScopes() { return _interceptScopes; }
-    // const std::unordered_map<Member*, SymbolTable*>& interceptScopes() const {
-    //   return _interceptScopes;
-    // }
-
     /** Return true if this definition, or one of it's enclosing definitions, has a specific
         type parameter. */
     bool hasTypeParam(TypeParameter* param) {
@@ -227,8 +215,6 @@ namespace tempest::sema::graph {
     std::vector<TypeParameter*> _typeParams;
     std::vector<TypeParameter*> _allTypeParams;
     std::unique_ptr<SymbolTable> _typeParamScope;
-    // std::unique_ptr<SymbolTable> _requiredMethodScope;
-    // std::unordered_map<Member*, SymbolTable*> _interceptScopes;
   };
 
   /** A type definition. */
@@ -280,6 +266,10 @@ namespace tempest::sema::graph {
     bool baseTypesResolved() const { return _baseTypesResolved; }
     void setBaseTypesResolved(bool value) { _baseTypesResolved = value; }
 
+    /** Number of instance variables in this class, used in code flow analysis. */
+    size_t numInstanceVars() const { return _numInstanceVars; }
+    void setNumInstanceVars(size_t numInstanceVars) { _numInstanceVars = numInstanceVars; }
+
     /** Dynamic casting support. */
     static bool classof(const TypeDefn* m) { return true; }
     static bool classof(const Member* m) { return m->kind == Kind::TYPE; }
@@ -294,6 +284,7 @@ namespace tempest::sema::graph {
     std::unique_ptr<SymbolTable> _memberScope;
     IntrinsicType _intrinsic = IntrinsicType::NONE;
     bool _baseTypesResolved = false;
+    size_t _numInstanceVars = 0;
 
 
   //   # List of friend declarations for thibs class
@@ -398,9 +389,10 @@ namespace tempest::sema::graph {
         Kind kind,
         const source::Location& location,
         llvm::StringRef name,
-        Member* definedIn = nullptr)
+        Member* definedIn = nullptr,
+        Type* type = nullptr)
       : Defn(kind, location, name, definedIn)
-      , _type(nullptr)
+      , _type(type)
       , _init(nullptr)
       , _fieldIndex(0)
       , _defined(true)
@@ -476,8 +468,9 @@ namespace tempest::sema::graph {
     ParameterDefn(
         const source::Location& location,
         llvm::StringRef name,
-        Member* definedIn = nullptr)
-      : ValueDefn(Kind::FUNCTION_PARAM, location, name, definedIn)
+        Member* definedIn = nullptr,
+        Type* paramType = nullptr)
+      : ValueDefn(Kind::FUNCTION_PARAM, location, name, definedIn, paramType)
       , _internalType(nullptr)
       , _keywordOnly(false)
       , _selfParam(false)
@@ -575,7 +568,7 @@ namespace tempest::sema::graph {
 
     /** List of all local variables and definitions. */
     DefnList& localDefns() { return _localDefns; }
-    const DefnArray localDefns() const { return _localDefns; }
+    const DefnList& localDefns() const { return _localDefns; }
 
     /** True if this function is a constructor. */
     bool isConstructor() const { return _constructor; }
@@ -593,6 +586,10 @@ namespace tempest::sema::graph {
     bool isVariadic() const { return _variadic; }
     void setVariadic(bool variadic) { _variadic = variadic; }
 
+    /** True if this is a default constructor synthesized by the compiler. */
+    bool isDefault() const { return _default; }
+    void setDefault(bool def) { _default = def; }
+
     /** True if this is an intrinsic function. */
     IntrinsicFn intrinsic() const { return _intrinsic; }
     void setIntrinsic(IntrinsicFn intrinsic) { _intrinsic = intrinsic; }
@@ -600,10 +597,6 @@ namespace tempest::sema::graph {
     /** Method index for this function in a dispatch table. */
     size_t methodIndex() const { return _methodIndex; }
     void setMethodIndex(size_t index) { _methodIndex = index; }
-
-    /** Number of local variables in this function, used in code flow analysis. */
-    size_t numLocalVars() const { return _numLocalVars; }
-    void setNumLocalVars(size_t numLocalVars) { _numLocalVars = numLocalVars; }
 
     /** Dynamic casting support. */
     static bool classof(const FunctionDefn* m) { return true; }
@@ -622,8 +615,8 @@ namespace tempest::sema::graph {
     bool _requirement;
     bool _native;
     bool _variadic;
+    bool _default;
     size_t _methodIndex;
-    size_t _numLocalVars = 0;
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
   };
 

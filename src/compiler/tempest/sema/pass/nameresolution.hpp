@@ -86,7 +86,9 @@ namespace tempest::sema::pass {
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
-    size_t _numLocalVars = 0;
+    size_t _numInstanceVars = 0;
+    Expr* _implicitSelf = nullptr;
+    FunctionDefn* _func = nullptr;
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
 
     void visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast);
@@ -94,13 +96,6 @@ namespace tempest::sema::pass {
     void eagerResolveBaseTypes(TypeDefn* td);
     void resolveBaseTypes(LookupScope* scope, TypeDefn* td);
     Type* simplifyTypeSpecialization(SpecializedDefn* specDefn);
-
-    /** Make a copy of this string within the current alloc. */
-    llvm::StringRef copyOf(llvm::StringRef str) {
-      auto data = static_cast<char*>(_alloc->Allocate(str.size(), 1));
-      std::copy(str.begin(), str.end(), data);
-      return llvm::StringRef((char*) data, str.size());
-    }
   };
 }
 

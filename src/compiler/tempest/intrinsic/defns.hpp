@@ -51,6 +51,7 @@ namespace tempest::intrinsic {
     std::unique_ptr<SymbolTable> builtinScope;
     std::unique_ptr<TypeDefn> objectClass;
     std::unique_ptr<TypeDefn> throwableClass;
+    std::unique_ptr<TypeDefn> flexAllocClass;
     // std::unique_ptr<TypeDefn*> classDescriptorStruct;
     // std::unique_ptr<TypeDefn*> interfaceDescriptorStruct;
     // std::unique_ptr<TypeDefn*> iterableTrait;

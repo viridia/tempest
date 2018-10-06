@@ -63,6 +63,9 @@ namespace tempest::sema::transform {
       , _specs(specs)
     {}
 
+    Type* operator()(Type* in) { return const_cast<Type*>(transform(in)); }
+    const Type* operator()(const Type* in) { return transform(in); }
+
     const Type* transform(const Type* in);
     virtual const Type* transformTypeVar(const TypeVar* in) { return in; }
 

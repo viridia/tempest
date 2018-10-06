@@ -148,6 +148,8 @@ namespace tempest::sema::graph {
     //   BINARY_OP,
     //   CAST_OP,
 
+      ALLOC_OBJ,                // Allocate a new object of the given type.
+
       // Cast operators
       CAST_INT_TRUNCATE,        // Number truncation.
       CAST_SIGN_EXTEND,         // Signed integer extend.

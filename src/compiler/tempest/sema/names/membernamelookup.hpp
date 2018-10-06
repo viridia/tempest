@@ -21,9 +21,9 @@
   #include <llvm/ADT/SmallPtrSet.h>
 #endif
 
-// namespace spark {
-// namespace error { class Reporter; }
-// namespace semgraph { class Member; class Type; }
+namespace tempest::sema::graph {
+  class SpecializationStore;
+}
 
 namespace tempest::sema::names {
   using tempest::sema::graph::Member;
@@ -36,33 +36,41 @@ namespace tempest::sema::names {
   /** Name resolver specialized for resolving types. */
   class MemberNameLookup {
   public:
+    enum Flags {
+      STATIC_MEMBERS = (1 << 0),
+      INSTANCE_MEMBERS = (1 << 1),
+      INHERITED_ONLY = (1 << 2),
+    };
+
+    MemberNameLookup(graph::SpecializationStore& specs) : _specs(specs) {}
+
     /** Given a list of members to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const llvm::ArrayRef<Member*>& stem,
-        bool fromStatic,
-        NameLookupResultRef& result);
+        NameLookupResultRef& result,
+        size_t flags = INSTANCE_MEMBERS);
 
     /** Given a list of types to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const llvm::ArrayRef<const Type*>& stem,
-        bool fromStatic,
-        NameLookupResultRef& result);
+        NameLookupResultRef& result,
+        size_t flags = INSTANCE_MEMBERS);
 
     /** Given a member to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const Member* stem,
-        bool fromStatic,
-        NameLookupResultRef& result);
+        NameLookupResultRef& result,
+        size_t flags = INSTANCE_MEMBERS);
 
     /** Given a type to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const Type* stem,
-        bool fromStatic,
-        NameLookupResultRef& result);
+        NameLookupResultRef& result,
+        size_t flags = INSTANCE_MEMBERS);
 
     /** Iterate through all names. */
     void forAllNames(const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn);
@@ -70,11 +78,13 @@ namespace tempest::sema::names {
     void forAllNames(Type* stem, const NameCallback& nameFn);
 
   private:
+    graph::SpecializationStore& _specs;
+
     void lookupInherited(
         const llvm::StringRef& name,
         UserDefinedType* stem,
-        bool fromStatic,
-        NameLookupResultRef& result);
+        NameLookupResultRef& result,
+        size_t flags);
   };
 }
 

@@ -1,28 +1,33 @@
 #include "catch.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/defn.hpp"
+#include "tempest/sema/graph/specstore.hpp"
 #include "tempest/sema/names/membernamelookup.hpp"
+#include "tempest/support/allocator.hpp"
 #include <memory>
 
 using namespace tempest::sema::graph;
 using namespace tempest::sema::names;
 using namespace tempest::source;
+using namespace tempest::support;
 
 TEST_CASE("MemberNameLookup", "[names]") {
   Location loc;
+  BumpPtrAllocator alloc;
+  SpecializationStore sp(alloc);
 
   SECTION("Module") {
     Module m("TestModule");
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     m.memberScope()->addMember(&v);
     NameLookupResult result;
-    MemberNameLookup lookup;
+    MemberNameLookup lookup(sp);
 
-    lookup.lookup("x", &m, false, result);
+    lookup.lookup("x", &m, result);
     REQUIRE(result.size() == 1);
 
     result.clear();
-    lookup.lookup("y", &m, false, result);
+    lookup.lookup("y", &m, result);
     REQUIRE(result.size() == 0);
 
     size_t count = 0;
@@ -41,21 +46,26 @@ TEST_CASE("MemberNameLookup", "[names]") {
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     td.memberScope()->addMember(&v);
     NameLookupResult result;
-    MemberNameLookup lookup;
+    MemberNameLookup lookup(sp);
 
-    lookup.lookup("x", &td, false, result);
+    lookup.lookup("x", &td, result);
     REQUIRE(result.size() == 1);
 
     result.clear();
-    lookup.lookup("x", &testCls, false, result);
+    lookup.lookup("x", &testCls, result);
     REQUIRE(result.size() == 1);
 
     result.clear();
-    lookup.lookup("y", &td, false, result);
+    lookup.lookup("x", &testCls, result,
+        MemberNameLookup::INHERITED_ONLY | MemberNameLookup::INSTANCE_MEMBERS);
     REQUIRE(result.size() == 0);
 
     result.clear();
-    lookup.lookup("y", &testCls, false, result);
+    lookup.lookup("y", &td, result);
+    REQUIRE(result.size() == 0);
+
+    result.clear();
+    lookup.lookup("y", &testCls, result);
     REQUIRE(result.size() == 0);
 
     size_t count = 0;
@@ -82,21 +92,35 @@ TEST_CASE("MemberNameLookup", "[names]") {
     baseTypeDef.memberScope()->addMember(&v);
 
     NameLookupResult result;
-    MemberNameLookup lookup;
+    MemberNameLookup lookup(sp);
 
-    lookup.lookup("x", &td, false, result);
+    lookup.lookup("x", &td, result);
     REQUIRE(result.size() == 1);
 
     result.clear();
-    lookup.lookup("x", &testCls, false, result);
+    lookup.lookup("x", &testCls, result);
     REQUIRE(result.size() == 1);
 
     result.clear();
-    lookup.lookup("y", &td, false, result);
+    lookup.lookup("x", &testCls, result, MemberNameLookup::INSTANCE_MEMBERS);
+    REQUIRE(result.size() == 1);
+
+    result.clear();
+    lookup.lookup("x", &testCls, result,
+        MemberNameLookup::INSTANCE_MEMBERS | MemberNameLookup::INHERITED_ONLY);
+    REQUIRE(result.size() == 1);
+
+    result.clear();
+    lookup.lookup("x", &testCls, result,
+        MemberNameLookup::STATIC_MEMBERS | MemberNameLookup::INHERITED_ONLY);
     REQUIRE(result.size() == 0);
 
     result.clear();
-    lookup.lookup("y", &testCls, false, result);
+    lookup.lookup("y", &td, result);
+    REQUIRE(result.size() == 0);
+
+    result.clear();
+    lookup.lookup("y", &testCls, result);
     REQUIRE(result.size() == 0);
 
     size_t count = 0;

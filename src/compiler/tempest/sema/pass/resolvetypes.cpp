@@ -15,6 +15,7 @@
 #include "tempest/sema/infer/solution.hpp"
 #include "tempest/sema/infer/types.hpp"
 #include "tempest/sema/names/createnameref.hpp"
+#include "tempest/sema/names/membernamelookup.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
@@ -40,6 +41,7 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::SolutionTransform;
   using tempest::sema::infer::TypeRelation;
   using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::ApplySpecUnique;
 
   class LowerOperatorsTransform : public transform::ExprVisitor {
   public:
@@ -228,6 +230,8 @@ namespace tempest::sema::pass {
     support::BumpPtrAllocator& _alloc;
   };
 
+  // Processing
+
   void ResolveTypesPass::run() {
     while (_sourcesProcessed < _cu.sourceModules().size()) {
       process(_cu.sourceModules()[_sourcesProcessed++]);
@@ -334,11 +338,11 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::visitCompositeDefn(TypeDefn* td) {
-    assert(false && "Implement");
+    visitList(td->members());
   }
 
   void ResolveTypesPass::visitEnumDefn(TypeDefn* td) {
-    assert(false && "Implement");
+    visitList(td->members());
   }
 
   void ResolveTypesPass::visitFunctionDefn(FunctionDefn* fd) {
@@ -359,9 +363,11 @@ namespace tempest::sema::pass {
 
     if (fd->body()) {
       auto prevScope = _scope;
+      auto prevSelfType = _selfType;
       FunctionScope fdScope(_scope, fd);
       _scope = &fdScope;
 
+      _selfType = fd->isStatic() ? nullptr : fd->selfType();
       _functionReturnType = fd->type() ? fd->type()->returnType : nullptr;
       if (fd->isConstructor() && !fd->isStatic()) {
         _functionReturnType = &VoidType::VOID;
@@ -402,22 +408,9 @@ namespace tempest::sema::pass {
       }
 
       _scope = prevScope;
+      _selfType = prevSelfType;
     }
-//     if func.hasBody() and not isinstance(func.getBody(), graph.Intrinsic):
-//       if func.isConstructor() and not func.isStatic():
-//         returnType = primitivetypes.VOID
-//       elif func.getType().hasReturnType():
-//         returnType = func.getType().getReturnType()
-//       else:
-//         returnType = None
-//       assert func.getBody(), debug.format(func)
-//       self.errorCount = self.errorReporter.errorCount
-//       self.assignTypes(func.getBody(), returnType)
-//       self.errorCount = self.errorReporter.errorCount
-//     if func.isConstructor() and not func.isStatic():
-//       assert func.hasSelfType(), debug.format(func, func.getType())
 //     self.tempVarTypes = savedTempVars
-//     self.nameLookup.setSubject(savedSubject)
     prevReturnTypes.swap(_returnTypes);
     _functionReturnType = prevReturnType;
     setSubject(prevSubject);
@@ -566,6 +559,9 @@ namespace tempest::sema::pass {
         return &Type::NO_RETURN;
       }
 
+      case Expr::Kind::ASSIGN:
+        return visitAssign(static_cast<BinaryOp*>(e), cs);
+
   // def visitThrow(self, expr, cs):
   //   '''@type expr: spark.graph.graph.Throw
   //      @type cs: constraintsolver.ConstraintSolver'''
@@ -678,20 +674,49 @@ namespace tempest::sema::pass {
     return &VoidType::VOID;
   }
 
+  Type* ResolveTypesPass::visitAssign(BinaryOp* expr, ConstraintSolver& cs) {
+    auto lType = visitExpr(expr->args[0], cs);
+    auto rType = visitExpr(expr->args[1], cs);
+    cs.addAssignment(expr->location, lType, rType);
+    return &Type::NOT_EXPR;
+  }
+
   Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
     switch (expr->function->kind) {
+      case Expr::Kind::TYPE_REF_OVERLOAD:
       case Expr::Kind::FUNCTION_REF_OVERLOAD: {
         return visitCallName(expr, expr->function, expr->args, cs);
         break;
       }
-      case Expr::Kind::TYPE_REF_OVERLOAD: {
-        // Construct a type.
-        assert(false && "Implement");
-        break;
-      }
       case Expr::Kind::SUPER: {
-        assert(false && "Implement");
-        break;
+        auto subjectFn = dyn_cast_or_null<FunctionDefn>(_subject);
+        if (!subjectFn) {
+          diag.error(expr) << "Can't call 'super' outside of a method.";
+          return &Type::ERROR;
+        }
+        if (subjectFn->isStatic()) {
+          diag.error(expr) << "Can't call 'super' from a static method.";
+          return &Type::ERROR;
+        }
+        auto baseClsDef = cast<UserDefinedType>(_selfType)->defn();
+        MemberNameLookup lookup(_cu.spec());
+        NameLookupResult lookupResult;
+        lookup.lookup(subjectFn->name(), baseClsDef, lookupResult,
+            MemberNameLookup::INHERITED_ONLY | MemberNameLookup::INSTANCE_MEMBERS);
+        if (lookupResult.empty()) {
+          diag.error(expr) << "No inherited method named '" << subjectFn->name() << "'.";
+          return &Type::ERROR;
+        }
+
+        SmallVector<Type*, 8> argTypes;
+        visitExprArray(argTypes, expr->args, cs);
+        for (auto t : argTypes) {
+          if (Type::isError(t)) {
+            return &Type::ERROR;
+          }
+        }
+
+        return addCallSite(expr, expr->function, lookupResult, expr->args, argTypes, cs);
       }
       default: {
         assert(false && "Implement");
@@ -761,6 +786,15 @@ namespace tempest::sema::pass {
         return &Type::ERROR;
       }
       return addCallSite(callExpr, fn, mref->members, args, argTypes, cs);
+    } else if (fn->kind == Expr::Kind::TYPE_REF_OVERLOAD) {
+      auto mref = static_cast<MemberListExpr*>(fn);
+      NameLookupResult ctors;
+      findConstructors(mref->members, ctors);
+      if (ctors.empty()) {
+        diag.error(fn) << "No constructor found for type  '" << mref->name << "'.";
+        return &Type::ERROR;
+      }
+      return addCallSite(callExpr, fn, ctors, args, argTypes, cs);
     }
 
 //     if isinstance(func, graph.ExplicitSpecialize):
@@ -793,6 +827,13 @@ namespace tempest::sema::pass {
 
 
     assert(false && "Implement");
+  }
+
+  void ResolveTypesPass::findConstructors(
+      const ArrayRef<Member*>& members,
+      NameLookupResultRef& ctors) {
+    MemberNameLookup lookup(_cu.spec());
+    lookup.lookup("new", members, ctors);
   }
 
   Type* ResolveTypesPass::addCallSite(
@@ -840,6 +881,10 @@ namespace tempest::sema::pass {
         }
       }
       auto returnType = function->type()->returnType;
+      if (function->isConstructor()) {
+        returnType = function->selfType();
+        assert(returnType);
+      }
 
       // If it's a generic
       if (function->allTypeParams().size() > 0) {
@@ -1182,15 +1227,6 @@ namespace tempest::sema::pass {
 //       return graph.ErrorType.defaultInstance()
 //     return mlist
 
-//   def findConstructors(self, base, cs):
-//     # Look for a constructor
-//     mlist = graph.MemberList().setLocation(base.getLocation()).setName('new')
-//     mlist.setBase(base)
-//     if not self.lookupMembersByName(mlist, cs, self.nameLookup.constructorNotFound):
-//       return graph.ErrorType.defaultInstance()
-//     assert len(mlist.getMembers()) > 0
-//     return mlist
-
 //   def visitCallExpr(self, callExpr, func, args, argTypes, cs):
 //     fntype = self.assignTypes(func, None)
 //     if types.isError(fntype):
@@ -1317,33 +1353,49 @@ namespace tempest::sema::pass {
       ConstraintSolver& cs, CallSite* site, SolutionTransform& st) {
     auto candidate = static_cast<CallCandidate*>(site->singularCandidate());
     auto callExpr = static_cast<ApplyFnOp*>(site->callExpr);
-    Member* method = unwrapSpecialization(candidate->method);
+    FunctionDefn* fn = cast<FunctionDefn>(unwrapSpecialization(candidate->method));
+    Type* fnType = fn->type();
+    Type* returnType = const_cast<Type*>(fn->type()->returnType);
+    Type* fnSelfType = fn->selfType();
+    Member* method = fn;
+    if (candidate->typeArgs.size() > 0) {
+      llvm::SmallVector<const Type*, 8> typeArgs;
+      st.transformArray(typeArgs, candidate->typeArgs);
+      ApplySpecUnique asu(_cu.types(), _cu.spec(), typeArgs);
+      fnType = asu(fnType);
+      returnType = asu(returnType);
+      fnSelfType = asu(fnSelfType);
+      method = _cu.spec().specialize(cast<GenericDefn>(method), typeArgs);
+    }
+
+    // diag.debug() << "fn: " << fnType << " rt: " << returnType << " " << method;
 
     // Patch the call expression with a new callable
     if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
-      // Original function reference
-      auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
-      auto fn = cast<FunctionDefn>(method);
-      Type* fnType = fn->type();
-      // Specialize the method with the resolved type arguments.
-      if (candidate->typeArgs.size() > 0) {
-        llvm::SmallVector<const Type*, 8> typeArgs;
-        st.transformArray(typeArgs, candidate->typeArgs);
-        candidate->returnType = st.transform(candidate->returnType);
-        method = _cu.spec().specialize(cast<GenericDefn>(method), typeArgs);
-        fnType = const_cast<Type*>(st.transform(fnType));
-      }
       // Create a new signular function reference.
-      callExpr->function =
-          new (*_alloc) DefnRef(
-              Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem, fnType);
+      auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
+      callExpr->function = new (*_alloc) DefnRef(
+          Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem, fnType);
+      callExpr->type = const_cast<Type *>(returnType);
+    } else if (callExpr->function->kind == Expr::Kind::TYPE_REF_OVERLOAD) {
+      // Create a new singular constructor reference.
+      auto allocObj = new (*_alloc) Expr(Expr::Kind::ALLOC_OBJ, callExpr->location, fnSelfType);
+      callExpr->function = new (*_alloc) DefnRef(
+          Expr::Kind::FUNCTION_REF, site->location, method, allocObj, fnSelfType);
+      callExpr->type = fnSelfType;
+    } else if (callExpr->function->kind == Expr::Kind::SUPER) {
+      // Create a new signular function reference.
+      auto selfArg = new (*_alloc) SelfExpr(callExpr->location);
+      selfArg->type = _selfType;
+      callExpr->function = new (*_alloc) DefnRef(
+          Expr::Kind::FUNCTION_REF, site->location, method, selfArg, fnType);
+      callExpr->type = const_cast<Type *>(returnType);
     } else {
       assert(false && "Implement other callable types");
     }
 
     reorderCallingArgs(cs, st, callExpr, site, candidate);
   }
-//       self.reorderCallingArgs(site.callExpr, candidate, transform, replaceMethods)
 
 // #     if leftOverVars:
 // #       assert False, debug.format('Unused solution vars:', environ.Env(leftOverVars))
@@ -1421,7 +1473,6 @@ namespace tempest::sema::pass {
     }
 
     callExpr->args = _alloc->copyOf(argList);
-    callExpr->type = const_cast<Type *>(st.transform(cc->returnType));
   }
 
   // Coerce types
@@ -1439,6 +1490,11 @@ namespace tempest::sema::pass {
       case Expr::Kind::BOOLEAN_LITERAL:
         e->type = &BooleanType::BOOL;
         return e;
+
+      case Expr::Kind::SELF:
+      case Expr::Kind::SUPER:
+        assert(e->type);
+        return addCastIfNeeded(e, dstType);
 
       case Expr::Kind::INTEGER_LITERAL: {
         assert(e->type);
@@ -1591,6 +1647,14 @@ namespace tempest::sema::pass {
         coerceExpr(op->args[1], nullptr);
         op->type = &BooleanType::BOOL;
         return addCastIfNeeded(op, dstType);
+      }
+
+      case Expr::Kind::ASSIGN: {
+        auto op = static_cast<BinaryOp*>(e);
+        coerceExpr(op->args[0], nullptr);
+        op->args[1] = coerceExpr(op->args[1], op->args[0]->type);
+        op->type = &Type::NOT_EXPR;
+        return op;
       }
 
       default:

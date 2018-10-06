@@ -3,7 +3,7 @@
 #include "tempest/sema/transform/applyspec.hpp"
 #include "tempest/sema/graph/expr.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
-#include "tempest/sema/transform/transform.hpp"
+#include "tempest/sema/transform/mapenv.hpp"
 #include "tempest/sema/transform/visitor.hpp"
 #include "llvm/Support/Casting.h"
 #include <assert.h>
@@ -13,7 +13,7 @@ namespace tempest::sema::pass {
   using tempest::error::diag;
   using namespace tempest::sema::graph;
   using namespace tempest::gen;
-  using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::MapEnvTransform;
 
   /** Replace all type variables with the types they are bound to in an environment. */
   class SpecializeTypeTransform final : public transform::UniqueTypeTransform {
@@ -56,8 +56,8 @@ namespace tempest::sema::pass {
             auto stem = transform(dref->stem);
             auto type = transformType(dref->type);
             Env newEnv;
-            // llvm::SmallVector<const Type*, 8> typeArgs;
-            ApplySpecialization transform(_env.args);
+            newEnv.params = generic->allTypeParams();
+            MapEnvTransform transform(_cu.types(), _cu.spec(), _env);
             transform.transformArray(newEnv.args, sp->typeArgs());
             for (auto ta : newEnv.args) {
               assert(ta->kind != Type::Kind::TYPE_VAR);

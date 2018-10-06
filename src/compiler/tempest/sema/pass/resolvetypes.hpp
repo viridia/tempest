@@ -14,6 +14,7 @@ namespace tempest::sema::graph {
   class BinaryOp;
   class BlockStmt;
   class LocalVarStmt;
+  class Member;
   class DefnRef;
   class IfStmt;
   class MemberListExpr;
@@ -33,6 +34,7 @@ namespace tempest::sema::names {
 
 namespace tempest::sema::pass {
   using tempest::compiler::CompilationUnit;
+  using tempest::sema::graph::Member;
   using tempest::sema::graph::Module;
   using tempest::sema::infer::CallCandidate;
   using tempest::sema::infer::CallSite;
@@ -91,6 +93,7 @@ namespace tempest::sema::pass {
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
     GenericDefn* _subject = nullptr;
     Module* _module = nullptr;
+    Type* _selfType = nullptr;
     std::vector<Type*> _returnTypes;
     const Type* _functionReturnType;
     names::LookupScope* _scope = nullptr;
@@ -99,9 +102,11 @@ namespace tempest::sema::pass {
     Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
     Type* visitIf(IfStmt* expr, ConstraintSolver& cs);
     Type* visitWhile(WhileStmt* expr, ConstraintSolver& cs);
+    Type* visitAssign(BinaryOp* expr, ConstraintSolver& cs);
     Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
     Type* visitCallName(
         ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs);
+    void findConstructors(const ArrayRef<Member*>& types, NameLookupResultRef& ctors);
     Type* addCallSite(
         ApplyFnOp* callExpr,
         Expr* fn,

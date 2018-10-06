@@ -26,6 +26,9 @@ namespace tempest::sema::graph {
     /** Specialize a generic definition. */
     SpecializedDefn* specialize(GenericDefn* base, const TypeArray& typeArgs);
 
+    /** Specialize a member definition (which could be a member of a generic). */
+    SpecializedDefn* specialize(Defn* base, const TypeArray& typeArgs);
+
     /** The map of all specializations. */
     std::unordered_map<SpecializationKey<Defn>, SpecializedDefn*, SpecializationKeyHash<Defn>>&
         specializations() { return _specs; }

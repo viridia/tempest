@@ -515,19 +515,19 @@ TEST_CASE("NameResolution.Method", "[sema]") {
       "}\n"
     );
     auto td = cast<TypeDefn>(mod->members().back());
-    auto fnA = cast<FunctionDefn>(td->members()[0]);
+    auto fnA = cast<FunctionDefn>(td->members()[1]);
     REQUIRE(fnA->kind == Defn::Kind::FUNCTION);
     REQUIRE(!fnA->isAbstract());
     REQUIRE(!fnA->isConstructor());
     REQUIRE(!fnA->isGetter());
     REQUIRE(!fnA->isSetter());
-    auto fnB = cast<FunctionDefn>(td->members()[1]);
+    auto fnB = cast<FunctionDefn>(td->members()[2]);
     REQUIRE(fnB->kind == Defn::Kind::FUNCTION);
     REQUIRE(!fnB->isAbstract());
     REQUIRE(!fnB->isConstructor());
     REQUIRE(fnB->isGetter());
     REQUIRE(!fnB->isSetter());
-    auto fnC = cast<FunctionDefn>(td->members()[2]);
+    auto fnC = cast<FunctionDefn>(td->members()[3]);
     REQUIRE(fnC->kind == Defn::Kind::FUNCTION);
     REQUIRE(!fnC->isAbstract());
     REQUIRE(!fnC->isConstructor());

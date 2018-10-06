@@ -14,6 +14,34 @@ namespace tempest::intrinsic {
     objectClass = makeTypeDefn(Type::Kind::CLASS, "Object");
     objectClass->setIntrinsic(IntrinsicType::OBJECT_CLASS);
 
+    // Object constructor
+    auto objectCtor = new FunctionDefn(Location(), "new", objectClass.get());
+    objectCtor->setConstructor(true);
+    objectCtor->setIntrinsic(IntrinsicFn::OBJECT_CTOR);
+    objectCtor->setType(_types.createFunctionType(&VoidType::VOID, {}, false));
+    objectCtor->setSelfType(objectClass->type());
+    objectClass->members().push_back(objectCtor);
+    objectClass->memberScope()->addMember(objectCtor);
+
+    // Base class of flex-alloc containers
+    flexAllocClass = makeTypeDefn(Type::Kind::CLASS, "FlexAlloc");
+    flexAllocClass->setIntrinsic(IntrinsicType::FLEXALLOC_CLASS);
+    flexAllocClass->typeParams().push_back(new (_types.alloc()) TypeParameter(Location(), "T"));
+
+    // FlexAlloc constructor
+    auto flexAllocCtor = new FunctionDefn(Location(), "new", flexAllocClass.get());
+    flexAllocCtor->setConstructor(true);
+    flexAllocCtor->setIntrinsic(IntrinsicFn::OBJECT_CTOR);
+
+    auto count = new (_types.alloc()) ParameterDefn(
+        Location(), "count", flexAllocCtor, &IntegerType::I64);
+    flexAllocCtor->params().push_back(count);
+    flexAllocCtor->setType(_types.createFunctionType(
+        &VoidType::VOID, { &IntegerType::I64 }, false));
+    flexAllocCtor->setSelfType(flexAllocClass->type());
+    flexAllocClass->members().push_back(flexAllocCtor);
+    flexAllocClass->memberScope()->addMember(flexAllocCtor);
+
     // std::unique_ptr<TypeDefn*> throwableClass;
     // std::unique_ptr<TypeDefn*> classDescriptorStruct;
     // std::unique_ptr<TypeDefn*> interfaceDescriptorStruct;
@@ -89,12 +117,10 @@ namespace tempest::intrinsic {
     subtypeConstraints.push_back(argType);
     SmallVector<Type*, 2> paramTypes;
     T->setSubtypeConstraints(_types.alloc().copyOf(subtypeConstraints));
-    auto param0 = new (_types.alloc()) ParameterDefn(Location(), "a0", fd.get());
-    param0->setType(T->typeVar());
+    auto param0 = new (_types.alloc()) ParameterDefn(Location(), "a0", fd.get(), T->typeVar());
     fd->params().push_back(param0);
     paramTypes.push_back(T->typeVar());
-    auto param1 = new (_types.alloc()) ParameterDefn(Location(), "a1", fd.get());
-    param1->setType(T->typeVar());
+    auto param1 = new (_types.alloc()) ParameterDefn(Location(), "a1", fd.get(), T->typeVar());
     fd->params().push_back(param1);
     paramTypes.push_back(T->typeVar());
     fd->setType(_types.createFunctionType(T->typeVar(), paramTypes, false));
@@ -114,12 +140,10 @@ namespace tempest::intrinsic {
     subtypeConstraints.push_back(argType);
     SmallVector<Type*, 2> paramTypes;
     T->setSubtypeConstraints(_types.alloc().copyOf(subtypeConstraints));
-    auto param0 = new (_types.alloc()) ParameterDefn(Location(), "a0", fd.get());
-    param0->setType(T->typeVar());
+    auto param0 = new (_types.alloc()) ParameterDefn(Location(), "a0", fd.get(), T->typeVar());
     fd->params().push_back(param0);
     paramTypes.push_back(T->typeVar());
-    auto param1 = new (_types.alloc()) ParameterDefn(Location(), "a1", fd.get());
-    param1->setType(T->typeVar());
+    auto param1 = new (_types.alloc()) ParameterDefn(Location(), "a1", fd.get(), T->typeVar());
     fd->params().push_back(param1);
     paramTypes.push_back(T->typeVar());
     fd->setType(_types.createFunctionType(&BooleanType::BOOL, paramTypes, false));

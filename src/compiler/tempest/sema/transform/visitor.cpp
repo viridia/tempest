@@ -20,6 +20,8 @@ namespace tempest::sema::transform {
       case Expr::Kind::BOOLEAN_LITERAL:
       case Expr::Kind::INTEGER_LITERAL:
       case Expr::Kind::FLOAT_LITERAL:
+      case Expr::Kind::SELF:
+      case Expr::Kind::SUPER:
         return expr;
 
       case Expr::Kind::CALL: {
@@ -85,6 +87,7 @@ namespace tempest::sema::transform {
   //     self.assignTypes(expr.getArg(), self.typeStore.getEssentialTypes()['throwable'].getType())
   //   return self.NO_RETURN
 
+      case Expr::Kind::ASSIGN:
       case Expr::Kind::ADD:
       case Expr::Kind::SUBTRACT:
       case Expr::Kind::MULTIPLY:

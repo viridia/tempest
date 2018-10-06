@@ -300,7 +300,8 @@ namespace tempest::sema::graph {
 
       case Type::Kind::FUNCTION: {
         auto ft = static_cast<const FunctionType*>(t);
-        llvm::StringRef sep = "fn (";
+        out << "fn (";
+        llvm::StringRef sep = "";
         for (auto member : ft->paramTypes) {
           out << sep;
           sep = ", ";

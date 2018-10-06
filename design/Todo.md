@@ -1,13 +1,12 @@
 # TODOs
 
+* Constructors!
 * Infix operators
 * Constant infix operators
   * String
   * Boolean
 * Unary operators
   * NOT
-  * COMPLEMENT
-  * MINUS
 * Boolean coercion
   * isTruthy function
 * ADL lookup
@@ -77,5 +76,6 @@
 * variadic params should be slice type
 * transform default args
 * coerce empty collections to boolean type.
+* Don't allow specialization of specializations - flatten first
 
 74keazz24dqlzk4nzm6lwlbid3q6kfvwpbczpjkglygtjyaee2sa

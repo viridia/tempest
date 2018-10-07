@@ -188,6 +188,7 @@ namespace tempest::sema::pass {
         auto stmt = static_cast<WhileStmt*>(e);
         visitExpr(stmt->test, flow);
         visitExpr(stmt->body, flow);
+        assert(false && "Implement");
         break;
       }
 

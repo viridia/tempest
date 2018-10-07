@@ -22,6 +22,7 @@ namespace tempest::ast {
 
 namespace tempest::sema::graph {
   using tempest::source::Locatable;
+  class Expr;
 
   /** Base class for all members within a scope. */
   class Member {
@@ -78,6 +79,12 @@ namespace tempest::sema::graph {
     format(os, m, false, true);
     return os;
   }
+
+  /** Name lookup result that includes the stem expression. */
+  struct MemberAndStem {
+    Member* member;
+    Expr* stem;
+  };
 }
 
 #endif

@@ -20,7 +20,7 @@ TEST_CASE("MemberNameLookup", "[names]") {
     Module m("TestModule");
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     m.memberScope()->addMember(&v);
-    NameLookupResult result;
+    MemberLookupResult result;
     MemberNameLookup lookup(sp);
 
     lookup.lookup("x", &m, result);
@@ -45,7 +45,7 @@ TEST_CASE("MemberNameLookup", "[names]") {
 
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     td.memberScope()->addMember(&v);
-    NameLookupResult result;
+    MemberLookupResult result;
     MemberNameLookup lookup(sp);
 
     lookup.lookup("x", &td, result);
@@ -91,7 +91,7 @@ TEST_CASE("MemberNameLookup", "[names]") {
     ValueDefn v(Member::Kind::CONST_DEF, loc, "x");
     baseTypeDef.memberScope()->addMember(&v);
 
-    NameLookupResult result;
+    MemberLookupResult result;
     MemberNameLookup lookup(sp);
 
     lookup.lookup("x", &td, result);

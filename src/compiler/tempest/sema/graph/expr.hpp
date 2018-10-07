@@ -5,6 +5,10 @@
   #include "tempest/source/location.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_MEMBER_HPP
+  #include "tempest/sema/graph/member.hpp"
+#endif
+
 #ifndef LLVM_ADT_APINT_H
   #include <llvm/ADT/APInt.h>
 #endif
@@ -17,7 +21,6 @@ namespace tempest::sema::graph {
   using tempest::source::Location;
   using tempest::source::Locatable;
 
-  class Member;
   class Type;
 
   class Expr : public Locatable {
@@ -265,9 +268,9 @@ namespace tempest::sema::graph {
     llvm::StringRef name;
 
     /** List of members. */
-    const llvm::ArrayRef<Member*> members;
+    const llvm::ArrayRef<MemberAndStem> members;
 
-    /** Stem expression */
+    /** Stem expression (explicit) */
     Expr* stem = nullptr;
 
     /** Indicate that we want to use argument-dependent lookup during type resolution. */
@@ -280,7 +283,7 @@ namespace tempest::sema::graph {
         Expr::Kind kind,
         Location location,
         llvm::StringRef name,
-        const llvm::ArrayRef<Member*>& members)
+        const llvm::ArrayRef<MemberAndStem>& members)
       : Expr(kind, location)
       , name(name)
       , members(members)

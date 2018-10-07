@@ -29,6 +29,9 @@ namespace tempest::sema::graph {
   typedef llvm::SmallVectorImpl<Member*> NameLookupResultRef;
   typedef llvm::SmallVector<Member*, 8> NameLookupResult;
 
+  typedef llvm::SmallVectorImpl<MemberAndStem> MemberLookupResultRef;
+  typedef llvm::SmallVector<MemberAndStem, 8> MemberLookupResult;
+
   /** A symbol table. */
   class SymbolTable {
   public:
@@ -40,6 +43,9 @@ namespace tempest::sema::graph {
 
     /** Lookup a name, and produce a list of results for that name. */
     void lookupName(const llvm::StringRef& name, NameLookupResultRef &result) const;
+
+    /** Lookup a name, and produce a list of results for that name. */
+    void lookup(const llvm::StringRef& name, MemberLookupResultRef &result, Expr* stem) const;
 
     /** True if the given name is already defined, and include the location of the first
         definition. */

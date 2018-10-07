@@ -87,7 +87,7 @@ namespace tempest::sema::pass {
           }
 
           ModuleScope impScope(nullptr, importMod);
-          NameLookupResult lookupResult;
+          MemberLookupResult lookupResult;
           impScope.lookup(importName, lookupResult);
           if (lookupResult.empty()) {
             diag.error(imp) << "Imported symbol '" << asName << "' not found in module.";
@@ -98,7 +98,7 @@ namespace tempest::sema::pass {
               diag.info(existing) << "From here.";
             } else {
               for (auto member : lookupResult) {
-                mod->exportScope()->addMember(asName, member);
+                mod->exportScope()->addMember(asName, member.member);
               }
             }
           } else {
@@ -108,7 +108,7 @@ namespace tempest::sema::pass {
               diag.info(existing) << "Defined here.";
             } else {
               for (auto member : lookupResult) {
-                mod->memberScope()->addMember(asName, member);
+                mod->memberScope()->addMember(asName, member.member);
               }
             }
           }
@@ -199,6 +199,9 @@ namespace tempest::sema::pass {
     }
 
     resolveBaseTypes(scope, td);
+    auto implicitSelf = new (*_alloc) SelfExpr(td->location());
+    implicitSelf->type = td->type();
+    td->setImplicitSelf(implicitSelf);
 
     auto prevNumInstanceVars = _numInstanceVars;
     _numInstanceVars = 0;
@@ -206,10 +209,6 @@ namespace tempest::sema::pass {
       auto baseDef = unwrapSpecialization(td->extends()[0]);
       _numInstanceVars = cast<TypeDefn>(baseDef)->numInstanceVars();
     }
-
-    auto prevImplicitSelf = _implicitSelf;
-    _implicitSelf = new (*_alloc) SelfExpr(td->location());
-    _implicitSelf->type = td->type();
 
     TypeDefnScope tdScope(scope, td);
     visitList(&tdScope, td->members());
@@ -219,8 +218,8 @@ namespace tempest::sema::pass {
 
     // Create default/inherited constructors if needed.
     if (td->type()->kind == Type::Kind::CLASS) {
-      NameLookupResult ctors;
-      td->memberScope()->lookupName("new", ctors);
+      MemberLookupResult ctors;
+      td->memberScope()->lookup("new", ctors, nullptr);
       if (ctors.empty()) {
         // Find inherited constructors
         MemberNameLookup lookup(_cu.spec());
@@ -232,7 +231,7 @@ namespace tempest::sema::pass {
         }
 
         // Create a constructor for this class for each inherited base constructor.
-        for (auto baseCtor : ctors) {
+        for (auto& ctorResult : ctors) {
           // Actually, we need to check if the base class has constructors...
           // Create default constructor
           auto defaultCtor = new (*_alloc) FunctionDefn(td->location(), "new", td);
@@ -240,7 +239,7 @@ namespace tempest::sema::pass {
           defaultCtor->setDefault(true);
           defaultCtor->setSelfType(td->type());
           Env baseEnv;
-          baseCtor = baseEnv.unwrap(baseCtor);
+          auto baseCtor = baseEnv.unwrap(ctorResult.member);
 
           MapEnvTransform transform(_cu.types(), _cu.spec(), baseEnv);
           auto baseFn = cast<FunctionDefn>(baseCtor);
@@ -270,8 +269,6 @@ namespace tempest::sema::pass {
         }
       }
     }
-
-    _implicitSelf = prevImplicitSelf;
   }
 
   void NameResolutionPass::visitEnumDefn(LookupScope* scope, TypeDefn* td) {
@@ -533,14 +530,14 @@ namespace tempest::sema::pass {
       // SUPER,
 
       case ast::Node::Kind::IDENT: {
-        NameLookupResult result;
+        MemberLookupResult result;
         if (!resolveDefnName(scope, node, result)) {
           return &Expr::ERROR;
         }
 
         return createNameRef(*_alloc, node->location, result,
             cast_or_null<Defn>(scope->subject()),
-            _implicitSelf, false, false);
+            nullptr, false, false);
       }
 
       // MEMBER,
@@ -1006,14 +1003,19 @@ namespace tempest::sema::pass {
 
     auto argArray = _alloc->copyOf(args);
     auto baseRef = static_cast<MemberListExpr*>(base);
-    llvm::SmallVector<Member*, 8> specMembers;
+    llvm::SmallVector<MemberAndStem, 8> specMembers;
     specMembers.resize(baseRef->members.size());
     std::transform(baseRef->members.begin(), baseRef->members.end(), specMembers.begin(),
-        [argArray, this](auto m) {
-          auto generic = cast<GenericDefn>(m);
-          return new (*_alloc) SpecializedDefn(m, argArray, generic->typeParams());
+        [argArray, this](auto& m) {
+          auto generic = cast<GenericDefn>(m.member);
+          MemberAndStem result = {
+            new (*_alloc) SpecializedDefn(m.member, argArray, generic->typeParams()),
+            m.stem
+          };
+          return result;
         });
-    return new (*_alloc) MemberListExpr(base->kind, base->location, baseRef->name, specMembers);
+    return new (*_alloc) MemberListExpr(
+        base->kind, base->location, baseRef->name, _alloc->copyOf(specMembers));
   }
 
   Type* NameResolutionPass::resolveType(LookupScope* scope, const ast::Node* node) {
@@ -1023,26 +1025,26 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::IDENT:
       case ast::Node::Kind::MEMBER:
       case ast::Node::Kind::SPECIALIZE: {
-        NameLookupResult lookupResult;
+        MemberLookupResult lookupResult;
         if (!resolveDefnName(scope, node, lookupResult)) {
           return &Type::ERROR;
         }
 
         llvm::SmallVector<Type*, 8> types;
-        for (auto member : lookupResult) {
-          if (member->kind == Member::Kind::TYPE) {
-            types.push_back(static_cast<TypeDefn*>(member)->type());
-          } else if (member->kind == Member::Kind::TYPE_PARAM) {
-            types.push_back(static_cast<TypeParameter*>(member)->typeVar());
-          } else if (member->kind == Member::Kind::SPECIALIZED) {
-            auto spec = static_cast<SpecializedDefn*>(member);
+        for (auto m : lookupResult) {
+          if (m.member->kind == Member::Kind::TYPE) {
+            types.push_back(static_cast<TypeDefn*>(m.member)->type());
+          } else if (m.member->kind == Member::Kind::TYPE_PARAM) {
+            types.push_back(static_cast<TypeParameter*>(m.member)->typeVar());
+          } else if (m.member->kind == Member::Kind::SPECIALIZED) {
+            auto spec = static_cast<SpecializedDefn*>(m.member);
             if (spec->generic()->kind == Member::Kind::TYPE) {
               return simplifyTypeSpecialization(spec);
             } else {
               diag.error(node) << "Expecting a type name.";
               return &Type::ERROR;
             }
-          } else if (member->kind == Member::Kind::ENUM_VAL) {
+          } else if (m.member->kind == Member::Kind::ENUM_VAL) {
             // Singleton type
             assert(false && "Implement");
           } else {
@@ -1055,7 +1057,7 @@ namespace tempest::sema::pass {
         NameLookupResult protectedMembers;
         auto subject = scope->subject();
         for (auto member : lookupResult) {
-          auto m = unwrapSpecialization(member);
+          auto m = unwrapSpecialization(member.member);
           if (!isVisibleMember(subject, m)) {
             if (m->visibility() == PRIVATE) {
               privateMembers.push_back(m);
@@ -1187,7 +1189,7 @@ namespace tempest::sema::pass {
     // via ADL.
     if (node->kind == ast::Node::Kind::IDENT) {
       auto ident = static_cast<const ast::Ident*>(node);
-      NameLookupResult result;
+      MemberLookupResult result;
       if (!resolveDefnName(scope, node, result, true)) {
         return &Expr::ERROR;
       }
@@ -1195,11 +1197,11 @@ namespace tempest::sema::pass {
       if (result.size() > 0) {
         return createNameRef(*_alloc, node->location, result,
             cast_or_null<Defn>(scope->subject()),
-            _implicitSelf, false, true);
+            nullptr, false, true);
       } else {
         auto mref = new (*_alloc) MemberListExpr(
             Expr::Kind::FUNCTION_REF_OVERLOAD, ident->location, ident->name,
-            llvm::ArrayRef<Member*>());
+            llvm::ArrayRef<MemberAndStem>());
         mref->useADL = true;
         return mref;
       }
@@ -1210,7 +1212,7 @@ namespace tempest::sema::pass {
 
   Expr* NameResolutionPass::resolveOperatorName(
       const Location& loc, LookupScope* scope, const StringRef& name) {
-    NameLookupResult result;
+    MemberLookupResult result;
     scope->lookup(name, result);
     if (result.size() > 0) {
       return createNameRef(*_alloc, loc, result,
@@ -1219,7 +1221,7 @@ namespace tempest::sema::pass {
     } else {
       auto mref = new (*_alloc) MemberListExpr(
           Expr::Kind::FUNCTION_REF_OVERLOAD, loc, name,
-          llvm::ArrayRef<Member*>());
+          llvm::ArrayRef<MemberAndStem>());
       mref->useADL = true;
       return mref;
     }
@@ -1228,7 +1230,7 @@ namespace tempest::sema::pass {
   // This handles compound names such as A, A.B.C, A[X].B[Y], but not (expression).B.
   // The result is an array of possibly overloaded definitions.
   bool NameResolutionPass::resolveDefnName(
-    LookupScope* scope, const ast::Node* node, NameLookupResultRef& result, bool allowEmpty) {
+    LookupScope* scope, const ast::Node* node, MemberLookupResultRef& result, bool allowEmpty) {
     switch (node->kind) {
       case ast::Node::Kind::IDENT: {
         auto ident = static_cast<const ast::Ident*>(node);
@@ -1250,14 +1252,14 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::MEMBER: {
         auto memberRef = static_cast<const ast::MemberRef*>(node);
-        NameLookupResult baseResult;
+        MemberLookupResult baseResult;
         if (!resolveDefnName(scope, memberRef->base, baseResult)) {
           return false;
         }
         // TODO: We should ensure baseResult is a type
 
         for (auto baseDefn : baseResult) {
-          resolveMemberName(node->location, baseDefn, memberRef->name, result);
+          resolveMemberName(node->location, baseDefn.member, memberRef->name, result);
         }
 
         if (result.empty()) {
@@ -1301,7 +1303,7 @@ namespace tempest::sema::pass {
             }
 
             auto sd = _cu.spec().specialize(gd, typeArgs);
-            result.push_back(sd);
+            result.push_back({ sd, nullptr });
             return true;
           } else {
             diag.error(node) << "Can't specialize a non-generic type.";
@@ -1319,7 +1321,7 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::BUILTIN_TYPE: {
         // We can get here via 'enum extends' - enums can have integer bases.
         auto type = resolveType(scope, node);
-        result.push_back(cast<IntegerType>(type)->defn());
+        result.push_back({ cast<IntegerType>(type)->defn(), nullptr });
         return true;
       }
 
@@ -1335,12 +1337,12 @@ namespace tempest::sema::pass {
       const Location& loc,
       Member* scope,
       const StringRef& name,
-      NameLookupResultRef& result) {
+      MemberLookupResultRef& result) {
     // Note: It is not an error for this function to return an empty result. During overload
     // resolution, some overloads may have a defined member with the given name and some may not.
     if (auto typeDef = dyn_cast<TypeDefn>(scope)) {
       auto resultSize = result.size();
-      typeDef->memberScope()->lookupName(name, result);
+      typeDef->memberScope()->lookup(name, result, nullptr);
       if (result.size() > resultSize) {
         return true;
       }
@@ -1373,15 +1375,15 @@ namespace tempest::sema::pass {
       }
 
       // Recursively call this function on the non-specialized generic base definition.
-      NameLookupResult specLookup;
+      MemberLookupResult specLookup;
       resolveMemberName(loc, specDefn->generic(), name, specLookup);
       for (auto member : specLookup) {
         auto specMember = new (*_alloc) SpecializedDefn(
-            member, specDefn->typeArgs(), specDefn->typeParams());
-        if (isa<TypeDefn>(member)) {
+            member.member, specDefn->typeArgs(), specDefn->typeParams());
+        if (isa<TypeDefn>(member.member)) {
           specMember->setType(new (*_alloc) SpecializedType(specMember));
         }
-        result.push_back(specMember);
+        result.push_back({ specMember, nullptr });
       }
       return true;
     } else {
@@ -1424,13 +1426,13 @@ namespace tempest::sema::pass {
 
     auto astNode = static_cast<const ast::TypeDefn*>(td->ast());
     for (auto astBase : astNode->extends) {
-      NameLookupResult result;
+      MemberLookupResult result;
       if (resolveDefnName(scope, astBase, result)) {
         if (result.size() > 1) {
           diag.error(astBase) << "Ambiguous base type.";
         }
-        auto base = result[0];
-        auto baseKind = typeKindOf(base);
+        auto& base = result[0];
+        auto baseKind = typeKindOf(base.member);
         switch (td->type()->kind) {
           case Type::Kind::CLASS:
             if (baseKind != Type::Kind::CLASS) {
@@ -1472,18 +1474,18 @@ namespace tempest::sema::pass {
           default:
             assert(false && "Type cannot extend");
         }
-        td->extends().push_back(base);
+        td->extends().push_back(base.member);
       }
     }
 
     for (auto astBase : astNode->implements) {
-      NameLookupResult result;
+      MemberLookupResult result;
       if (resolveDefnName(scope, astBase, result)) {
         if (result.size() > 1) {
           diag.error(astBase) << "Ambiguous base type.";
         }
-        auto base = result[0];
-        auto baseKind = typeKindOf(base);
+        auto& base = result[0];
+        auto baseKind = typeKindOf(base.member);
         switch (td->type()->kind) {
           case Type::Kind::CLASS:
             if (baseKind != Type::Kind::INTERFACE && baseKind != Type::Kind::TRAIT) {
@@ -1512,7 +1514,7 @@ namespace tempest::sema::pass {
           default:
             assert(false && "Type cannot implement");
         }
-        td->implements().push_back(base);
+        td->implements().push_back(base.member);
       }
     }
 

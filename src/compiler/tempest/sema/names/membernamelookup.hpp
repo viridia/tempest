@@ -29,7 +29,8 @@ namespace tempest::sema::names {
   using tempest::sema::graph::Member;
   using tempest::sema::graph::Type;
   using tempest::sema::graph::NameCallback;
-  using tempest::sema::graph::NameLookupResultRef;
+  using tempest::sema::graph::MemberAndStem;
+  using tempest::sema::graph::MemberLookupResultRef;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
 
@@ -47,29 +48,29 @@ namespace tempest::sema::names {
     /** Given a list of members to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
-        const llvm::ArrayRef<Member*>& stem,
-        NameLookupResultRef& result,
+        const llvm::ArrayRef<MemberAndStem>& stem,
+        MemberLookupResultRef& result,
         size_t flags = INSTANCE_MEMBERS);
 
     /** Given a list of types to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const llvm::ArrayRef<const Type*>& stem,
-        NameLookupResultRef& result,
+        MemberLookupResultRef& result,
         size_t flags = INSTANCE_MEMBERS);
 
     /** Given a member to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const Member* stem,
-        NameLookupResultRef& result,
+        MemberLookupResultRef& result,
         size_t flags = INSTANCE_MEMBERS);
 
     /** Given a type to look in, find members with the specified name. */
     void lookup(
         const llvm::StringRef& name,
         const Type* stem,
-        NameLookupResultRef& result,
+        MemberLookupResultRef& result,
         size_t flags = INSTANCE_MEMBERS);
 
     /** Iterate through all names. */
@@ -83,7 +84,7 @@ namespace tempest::sema::names {
     void lookupInherited(
         const llvm::StringRef& name,
         UserDefinedType* stem,
-        NameLookupResultRef& result,
+        MemberLookupResultRef& result,
         size_t flags);
   };
 }

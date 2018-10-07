@@ -26,6 +26,7 @@
 #endif
 
 namespace tempest::sema::names {
+  using tempest::sema::graph::Expr;
   using tempest::sema::graph::GenericDefn;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::FunctionDefn;
@@ -36,7 +37,7 @@ namespace tempest::sema::names {
   using tempest::sema::graph::SymbolTable;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
-  using tempest::sema::graph::NameLookupResultRef;
+  using tempest::sema::graph::MemberLookupResultRef;
   using tempest::source::Location;
 
   /** Abstract scope for looking up unqualified names. */
@@ -47,7 +48,7 @@ namespace tempest::sema::names {
     LookupScope() = delete;
     LookupScope(const LookupScope&) = delete;
     virtual ~LookupScope() {}
-    virtual void lookup(const llvm::StringRef& name, NameLookupResultRef& result) = 0;
+    virtual void lookup(const llvm::StringRef& name, MemberLookupResultRef& result) = 0;
     virtual void forEach(const NameCallback& nameFn) = 0;
     virtual bool addMember(Member* member) { return false; };
 
@@ -63,7 +64,7 @@ namespace tempest::sema::names {
     Module* module;
 
     ModuleScope(LookupScope* prev, Module* module) : LookupScope(prev), module(module) {}
-    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    void lookup(const llvm::StringRef& name, MemberLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
     Member* subject() const {
       return nullptr;
@@ -75,7 +76,7 @@ namespace tempest::sema::names {
     GenericDefn* generic;
 
     TypeParamScope(LookupScope* prev, GenericDefn* generic) : LookupScope(prev), generic(generic) {}
-    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    void lookup(const llvm::StringRef& name, MemberLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
     Member* subject() const {
       return generic;
@@ -86,8 +87,11 @@ namespace tempest::sema::names {
   struct TypeDefnScope : public LookupScope {
     TypeDefn* typeDefn;
 
-    TypeDefnScope(LookupScope* prev, TypeDefn* typeDefn) : LookupScope(prev), typeDefn(typeDefn) {}
-    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    TypeDefnScope(LookupScope* prev, TypeDefn* typeDefn)
+      : LookupScope(prev)
+      , typeDefn(typeDefn)
+    {}
+    void lookup(const llvm::StringRef& name, MemberLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
     Member* subject() const {
       return typeDefn;
@@ -102,7 +106,7 @@ namespace tempest::sema::names {
       : LookupScope(prev)
       , funcDefn(funcDefn)
     {}
-    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    void lookup(const llvm::StringRef& name, MemberLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
     Member* subject() const {
       return funcDefn;
@@ -112,7 +116,7 @@ namespace tempest::sema::names {
   /** A lookup scope representing an enclosing local scope. */
   struct LocalScope : public LookupScope {
     LocalScope(LookupScope* prev) : LookupScope(prev) {}
-    void lookup(const llvm::StringRef& name, NameLookupResultRef& result);
+    void lookup(const llvm::StringRef& name, MemberLookupResultRef& result);
     void forEach(const NameCallback& nameFn);
     bool addMember(Member* member);
     Member* subject() const {

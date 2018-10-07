@@ -106,11 +106,11 @@ namespace tempest::sema::pass {
     Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
     Type* visitCallName(
         ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs);
-    void findConstructors(const ArrayRef<Member*>& types, NameLookupResultRef& ctors);
+    void findConstructors(const ArrayRef<MemberAndStem>& types, MemberLookupResultRef& ctors);
     Type* addCallSite(
         ApplyFnOp* callExpr,
         Expr* fn,
-        const ArrayRef<Member*>& methodList,
+        const ArrayRef<MemberAndStem>& methodList,
         const ArrayRef<Expr*>& args,
         const ::ArrayRef<Type*>& argTypes,
         ConstraintSolver& cs);

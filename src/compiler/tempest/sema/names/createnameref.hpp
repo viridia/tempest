@@ -21,13 +21,13 @@ namespace tempest::support {
 namespace tempest::sema::names {
   using tempest::sema::graph::Defn;
   using tempest::sema::graph::Expr;
-  using tempest::sema::graph::NameLookupResultRef;
+  using tempest::sema::graph::MemberLookupResultRef;
   using tempest::source::Location;
 
   Expr* createNameRef(
       support::BumpPtrAllocator& alloc,
       const Location& loc,
-      const NameLookupResultRef& result,
+      const MemberLookupResultRef& result,
       Defn* subject,
       Expr* stem,
       bool preferPrivate,

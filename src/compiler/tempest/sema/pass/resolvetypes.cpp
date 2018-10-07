@@ -204,7 +204,7 @@ namespace tempest::sema::pass {
     }
 
     Expr* resolveOperatorName(const Location& loc, const StringRef& name) {
-      NameLookupResult result;
+      MemberLookupResult result;
       _scope->lookup(name, result);
       if (result.size() > 0) {
         auto nr = createNameRef(_alloc, loc, result,
@@ -217,7 +217,7 @@ namespace tempest::sema::pass {
       } else {
         auto mref = new (_alloc) MemberListExpr(
             Expr::Kind::FUNCTION_REF_OVERLOAD, loc, name,
-            llvm::ArrayRef<Member*>());
+            llvm::ArrayRef<MemberAndStem>());
         mref->useADL = true;
         mref->isOperator = true;
         return mref;
@@ -700,7 +700,7 @@ namespace tempest::sema::pass {
         }
         auto baseClsDef = cast<UserDefinedType>(_selfType)->defn();
         MemberNameLookup lookup(_cu.spec());
-        NameLookupResult lookupResult;
+        MemberLookupResult lookupResult;
         lookup.lookup(subjectFn->name(), baseClsDef, lookupResult,
             MemberNameLookup::INHERITED_ONLY | MemberNameLookup::INSTANCE_MEMBERS);
         if (lookupResult.empty()) {
@@ -788,7 +788,7 @@ namespace tempest::sema::pass {
       return addCallSite(callExpr, fn, mref->members, args, argTypes, cs);
     } else if (fn->kind == Expr::Kind::TYPE_REF_OVERLOAD) {
       auto mref = static_cast<MemberListExpr*>(fn);
-      NameLookupResult ctors;
+      MemberLookupResult ctors;
       findConstructors(mref->members, ctors);
       if (ctors.empty()) {
         diag.error(fn) << "No constructor found for type  '" << mref->name << "'.";
@@ -830,8 +830,8 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::findConstructors(
-      const ArrayRef<Member*>& members,
-      NameLookupResultRef& ctors) {
+      const ArrayRef<MemberAndStem>& members,
+      MemberLookupResultRef& ctors) {
     MemberNameLookup lookup(_cu.spec());
     lookup.lookup("new", members, ctors);
   }
@@ -839,7 +839,7 @@ namespace tempest::sema::pass {
   Type* ResolveTypesPass::addCallSite(
       ApplyFnOp* callExpr,
       Expr* fn,
-      const ArrayRef<Member*>& methodList,
+      const ArrayRef<MemberAndStem>& methodList,
       const ArrayRef<Expr*>& args,
       const ArrayRef<Type*>& argTypes,
       ConstraintSolver& cs) {
@@ -856,12 +856,12 @@ namespace tempest::sema::pass {
 
     // For each possible function that could have been called.
     for (auto method : methodList) {
-      auto cc = site->addCandidate(method);
+      auto cc = site->addCandidate(method.member, method.stem);
 
       // Collect explicit type arguments
       std::unordered_map<TypeParameter*, const Type*> explicitTypeArgs;
-      if (method->kind == Member::Kind::SPECIALIZED) {
-        auto sp = static_cast<SpecializedDefn*>(method);
+      if (method.member->kind == Member::Kind::SPECIALIZED) {
+        auto sp = static_cast<SpecializedDefn*>(method.member);
         for (size_t i = 0; i < sp->typeParams().size(); i += 1) {
           auto arg = sp->typeArgs()[i];
           auto param = sp->typeParams()[i];
@@ -869,11 +869,11 @@ namespace tempest::sema::pass {
             explicitTypeArgs[param] = arg;
           }
         }
-        method = sp->generic();
+        method.member = sp->generic();
       }
 
       // Make sure function type is resolved.
-      auto function = cast<FunctionDefn>(method);
+      auto function = cast<FunctionDefn>(method.member);
       auto params = function->params();
       if (!function->type()) {
         if (!resolve(function)) {
@@ -1374,8 +1374,11 @@ namespace tempest::sema::pass {
     if (callExpr->function->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
       // Create a new signular function reference.
       auto fnRef = static_cast<MemberListExpr*>(callExpr->function);
+      // If the function reference had an explicit stem ('a.x()') then use it, otherwise
+      // preserve the implicit stem ('self');
+      auto stem = fnRef->stem ? fnRef->stem : candidate->stem;
       callExpr->function = new (*_alloc) DefnRef(
-          Expr::Kind::FUNCTION_REF, site->location, method, fnRef->stem, fnType);
+          Expr::Kind::FUNCTION_REF, site->location, method, stem, fnType);
       callExpr->type = const_cast<Type *>(returnType);
     } else if (callExpr->function->kind == Expr::Kind::TYPE_REF_OVERLOAD) {
       // Create a new singular constructor reference.

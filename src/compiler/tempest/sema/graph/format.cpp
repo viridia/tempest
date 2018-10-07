@@ -452,7 +452,7 @@ namespace tempest::sema::graph {
 
       case Expr::Kind::FUNCTION_REF_OVERLOAD: {
         auto fnRef = static_cast<const MemberListExpr*>(e);
-        out << fnRef->members.front()->name();
+        out << fnRef->members.front().member->name();
         if (fnRef->members.size() > 1) {
           out << "×" << fnRef->members.size();
         }

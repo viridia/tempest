@@ -15,23 +15,23 @@ namespace tempest::sema::names {
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::TypeParameter;
   using tempest::sema::graph::UserDefinedType;
-  using tempest::sema::graph::NameLookupResult;
-  using tempest::sema::graph::NameLookupResultRef;
+  using tempest::sema::graph::MemberLookupResult;
+  using tempest::sema::graph::MemberLookupResultRef;
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
-      const llvm::ArrayRef<Member*>& stem,
-      NameLookupResultRef& result,
+      const llvm::ArrayRef<MemberAndStem>& stem,
+      MemberLookupResultRef& result,
       size_t flags) {
-    for (auto m : stem) {
-      lookup(name, m, result, flags);
+    for (auto& m : stem) {
+      lookup(name, m.member, result, flags);
     }
   }
 
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const llvm::ArrayRef<const Type*>& stem,
-      NameLookupResultRef& result,
+      MemberLookupResultRef& result,
       size_t flags) {
     for (auto t : stem) {
       lookup(name, t, result, flags);
@@ -41,20 +41,20 @@ namespace tempest::sema::names {
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const Member* stem,
-      NameLookupResultRef& result,
+      MemberLookupResultRef& result,
       size_t flags) {
 
-    NameLookupResult members;
+    MemberLookupResult members;
     switch (stem->kind) {
       case Member::Kind::MODULE:
-        static_cast<const Module*>(stem)->memberScope()->lookupName(name, members);
+        static_cast<const Module*>(stem)->memberScope()->lookup(name, members, nullptr);
         break;
       case Member::Kind::TYPE: {
         auto td = static_cast<const TypeDefn*>(stem);
         if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
           lookupInherited(name, udt, result, flags);
         } else {
-          td->memberScope()->lookupName(name, members);
+          td->memberScope()->lookup(name, members, nullptr);
         }
         break;
       }
@@ -70,7 +70,10 @@ namespace tempest::sema::names {
         lookup(name, sp->generic(), members, flags);
         for (auto gm : members) {
           // TODO: if gm is already specialized, then flatten
-          result.push_back(_specs.specialize(static_cast<graph::Defn*>(gm), sp->typeArgs()));
+          result.push_back({
+            _specs.specialize(static_cast<graph::Defn*>(gm.member), sp->typeArgs()),
+            gm.stem
+          });
         }
         return;
       }
@@ -93,7 +96,7 @@ namespace tempest::sema::names {
   void MemberNameLookup::lookup(
       const llvm::StringRef& name,
       const Type* stem,
-      NameLookupResultRef& result,
+      MemberLookupResultRef& result,
       size_t flags) {
     if (auto udt = dyn_cast<UserDefinedType>(stem)) {
       lookup(name, udt->defn(), result, flags);
@@ -107,11 +110,11 @@ namespace tempest::sema::names {
   void MemberNameLookup::lookupInherited(
       const llvm::StringRef& name,
       UserDefinedType* udt,
-      NameLookupResultRef& result,
+      MemberLookupResultRef& result,
       size_t flags) {
     if (!(flags & INHERITED_ONLY)) {
-      NameLookupResult members;
-      udt->defn()->memberScope()->lookupName(name, members);
+      MemberLookupResult members;
+      udt->defn()->memberScope()->lookup(name, members, nullptr);
 
       auto isStatic = [](Member* m) -> bool {
         auto defn = dyn_cast<Defn>(m);
@@ -120,7 +123,7 @@ namespace tempest::sema::names {
 
       if (members.size() > 0) {
         for (auto m : members) {
-          if (isStatic(m) ? (flags & STATIC_MEMBERS) : (flags & INSTANCE_MEMBERS)) {
+          if (isStatic(m.member) ? (flags & STATIC_MEMBERS) : (flags & INSTANCE_MEMBERS)) {
             result.push_back(m);
           }
         }

@@ -21,6 +21,16 @@ namespace tempest::sema::graph {
     }
   }
 
+  void SymbolTable::lookup(
+      const llvm::StringRef& name, MemberLookupResultRef &result, Expr* stem) const {
+    EntryMap::const_iterator it = _entries.find(name);
+    if (it != _entries.end()) {
+      for (auto member : it->second) {
+        result.push_back({ member, stem });
+      }
+    }
+  }
+
   bool SymbolTable::exists(const llvm::StringRef& name, source::Location &location) const {
     EntryMap::const_iterator it = _entries.find(name);
     if (it != _entries.end()) {

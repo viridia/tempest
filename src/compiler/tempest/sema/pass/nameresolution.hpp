@@ -74,20 +74,19 @@ namespace tempest::sema::pass {
     Expr* resolveOperatorName(
         const source::Location& loc, LookupScope* scope, const StringRef& name);
     bool resolveDefnName(
-        LookupScope* scope, const ast::Node* node, NameLookupResultRef& result,
+        LookupScope* scope, const ast::Node* node, MemberLookupResultRef& result,
         bool allowEmpty = false);
     bool resolveMemberName(
         const source::Location& loc,
         Member* scope,
         const llvm::StringRef& name,
-        NameLookupResultRef& result);
+        MemberLookupResultRef& result);
 
   private:
     CompilationUnit& _cu;
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
     size_t _numInstanceVars = 0;
-    Expr* _implicitSelf = nullptr;
     FunctionDefn* _func = nullptr;
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
 

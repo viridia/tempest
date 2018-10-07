@@ -10,14 +10,14 @@ namespace tempest::sema::names {
   using tempest::intrinsic::IntrinsicDefns;
   using tempest::sema::graph::Module;
   using tempest::sema::graph::PrimitiveType;
-  using tempest::sema::graph::NameLookupResult;
+  using tempest::sema::graph::MemberLookupResult;
   using llvm::dyn_cast;
 
-  void ModuleScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
-    module->memberScope()->lookupName(name, result);
+  void ModuleScope::lookup(const llvm::StringRef& name, MemberLookupResultRef& result) {
+    module->memberScope()->lookup(name, result, nullptr);
     // TODO: Core module.
     if (result.empty()) {
-      IntrinsicDefns::get()->builtinScope->lookupName(name, result);
+      IntrinsicDefns::get()->builtinScope->lookup(name, result, nullptr);
     }
     if (result.empty() && prev) {
       prev->lookup(name, result);
@@ -33,9 +33,9 @@ namespace tempest::sema::names {
     }
   }
 
-  void TypeParamScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+  void TypeParamScope::lookup(const llvm::StringRef& name, MemberLookupResultRef& result) {
     auto resultSize = result.size();
-    generic->typeParamScope()->lookupName(name, result);
+    generic->typeParamScope()->lookup(name, result, nullptr);
     if (result.size() <= resultSize && prev) {
       prev->lookup(name, result);
     }
@@ -48,11 +48,21 @@ namespace tempest::sema::names {
     }
   }
 
-  void TypeDefnScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
-    auto resultSize = result.size();
-    typeDefn->memberScope()->lookupName(name, result);
-    if (result.size() > resultSize) {
-      // If we found a member with that name, return
+  void TypeDefnScope::lookup(const llvm::StringRef& name, MemberLookupResultRef& result) {
+    MemberLookupResult memberResults;
+    typeDefn->memberScope()->lookup(name, memberResults, typeDefn->implicitSelf());
+    auto isInstanceMember = [](Member* m) -> bool {
+      if (auto d = dyn_cast<graph::Defn>(m)) {
+        return d->isMember();
+      }
+      return false;
+    };
+
+    if (memberResults.size() > 0) {
+      // If we found any members with that name, return, don't check inherited scopes.
+      for (auto& m : memberResults) {
+        result.push_back({ m.member, isInstanceMember(m.member) ? m.stem : nullptr });
+      }
       return;
     }
     if (auto udt = dyn_cast<UserDefinedType>(typeDefn->type())) {
@@ -63,7 +73,7 @@ namespace tempest::sema::names {
         case Type::Kind::TRAIT:
         case Type::Kind::EXTENSION: {
           auto resultSize = result.size();
-          typeDefn->typeParamScope()->lookupName(name, result);
+          typeDefn->typeParamScope()->lookup(name, result, nullptr);
           if (result.size() > resultSize) {
             // If we found a type parameter with that name, return it.
             return;
@@ -92,12 +102,12 @@ namespace tempest::sema::names {
     }
   }
 
-  void FunctionScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+  void FunctionScope::lookup(const llvm::StringRef& name, MemberLookupResultRef& result) {
     auto resultSize = result.size();
-    funcDefn->paramScope()->lookupName(name, result);
+    funcDefn->paramScope()->lookup(name, result, nullptr);
 
     if (result.size() <= resultSize && !funcDefn->typeParams().empty()) {
-      funcDefn->typeParamScope()->lookupName(name, result);
+      funcDefn->typeParamScope()->lookup(name, result, nullptr);
     }
 
     if (result.size() <= resultSize && prev) {
@@ -113,10 +123,10 @@ namespace tempest::sema::names {
     }
   }
 
-  void LocalScope::lookup(const llvm::StringRef& name, NameLookupResultRef& result) {
+  void LocalScope::lookup(const llvm::StringRef& name, MemberLookupResultRef& result) {
     // For local scopes, we only return the most recent definition of a name.
-    NameLookupResult names;
-    _symbols.lookupName(name, names);
+    MemberLookupResult names;
+    _symbols.lookup(name, names, nullptr);
     if (names.size() > 0) {
       result.push_back(names.back());
     } else {

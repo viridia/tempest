@@ -270,6 +270,11 @@ namespace tempest::sema::graph {
     size_t numInstanceVars() const { return _numInstanceVars; }
     void setNumInstanceVars(size_t numInstanceVars) { _numInstanceVars = numInstanceVars; }
 
+    /** When a member is reference by unqualified name, it is presumed to be accessed
+        relative to an implicit self expression. */
+    Expr* implicitSelf() const { return _implicitSelf; }
+    void setImplicitSelf(Expr* implicitSelf) { _implicitSelf = implicitSelf; }
+
     /** Dynamic casting support. */
     static bool classof(const TypeDefn* m) { return true; }
     static bool classof(const Member* m) { return m->kind == Kind::TYPE; }
@@ -285,6 +290,7 @@ namespace tempest::sema::graph {
     IntrinsicType _intrinsic = IntrinsicType::NONE;
     bool _baseTypesResolved = false;
     size_t _numInstanceVars = 0;
+    Expr* _implicitSelf = nullptr;
 
 
   //   # List of friend declarations for thibs class

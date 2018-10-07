@@ -50,7 +50,7 @@ namespace tempest::sema::convert {
           member->kind == Member::Kind::LET_DEF ||
           member->kind == Member::Kind::CONST_DEF) {
         MemberNameLookup lookup(CompilationUnit::theCU->spec());
-        NameLookupResult lookupResult;
+        MemberLookupResult lookupResult;
         lookup.lookup(member->name(), src, lookupResult);
         if (lookupResult.empty()) {
           return false;
@@ -69,8 +69,8 @@ namespace tempest::sema::convert {
           }
           assert(fdef->type()->returnType != nullptr);
           FunctionDefn* target = nullptr;
-          for (auto srcMember : lookupResult) {
-            if (auto srcFunc = dyn_cast<FunctionDefn>(srcMember)) {
+          for (auto& srcMember : lookupResult) {
+            if (auto srcFunc = dyn_cast<FunctionDefn>(srcMember.member)) {
               if (!srcFunc->isStatic()) {
                 // TODO: We might want to be more precise here than just 'assignable'.
                 // It really means can we correctly call srcFunc through fdef's type signature.

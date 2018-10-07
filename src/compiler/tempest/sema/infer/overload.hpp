@@ -119,6 +119,9 @@ namespace tempest::sema::infer {
     /** The definition being called. */
     Member* method;
 
+    /** The 'stem' of the callable (i.e. the self param). */
+    Expr* stem;
+
     /** List of function parameters. */
     llvm::ArrayRef<ParameterDefn*> params;
 
@@ -134,9 +137,10 @@ namespace tempest::sema::infer {
     /** Indices that map argument lots to parameter slots. */
     llvm::SmallVector<size_t, 8> paramAssignments;
 
-    CallCandidate(OverloadSite* site, size_t ordinal, Member* member)
+    CallCandidate(OverloadSite* site, size_t ordinal, Member* member, Expr* stem)
       : OverloadCandidate(OverloadKind::CALL, ordinal, site)
       , method(member)
+      , stem(stem)
     {}
 
     virtual Member* getMember() const { return method; }
@@ -249,8 +253,8 @@ namespace tempest::sema::infer {
       , argTypes(argTypes.begin(), argTypes.end())
     {}
 
-    CallCandidate* addCandidate(Member* method) {
-      auto cc = new CallCandidate(this, candidates.size(), method);
+    CallCandidate* addCandidate(Member* method, Expr* stem) {
+      auto cc = new CallCandidate(this, candidates.size(), method, stem);
       candidates.push_back(cc);
       return cc;
     }

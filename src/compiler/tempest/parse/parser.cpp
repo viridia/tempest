@@ -639,6 +639,7 @@ namespace tempest::parse {
       fn->getter = isGetter;
       fn->setter = isSetter;
       fn->returnType = returnType;
+      fn->constructor = name == "new";
       for (auto p : fn->params) {
         if (static_cast<const ast::Parameter*>(p)->variadic) {
           fn->variadic = true;

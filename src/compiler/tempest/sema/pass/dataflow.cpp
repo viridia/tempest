@@ -2,14 +2,64 @@
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/pass/dataflow.hpp"
+#include "tempest/sema/transform/visitor.hpp"
 #include <assert.h>
 
 namespace tempest::sema::pass {
   using llvm::StringRef;
   using tempest::error::diag;
+  using tempest::sema::transform::ExprVisitor;
   using namespace llvm;
   using namespace tempest::sema::graph;
   using namespace tempest::sema::names;
+
+  class FindSuperCtorCall : public ExprVisitor {
+  public:
+    Expr* superCall = nullptr;
+    bool firstSt = true;
+
+    Expr* visit(Expr* e) {
+      if (e == nullptr) {
+        return e;
+      }
+
+      switch (e->kind) {
+        case Expr::Kind::ASSIGN:
+        case Expr::Kind::CALL: {
+          e = ExprVisitor::visit(e);
+          firstSt = false;
+          return e;
+        }
+
+        case Expr::Kind::CALL_SUPER: {
+          auto callExpr = static_cast<ApplyFnOp*>(e);
+          auto callable = callExpr->function;
+          if (callable->kind == Expr::Kind::FUNCTION_REF) {
+            auto dref = static_cast<DefnRef*>(callable);
+            auto fnref = cast<FunctionDefn>(unwrapSpecialization(dref->defn));
+            auto selfParam = dref->stem;
+            if (selfParam && selfParam->kind == Expr::Kind::SELF && fnref->isConstructor()) {
+              if (superCall) {
+                diag.error(e) << "Only one call to superclass constructor is permitted.";
+              } else {
+                superCall = e;
+                if (!firstSt) {
+                  diag.error(e) <<
+                      "Call to superclass constructor must come before other statements.";
+                }
+              }
+            }
+          }
+          e = ExprVisitor::visit(e);
+          firstSt = false;
+          return e;
+        }
+
+        default:
+          return ExprVisitor::visit(e);
+      }
+    }
+  };
 
   void DataFlowPass::run() {
     while (_sourcesProcessed < _cu.sourceModules().size()) {
@@ -83,6 +133,7 @@ namespace tempest::sema::pass {
       visitExpr(fd->body(), flow);
       _currentMethod = prevCurrentMethod;
 
+      // Make sure there are no unused / uninitialized local variables.
       for (auto ld : fd->localDefns()) {
         if (auto vd = dyn_cast<ValueDefn>(ld)) {
           if (!flow.localVarsRead[vd->fieldIndex()]) {
@@ -91,6 +142,81 @@ namespace tempest::sema::pass {
             } else {
               diag.error(ld) << "Local variable '" << ld->name() << "' is never read.";
             }
+          }
+        }
+      }
+
+      // Make sure that constructors initialize all variables and call the superclass ctor.
+      if (fd->isConstructor()) {
+        auto td = cast<TypeDefn>(fd->definedIn());
+        llvm::SmallVector<Expr*, 8> initStmts;
+        FindSuperCtorCall findSuper;
+        findSuper.visit(fd->body());
+
+        if (!findSuper.superCall) {
+          assert(td->extends().size() == 1);
+          Env baseEnv;
+          auto baseCls = baseEnv.unwrap(td->extends()[0]);
+          MemberLookupResult ctors;
+          cast<TypeDefn>(baseCls)->memberScope()->lookup("new", ctors, nullptr);
+          FunctionDefn* defaultCtor = nullptr;
+          if (ctors.empty()) {
+            diag.error(td) << "Base class lacks any constructor definitions";
+          } else {
+            for (auto m : ctors) {
+              if (auto ctor = dyn_cast<FunctionDefn>(m.member)) {
+                if (ctor->params().size() == 0) {
+                  defaultCtor = ctor;
+                  break;
+                }
+              }
+            }
+
+            if (!defaultCtor) {
+              diag.error(td) << "Base class has no default constructor";
+            } else {
+              // Inset automatically-generated superclass contructor call.
+              Member* ctor = defaultCtor;
+              if (baseEnv.args.size() > 0) {
+                ctor = _cu.spec().specialize(defaultCtor, baseEnv.args);
+              }
+              // TODO: Probably need to upcast self.
+              auto dref = new (*_alloc) DefnRef(
+                  Expr::Kind::VAR_REF, fd->location(), ctor, td->implicitSelf());
+              initStmts.push_back(
+                  new (*_alloc) ApplyFnOp(Expr::Kind::CALL_SUPER, fd->location(), dref, {}));
+            }
+          }
+        }
+
+        for (auto m : td->members()) {
+          if (auto vd = dyn_cast<ValueDefn>(m)) {
+            if (!vd->isStatic()) {
+              if (!flow.memberVarsSet[vd->fieldIndex()]) {
+                if (vd->init()) {
+                  auto dref = new (*_alloc) DefnRef(
+                      Expr::Kind::VAR_REF, fd->location(), vd, td->implicitSelf());
+                  initStmts.push_back(new (*_alloc) BinaryOp(Expr::Kind::ASSIGN, dref, vd->init()));
+                } else {
+                  diag.error(fd) << "Field not initialized: '" << vd->name() << "'.";
+                }
+              }
+            }
+          }
+        }
+
+        if (!initStmts.empty()) {
+          // Append 'super' call and field initializations
+          // Uhhh, super has to come first.
+          if (auto blk = dyn_cast<BlockStmt>(fd->body())) {
+            if (findSuper.superCall) {
+              assert(false && "Implement");
+            }
+            initStmts.append(blk->stmts.begin(), blk->stmts.end());
+            blk->stmts = _alloc->copyOf(initStmts);
+          } else {
+            fd->setBody(new (*_alloc) BlockStmt(
+              fd->body()->location, initStmts, fd->body(), fd->body()->type));
           }
         }
       }
@@ -115,7 +241,8 @@ namespace tempest::sema::pass {
       case Expr::Kind::SUPER:
         break;
 
-      case Expr::Kind::CALL: {
+      case Expr::Kind::CALL:
+      case Expr::Kind::CALL_SUPER: {
         auto callExpr = static_cast<ApplyFnOp*>(e);
         visitExpr(callExpr->function, flow);
         for (auto arg : callExpr->args) {

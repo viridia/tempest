@@ -110,7 +110,7 @@ namespace tempest::sema::graph {
     /** Dynamic casting support. */
     static bool classof(const BinaryOp* e) { return true; }
     static bool classof(const Expr* e) {
-      return e->kind == Kind::CALL;
+      return e->kind == Kind::CALL || e->kind == Kind::CALL_SUPER;
     }
   };
 }

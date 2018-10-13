@@ -10,6 +10,7 @@
 * Boolean coercion
   * isTruthy function
 * ADL lookup
+* Member function definitions don't really need 'fn'.
 * Member access operator
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
   * inferred source types

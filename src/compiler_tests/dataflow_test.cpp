@@ -108,7 +108,7 @@ TEST_CASE("DataFlow", "[sema]") {
   SECTION("unused variable") {
     REQUIRE_THAT(
       compileError(cu,
-      "class A {\n"
+          "class A {\n"
           "  x: i32;\n"
           "  fn new() {\n"
           "    let x: i32 = 0;\n"
@@ -121,7 +121,7 @@ TEST_CASE("DataFlow", "[sema]") {
   SECTION("uninitialized variable") {
     REQUIRE_THAT(
       compileError(cu,
-      "class A {\n"
+          "class A {\n"
           "  x: i32;\n"
           "  fn new() {\n"
           "    let y: i32;\n"
@@ -130,5 +130,63 @@ TEST_CASE("DataFlow", "[sema]") {
           "}\n"
       ),
       Catch::Contains("uninitialized variable"));
+  }
+
+  SECTION("uninitialized field") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "class A {\n"
+          "  x: i32;\n"
+          "  fn new() {}\n"
+          "}\n"
+      ),
+      Catch::Contains("Field not initialized"));
+  }
+
+  SECTION("base class with no default constructor") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "class A {\n"
+          "  fn new(x: i32) {}\n"
+          "}\n"
+          "class B extends A {\n"
+          "  fn new() {}\n"
+          "}\n"
+      ),
+      Catch::Contains("Base class has no default constructor"));
+  }
+
+  SECTION("auto-initialized variable") {
+    auto mod = compile(cu,
+      "class A {\n"
+      "  x: i32 = 0;\n"
+      "  fn new() {}\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    auto fd = cast<FunctionDefn>(td->members().back());
+    auto blk = cast<BlockStmt>(fd->body());
+    REQUIRE(blk->stmts.size() == 2);
+    REQUIRE(blk->stmts[0]->kind == Expr::Kind::CALL_SUPER);
+    REQUIRE(blk->stmts[1]->kind == Expr::Kind::ASSIGN);
+  }
+
+  SECTION("implicit call to super of templated base class") {
+    auto mod = compile(cu,
+      "class A[T] {\n"
+      "  fn new() {}\n"
+      "}\n"
+      "class B extends A[i32] {\n"
+      "  fn new() {}\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    auto fd = cast<FunctionDefn>(td->members().back());
+    auto blk = cast<BlockStmt>(fd->body());
+    REQUIRE(blk->stmts.size() == 1);
+    REQUIRE(blk->stmts[0]->kind == Expr::Kind::CALL_SUPER);
+    auto call = cast<ApplyFnOp>(blk->stmts[0]);
+    auto callable = cast<DefnRef>(call->function);
+    REQUIRE(callable->defn->kind == Defn::Kind::SPECIALIZED);
   }
 }

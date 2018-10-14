@@ -1,12 +1,21 @@
 #include "catch.hpp"
+#include "tempest/compiler/compilationunit.hpp"
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/gen/codegen.hpp"
 #include "tempest/gen/cgmodule.hpp"
+#include "tempest/parse/lexer.hpp"
+#include "tempest/parse/parser.hpp"
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/graph/typestore.hpp"
+#include "tempest/sema/pass/buildgraph.hpp"
+#include "tempest/sema/pass/dataflow.hpp"
+#include "tempest/sema/pass/expandspecialization.hpp"
+#include "tempest/sema/pass/nameresolution.hpp"
+#include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/opt/basicopts.hpp"
 
 #include "llvm/IR/Verifier.h"
@@ -16,11 +25,47 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetSelect.h"
 
+using namespace tempest::error;
 using namespace tempest::sema::graph;
+using namespace tempest::sema::pass;
 using namespace tempest::gen;
 using namespace tempest::opt;
+using tempest::parse::Parser;
 using tempest::source::Location;
 using llvm::verifyModule;
+
+class TestSource : public tempest::source::StringSource {
+public:
+  TestSource(llvm::StringRef source)
+    : tempest::source::StringSource("test.txt", source)
+  {}
+};
+
+namespace {
+  /** Parse a module definition and apply buildgraph & nameresolution pass. */
+  std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
+    auto prevErrorCount = diag.errorCount();
+    auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
+    Parser parser(mod->source(), mod->astAlloc());
+    CompilationUnit::theCU = &cu;
+    auto result = parser.module();
+    mod->setAst(result);
+    BuildGraphPass bgPass(cu);
+    bgPass.process(mod.get());
+    NameResolutionPass nrPass(cu);
+    nrPass.process(mod.get());
+    ResolveTypesPass rtPass(cu);
+    rtPass.process(mod.get());
+    DataFlowPass dfPass(cu);
+    dfPass.process(mod.get());
+    ExpandSpecializationPass esPass(cu);
+    esPass.process(mod.get());
+    esPass.run();
+    CompilationUnit::theCU = nullptr;
+    REQUIRE(diag.errorCount() == prevErrorCount);
+    return mod;
+  }
+}
 
 TEST_CASE("CodeGen", "[gen]") {
   TypeStore ts;
@@ -99,5 +144,36 @@ TEST_CASE("CodeGen", "[gen]") {
     // auto out = llvm::raw_fd_ostream("out.ll", EC, llvm::sys::fs::F_None);
     // mod->irModule()->print(llvm::errs(), nullptr);
     // mod->irModule()->print(out, nullptr);
+  }
+
+  SECTION("compile constructor call") {
+    CompilationUnit cu;
+    auto mod = compile(cu,
+      "class A {\n"
+      "  fn new() {}\n"
+      "}\n"
+      "fn test {\n"
+      "  return A();\n"
+      "}\n"
+    );
+
+    CodeGen gen(context);
+    auto cgMod = gen.createModule("TestMod");
+    cgMod->diInit("testmod.te", "");
+    gen.genSymbols(cu.symbols());
+    cgMod->diFinalize();
+    // cgMod->irModule()->print(llvm::errs(), nullptr);
+    REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
+
+    auto clsDecA = cgMod->irModule()->getGlobalVariable("test.mod.A::cldesc");
+    REQUIRE(clsDecA != nullptr);
+
+    auto ctorA = cgMod->irModule()->getFunction("test.mod.A.new");
+    REQUIRE(ctorA != nullptr);
+    REQUIRE(ctorA->size() > 0);
+
+    auto testFn = cgMod->irModule()->getFunction("test.mod.test->test.mod.A");
+    REQUIRE(testFn != nullptr);
+    REQUIRE(testFn->size() > 0);
   }
 }

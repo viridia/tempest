@@ -69,6 +69,8 @@ namespace tempest::gen {
       case Type::Kind::FUNCTION: {
         auto fty = static_cast<const FunctionType*>(ty);
         llvm::SmallVector<llvm::Type*, 16> paramTypes;
+        // Context parameter for objects and closures.
+        paramTypes.push_back(llvm::Type::getVoidTy(_context)->getPointerTo());
         for (auto param : fty->paramTypes) {
           // TODO: getParamType or getInternalParamType
           paramTypes.push_back(getMemberType(param, typeArgs));

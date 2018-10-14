@@ -12,7 +12,10 @@ namespace tempest::gen {
     for (auto sym : symbols.list()) {
       if (auto fsym = dyn_cast<FunctionSym>(sym)) {
         CGFunctionBuilder builder(*this, _module, fsym->typeArgs);
+        assert(fsym->body);
         builder.genFunction(fsym->function, fsym->body);
+      } else if (auto clsSym = dyn_cast<ClassDescriptorSym>(sym)) {
+        _module->genClassDesc(clsSym);
       }
     }
   }

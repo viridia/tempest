@@ -69,6 +69,9 @@ namespace tempest::error {
     /** Number of errors encountered so far. */
     virtual int errorCount() const { return 0; }
 
+    /** Reset the error counters (for testing). */
+    virtual void reset() {}
+
     /** Increase the indentation level. */
     void indent() {
       setIndentLevel(indentLevel() + 1);
@@ -122,6 +125,12 @@ namespace tempest::error {
     }
 
     void report(Severity sev, Location loc, StringRef msg);
+
+    void reset() {
+      for (int i = 0; i < SEVERITY_LEVELS; ++i) {
+        _messageCountArray[i] = 0;
+      }
+    }
 
     /** Print a stack backtrace if possible. */
     static void printStackTrace(int skipFrames);

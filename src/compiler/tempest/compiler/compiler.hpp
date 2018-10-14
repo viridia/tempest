@@ -22,6 +22,7 @@ namespace tempest::compiler {
     CompilationUnit _cu;
 
     int addSourceFiles();
+    void runPasses();
     void selectTarget(tempest::gen::CGModule* mod);
     void outputModule(tempest::gen::CGModule* mod);
   };

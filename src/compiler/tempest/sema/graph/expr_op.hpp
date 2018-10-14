@@ -93,8 +93,18 @@ namespace tempest::sema::graph {
   /** Operator with a variable number of arguments. */
   class ApplyFnOp : public Expr {
   public:
+    enum Flavor {
+      NEW,      // Call to a constructor, context is newly-allocated memory.
+      STATIC,   // Call to a global or static function - null context argument.
+      VTABLE,   // Call to a method via a vtable
+      ITABLE,   // Call via interface dispatch
+      INDIRECT, // Call via a function reference (with stem)
+      EXTERN_C, // Call to an external "C" function - no context argument.
+    };
+
     Expr* function;
     llvm::ArrayRef<Expr*> args;
+    Flavor flavor = STATIC;
 
     ApplyFnOp(
           Kind kind,

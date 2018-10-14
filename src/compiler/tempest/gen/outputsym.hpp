@@ -13,6 +13,10 @@
   #include "tempest/sema/graph/specstore.hpp"
 #endif
 
+namespace llvm {
+  class GlobalVariable;
+}
+
 namespace tempest::gen {
   using tempest::sema::graph::Env;
   using tempest::sema::graph::Expr;
@@ -73,6 +77,8 @@ namespace tempest::gen {
   public:
     /** The class definition. */
     TypeDefn* typeDefn;
+
+    llvm::GlobalVariable* desc = nullptr;
 
     ClassDescriptorSym(TypeDefn* typeDefn, ArrayRef<const Type*> typeArgs)
       : OutputSym(Kind::CLS_DESC, typeArgs)

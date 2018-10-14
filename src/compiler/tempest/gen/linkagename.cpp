@@ -132,21 +132,32 @@ namespace tempest::gen {
       case Type::Kind::FUNCTION: {
         auto funcTy = static_cast<const FunctionType*>(ty);
         char sep = 0;
-        out.push_back('(');
-        for (auto member : funcTy->paramTypes) {
-          if (sep) {
-            out.push_back(sep);
+        if (funcTy->paramTypes.size() > 0) {
+          out.push_back('(');
+          for (auto member : funcTy->paramTypes) {
+            if (sep) {
+              out.push_back(sep);
+            }
+            sep = ',';
+            getTypeLinkageName(out, member, typeArgs);
           }
-          sep = ',';
-          getTypeLinkageName(out, member, typeArgs);
+          out.push_back(')');
         }
-        out.push_back(')');
-        out.append("->");
-        getTypeLinkageName(out, funcTy->returnType, typeArgs);
+        if (funcTy->returnType->kind != Type::Kind::VOID) {
+          out.append("->");
+          getTypeLinkageName(out, funcTy->returnType, typeArgs);
+        }
+        break;
+      }
+
+      case Type::Kind::CLASS: {
+        auto udt = static_cast<const UserDefinedType*>(ty);
+        getDefnLinkageName(out, udt->defn(), typeArgs);
         break;
       }
 
       default:
+        diag.fatal() << "Unsupported type kind: " << ty->kind;
         assert(false && "Unsupported type kind");
     }
   }

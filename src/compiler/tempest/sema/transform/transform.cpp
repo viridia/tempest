@@ -2,6 +2,7 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/expr.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_lowered.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/transform/transform.hpp"
@@ -250,7 +251,16 @@ namespace tempest::sema::transform {
       case Expr::Kind::FLOAT_LITERAL:
         return expr;
 
-      case Expr::Kind::CALL: {
+      case Expr::Kind::SELF: {
+        auto type = transformType(expr->type);
+        if (type != expr->type) {
+          return new (_alloc) Expr(expr->kind, expr->location, type);
+        }
+        return expr;
+      }
+
+      case Expr::Kind::CALL:
+      case Expr::Kind::CALL_SUPER: {
         auto callExpr = static_cast<ApplyFnOp*>(expr);
         auto type = transformType(callExpr->type);
         auto function = transform(callExpr->function);
@@ -258,8 +268,10 @@ namespace tempest::sema::transform {
         if (transformArray(callExpr->args, args) ||
             function != callExpr->function ||
             type != callExpr->type) {
-          return new (_alloc) ApplyFnOp(
+          auto result = new (_alloc) ApplyFnOp(
               callExpr->kind, callExpr->location, function, _alloc.copyOf(args), type);
+          result->flavor = callExpr->flavor;
+          return result;
         }
         return callExpr;
       }
@@ -375,6 +387,15 @@ namespace tempest::sema::transform {
           return new (_alloc) BinaryOp(op->kind, a0, a1, type);
         }
         return op;
+      }
+
+      case Expr::Kind::ALLOC_OBJ: {
+        auto sref = static_cast<SymbolRefExpr*>(expr);
+        auto type = transformType(expr->type);
+        if (type != expr->type) {
+          return new (_alloc) SymbolRefExpr(expr->kind, expr->location, sref->sym, type);
+        }
+        return expr;
       }
 
       default:

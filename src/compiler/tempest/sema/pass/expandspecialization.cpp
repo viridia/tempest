@@ -2,6 +2,7 @@
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
 #include "tempest/sema/graph/expr.hpp"
+#include "tempest/sema/graph/expr_lowered.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
 #include "tempest/sema/transform/mapenv.hpp"
 #include "tempest/sema/transform/visitor.hpp"
@@ -14,6 +15,34 @@ namespace tempest::sema::pass {
   using namespace tempest::sema::graph;
   using namespace tempest::gen;
   using tempest::sema::transform::MapEnvTransform;
+
+  /** Add references to output symbols where needed. */
+  class GenSymVisitor final : public transform::ExprVisitor {
+  public:
+    GenSymVisitor(CompilationUnit& cu) : _cu(cu) {}
+
+    Expr* visit(Expr* e) override {
+      if (e == nullptr) {
+        return e;
+      }
+
+      switch (e->kind) {
+        case Expr::Kind::ALLOC_OBJ: {
+          Env empty;
+          auto sref = static_cast<SymbolRefExpr*>(e);
+          auto udt = cast<UserDefinedType>(e->type);
+          sref->sym = _cu.symbols().addClass(udt->defn(), empty);
+          return transform::ExprVisitor::visit(e);
+        }
+
+        default:
+          return transform::ExprVisitor::visit(e);
+      }
+    }
+
+  private:
+    CompilationUnit& _cu;
+  };
 
   /** Replace all type variables with the types they are bound to in an environment. */
   class SpecializeTypeTransform final : public transform::UniqueTypeTransform {
@@ -85,6 +114,13 @@ namespace tempest::sema::pass {
 
         // LET_DEF
 
+        case Expr::Kind::ALLOC_OBJ: {
+          auto sref = static_cast<SymbolRefExpr*>(e);
+          auto udt = cast<UserDefinedType>(e->type);
+          sref->sym = _cu.symbols().addClass(udt->defn(), _env);
+          return transform::ExprTransform::transform(e);
+        }
+
         default:
           return transform::ExprTransform::transform(e);
       }
@@ -145,9 +181,12 @@ namespace tempest::sema::pass {
           auto fd = static_cast<FunctionDefn*>(d);
           // Don't include templates.
           if (fd->allTypeParams().empty()) {
-            _cu.symbols().addFunction(fd, empty);
+            auto fsym = _cu.symbols().addFunction(fd, empty);
+            GenSymVisitor visitor(_cu);
+            visitor.visit(fd->body());
+            fsym->body = fd->body();
           }
-           break;
+          break;
         }
 
         case Member::Kind::CONST_DEF:
@@ -186,7 +225,7 @@ namespace tempest::sema::pass {
         // Static
         // Final or overloaded
         // Interface / Class
-        if (!fd->isStatic()) {
+        if (!fd->isStatic() && fd->allTypeParams().size() == csym->typeArgs.size()) {
           auto fsym = _cu.symbols().addFunction(fd, env);
           (void)fsym;
         }
@@ -213,118 +252,9 @@ namespace tempest::sema::pass {
     env.args.assign(gsym->typeArgs.begin(), gsym->typeArgs.end());
   }
 
-  // Definitions
-
   // void ExpandSpecializationPass::visitTypeDefn(TypeDefn* td, Env& env) {
   //   // Don't visit templates.
-  //   if (td->allTypeParams().size() > env.args.size()) {
-  //     return;
-  //   }
-
   //   visitAttributes(td, env);
-  //   visitList(td->members(), env);
-  // }
-
-  // void ExpandSpecializationPass::visitFunctionDefn(FunctionDefn* fd, Env& env) {
-  //   // Don't visit templates.
-  //   if (fd->allTypeParams().size() > env.args.size()) {
-  //     return;
-  //   }
-
-  //   visitAttributes(fd, env);
-  //   for (auto param : fd->params()) {
-  //     visitAttributes(param, env);
-  //     if (param->init()) {
-  //       visitExpr(param->init(), env);
-  //     }
-  //   }
-
-  //   if (fd->body()) {
-  //     visitExpr(fd->body(), env);
-  //   }
-  // }
-
-  // void ExpandSpecializationPass::visitValueDefn(ValueDefn* vd, Env& env) {
-  //   visitAttributes(vd, env);
-  //   if (vd->init()) {
-  //     visitExpr(vd->init(), env);
-  //   }
-  // }
-
-  // void ExpandSpecializationPass::visitAttributes(Defn* defn, Env& env) {
-  //   for (auto attr : defn->attributes()) {
-  //     visitExpr(attr, env);
-  //   }
-  // }
-
-  // Defn* ExpandSpecializationPass::expandDefn(Defn* d, Env& env) {
-  //   switch (d->kind) {
-  //     case Member::Kind::TYPE: {
-  //       return expandTypeDefn(static_cast<TypeDefn*>(d), env);
-  //       break;
-  //     }
-
-  //     case Member::Kind::FUNCTION: {
-  //       return expandFunctionDefn(static_cast<FunctionDefn*>(d), env);
-  //       break;
-  //     }
-
-  //     case Member::Kind::CONST_DEF:
-  //     case Member::Kind::LET_DEF: {
-  //       return expandValueDefn(static_cast<ValueDefn*>(d), env);
-  //       break;
-  //     }
-
-  //     default:
-  //       assert(false && "Shouldn't get here, bad member type.");
-  //       break;
-  //   }
-  // }
-
-  // bool ExpandSpecializationPass::expandList(
-  //     llvm::SmallVectorImpl<Defn*>& out, DefnArray members, Env& env) {
-  //   bool changed = false;
-  //   for (auto m : members) {
-  //     auto d = expandDefn(m, env);
-  //     out.push_back(d);
-  //     changed |= (d != m);
-  //   }
-  //   return changed;
-  // }
-
-
-  // TypeDefn* ExpandSpecializationPass::expandTypeDefn(TypeDefn* td, Env& env) {
-  //   llvm::SmallVector<Defn*, 16> members;
-  //   llvm::SmallVector<Expr*, 4> attrs;
-  //   // visitAttributes(td, env);
-  //   if (expandList(members, td->members(), env) ||
-  //       expandExprList(attrs, td->attributes(), env)) {
-
-  //   };
-  //   return td;
-  // }
-
-  // FunctionDefn* ExpandSpecializationPass::expandFunctionDefn(FunctionDefn* fd, Env& env) {
-  //   SpecializesTypeTransform spType(_cu, env);
-  //   llvm::SmallVector<Expr*, 4> attrs;
-  //   llvm::SmallVector<ParameterDefn*, 4> params;
-  //   expandExprList(attrs, fd->attributes(), env);
-  //   auto nf = new (_cu.types().alloc()) FunctionDefn(fd->location, fd->name);
-  //   for (auto p : fd->params) {
-  //     auto np = new (_cu.types().alloc()) ParameterDefn(p->location, p->name);
-  //     np->type = spType.transform(p->type);
-  //     nf->params().push_back(np);
-  //   }
-  //   return fd;
-  // }
-
-  // ValueDefn* ExpandSpecializationPass::expandValueDefn(ValueDefn* vd, Env& env) {
-  //   return vd;
-  // }
-
-  // void ExpandSpecializationPass::visitExpr(Expr* expr, Env& env) {
-  //   FindSpecializationsVisitor visitor(_cu, env);
-  //   visitor.visit(expr);
   // }
 
   bool ExpandSpecializationPass::expandExprList(

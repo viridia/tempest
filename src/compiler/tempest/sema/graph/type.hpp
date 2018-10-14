@@ -170,11 +170,6 @@ namespace tempest::sema::graph {
     static bool classof(const Type* t) { return t->kind == Kind::FUNCTION; }
   };
 
-  /** A type that represents a unique constant value. */
-  // class ValueParamType : public Type {
-  //   value : expr.Expr = 1;
-  // }
-
   /** Readonly or immutable modifier on a type. */
   class ModifiedType : public Type {
   public:

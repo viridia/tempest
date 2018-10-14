@@ -1,6 +1,8 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/gen/cgmodule.hpp"
 #include "tempest/gen/linkagename.hpp"
+#include "tempest/gen/outputsym.hpp"
+#include "tempest/intrinsic/defns.hpp"
 
 #include <llvm/ADT/Twine.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -15,6 +17,7 @@ namespace tempest::gen {
   using namespace tempest::sema::graph;
   using tempest::error::diag;
   using llvm::BasicBlock;
+  using llvm::GlobalVariable;
   using llvm::Value;
   using llvm::cast;
 
@@ -95,8 +98,82 @@ namespace tempest::gen {
     // Call the entry point function.
     BasicBlock * blkEntry = BasicBlock::Create(_context, "entry", mainFn);
     _builder.SetInsertPoint(blkEntry);
-    auto result = _builder.CreateCall(fn);
+    auto result = _builder.CreateCall(fn, {
+      llvm::Constant::getNullValue(llvm::Type::getVoidTy(_context)->getPointerTo()),
+    });
     _builder.CreateRet(result);
+  }
+
+  llvm::Function* CGModule::getGCAlloc() {
+    if (!_gcAlloc) {
+      // Signature is gc_alloc(i32, void*) -> void*.
+      llvm::Type* paramTypes[2] = {
+        llvm::IntegerType::get(_context, 64),
+        getClassDescType()->getPointerTo(0),
+      };
+      llvm::Type* funcType = llvm::FunctionType::get(
+        getObjectType()->getPointerTo(1), paramTypes, false);
+      _gcAlloc = llvm::Function::Create(
+          cast<llvm::FunctionType>(funcType),
+          llvm::Function::ExternalLinkage,
+          "gc_alloc",
+          _irModule.get());
+    }
+
+    return _gcAlloc;
+  }
+
+  GlobalVariable* CGModule::genClassDescValue(ClassDescriptorSym* sym) {
+    if (sym->desc) {
+      return sym->desc;
+    }
+    std::string linkageName;
+    linkageName.reserve(64);
+    getLinkageName(linkageName, sym->typeDefn, sym->typeArgs);
+    linkageName.append("::cldesc");
+    sym->desc = new llvm::GlobalVariable(
+        *_irModule, getClassDescType(), true,
+        llvm::GlobalValue::LinkageTypes::ExternalLinkage, nullptr, linkageName);
+    return sym->desc;
+  }
+
+  GlobalVariable* CGModule::genClassDesc(ClassDescriptorSym* sym) {
+    auto clsDesc = genClassDescValue(sym);
+    auto clsDescType = getClassDescType();
+    llvm::Constant* clsDescProps[3] = {
+      llvm::ConstantPointerNull::get(clsDescType->getPointerTo()),
+      llvm::ConstantPointerNull::get(
+          llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo()),
+      llvm::ConstantPointerNull::get(
+          llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo()),
+    };
+    clsDesc->setInitializer(llvm::ConstantStruct::get(clsDescType, clsDescProps));
+    return clsDesc;
+  }
+
+  llvm::Type* CGModule::getObjectType() {
+    if (!_objectType) {
+      _objectType = _types.get(intrinsic::IntrinsicDefns::get()->objectClass->type(), {});
+    }
+    return _objectType;
+  }
+
+  llvm::StructType* CGModule::getClassDescType() {
+    if (!_classDescType) {
+      // Class descriptor fields:
+      // - base class
+      // - interface table
+      // - method table
+      auto cdType = llvm::StructType::create(_context, "ClassDescriptor");
+      llvm::Type* descFieldTypes[3] = {
+        cdType->getPointerTo(),
+        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+      };
+      cdType->setBody(descFieldTypes);
+      _classDescType = cdType;
+    }
+    return _classDescType;
   }
 
   llvm::DIFile* CGModule::getDIFile(ProgramSource* src) {

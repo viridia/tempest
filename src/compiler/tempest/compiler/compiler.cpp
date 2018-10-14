@@ -48,6 +48,26 @@ namespace tempest::compiler {
       diag.error() << "No input files found.";
       return 1;
     }
+    runPasses();
+    assert(!_cu.outputFile().empty());
+    assert(!_cu.outputModName().empty());
+    if (diag.errorCount() == 0) {
+      llvm::LLVMContext context;
+      gen::CodeGen gen(context);
+      auto mod = gen.createModule(_cu.outputModName());
+      gen.genSymbols(_cu.symbols());
+      selectTarget(mod);
+      if (diag.errorCount() == 0) {
+        llvm::verifyModule(*mod->irModule(), &(llvm::errs()));
+        outputModule(mod);
+      }
+    }
+
+    CompilationUnit::theCU = nullptr;
+    return diag.errorCount() == 0 ? 0 : 1;
+  }
+
+  void Compiler::runPasses() {
     if (diag.errorCount() == 0) {
       LoadImportsPass pass(_cu);
       pass.run();
@@ -72,22 +92,6 @@ namespace tempest::compiler {
       ExpandSpecializationPass pass(_cu);
       pass.run();
     }
-    assert(!_cu.outputFile().empty());
-    assert(!_cu.outputModName().empty());
-    if (diag.errorCount() == 0) {
-      llvm::LLVMContext context;
-      gen::CodeGen gen(context);
-      auto mod = gen.createModule(_cu.outputModName());
-      gen.genSymbols(_cu.symbols());
-      selectTarget(mod);
-      if (diag.errorCount() == 0) {
-        llvm::verifyModule(*mod->irModule(), &(llvm::errs()));
-        outputModule(mod);
-      }
-    }
-
-    CompilationUnit::theCU = nullptr;
-    return diag.errorCount() == 0 ? 0 : 1;
   }
 
   void Compiler::selectTarget(tempest::gen::CGModule* mod) {

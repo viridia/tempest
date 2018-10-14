@@ -18,10 +18,12 @@
 #endif
 
 namespace tempest::sema::graph {
+  class ApplyFnOp;
   class BlockStmt;
   class IfStmt;
-  class ReturnStmt;
   class IntegerLiteral;
+  class ReturnStmt;
+  class SymbolRefExpr;
 }
 
 namespace tempest::gen {
@@ -30,6 +32,7 @@ namespace tempest::gen {
 
   class CGModule;
   class CGTypeBuilder;
+  class ClassDescriptorSym;
 
   /** Basic block in the code flow graph. */
   class CGFunctionBuilder {
@@ -73,6 +76,14 @@ namespace tempest::gen {
     llvm::Value* visitIfStmt(IfStmt* in);
     llvm::Value* visitReturnStmt(ReturnStmt* ret);
     llvm::Value* visitIntegerLiteral(IntegerLiteral* ret);
+    llvm::Value* visitCall(ApplyFnOp* in);
+    llvm::Value* visitCallIntrinsic(ApplyFnOp* in);
+    llvm::Value* visitAllocObj(SymbolRefExpr* in);
+
+    llvm::Value* genCallInstr(
+        llvm::Value* func,
+        ArrayRef<llvm::Value *> args,
+        const llvm::Twine& name);
 
     /** Generate a conditional branch based on a test expression. Handles inlining of logical
         operators. */

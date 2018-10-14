@@ -2,7 +2,9 @@
 #include "tempest/gen/codegen.hpp"
 #include "tempest/gen/cgfunctionbuilder.hpp"
 #include "tempest/gen/linkagename.hpp"
+#include "tempest/gen/outputsym.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_lowered.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
@@ -20,6 +22,8 @@ namespace tempest::gen {
   using llvm::DINode;
   using llvm::DIScope;
   using llvm::DISubprogram;
+  using llvm::GlobalValue;
+  using llvm::Twine;
   using llvm::Value;
 
   CGFunctionBuilder::CGFunctionBuilder(
@@ -40,38 +44,53 @@ namespace tempest::gen {
 
     // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ParameterTypePass), fdef);
     llvm::Function * fn = _irModule->getFunction(linkageName);
-    if (fn != NULL) {
+    if (fn != nullptr) {
       return fn;
     }
 
-    // DASSERT_OBJ(!fdef->isAbstract(), fdef);
+    assert(!func->isAbstract());
+    assert(func->intrinsic() == IntrinsicFn::NONE);
     // DASSERT_OBJ(!fdef->isInterfaceMethod(), fdef);
     // DASSERT_OBJ(!fdef->isUndefined(), fdef);
-    // DASSERT_OBJ(!fdef->isIntrinsic(), fdef);
     // DASSERT_OBJ(fdef->isSingular(), fdef);
-    // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ParameterTypePass), fdef);
-    // DASSERT_OBJ(fdef->passes().isFinished(FunctionDefn::ReturnTypePass), fdef);
     // DASSERT_OBJ(fdef->defnType() != Defn::Macro, fdef);
 
-    llvm::Type* funcType = _module->types().get(func->type(), _typeArgs);
+    auto& types = _module->types();
 
-    // // If it's a function from a different module...
-    // if (fdef->module() != module_) {
-    //   fn = Function::Create(
-    //       cast<llvm::FunctionType>(funcType->irType()),
-    //       Function::ExternalLinkage, fdef->linkageName(),
-    //       irModule_);
-    //   return fn;
-    // }
+    llvm::SmallVector<llvm::Type*, 16> paramTypes;
+    // Context parameter for objects and closures.
+    if (func->selfType()) {
+      paramTypes.push_back(types.get(func->selfType(), _typeArgs)->getPointerTo(1));
+    } else {
+      paramTypes.push_back(llvm::Type::getVoidTy(_gen.context)->getPointerTo());
+    }
+    for (auto param : func->type()->paramTypes) {
+      // TODO: getParamType or getInternalParamType
+      paramTypes.push_back(types.getMemberType(param, _typeArgs));
+    }
+    auto returnType = types.getMemberType(func->type()->returnType, _typeArgs);
+    auto funcType = llvm::FunctionType::get(returnType, paramTypes, false);
 
-    // // Generate the function reference
-    // DASSERT_OBJ(funcType->isSingular(), fdef);
-
+    // Generate the function reference
     fn = llvm::Function::Create(
         cast<llvm::FunctionType>(funcType),
         llvm::Function::ExternalLinkage,
         linkageName,
         _irModule);
+
+    // Assign names to parameters
+    llvm::Function::arg_iterator args = fn->arg_begin();
+    if (func->selfType()) {
+      Value* self = args++;
+      self->setName("self");
+    } else {
+      Value* ctx = args++;
+      ctx->setName("context");
+    }
+    for (auto param : func->params()) {
+      Value* arg = args++;
+      arg->setName(param->name());
+    }
 
     // if (fdef->flags() & FunctionDefn::NoInline) {
     //   fn->addFnAttr(llvm::Attribute::NoInline);
@@ -98,7 +117,7 @@ namespace tempest::gen {
     // }
 
     // Don't generate a function if it has been merged to another function
-    // if (fdef->mergeTo() != NULL || fdef->isUndefined()) {
+    // if (fdef->mergeTo() != nullptr || fdef->isUndefined()) {
     //   return true;
     // }
 
@@ -161,7 +180,7 @@ namespace tempest::gen {
       // }
 
       // // Handle the 'self' parameter
-      // if (ftype->selfParam() != NULL) {
+      // if (ftype->selfParam() != nullptr) {
       //   ParameterDefn * selfParam = ftype->selfParam();
       //   const Type * selfParamType = selfParam->type().unqualified();
       //   DASSERT_OBJ(fdef->storageClass() == Storage_Instance ||
@@ -175,7 +194,7 @@ namespace tempest::gen {
       //         selfParam->type()->irEmbeddedType(), 0, "self.alloca");
       //     builder_.CreateStore(it, selfAlloca);
       //     selfParam->setIRValue(selfAlloca);
-      //     markGCRoot(selfAlloca, NULL, "self.alloca");
+      //     markGCRoot(selfAlloca, nullptr, "self.alloca");
       //   } else {
       //     // Since selfParam is always a pointer, we don't need to mark the object pointed
       //     // to as a root, since the next call frame up is responsible for tracing it.
@@ -198,7 +217,7 @@ namespace tempest::gen {
 
   //       // Set the name of the Nth parameter
   //       ParameterDefn * param = ftype->params()[param_index];
-  //       DASSERT_OBJ(param != NULL, fdef);
+  //       DASSERT_OBJ(param != nullptr, fdef);
   //       DASSERT_OBJ(param->storageClass() == Storage_Local, param);
   //       QualifiedType paramType = param->internalType();
   //       it->setName(param->name());
@@ -255,7 +274,10 @@ namespace tempest::gen {
         BasicBlock * blkEntry = createBlock("entry");
         _builder.SetInsertPoint(blkEntry);
         auto retVal = visitExpr(body);
-        if (!atTerminator()) {
+        if (!retVal) {
+          diag.error() << "Code generation error.";
+        }
+        if (retVal && !atTerminator()) {
           if (retVal->getType()->isVoidTy()) {
             _builder.CreateRetVoid();
           } else {
@@ -272,7 +294,7 @@ namespace tempest::gen {
         //   // }
         // }
 
-        // gcAllocContext_ = NULL;
+        // gcAllocContext_ = nullptr;
   #if 0
       }
   #endif
@@ -312,7 +334,7 @@ namespace tempest::gen {
   //   //     IntegerType::get(32),
   //   //     IntegerType::get(32),
   //   //     IntegerType::get(32),
-  //   //     NULL);
+  //   //     nullptr);
   //   // Function* gcd = cast<Function>(c);
 
   //   visitExpr(fd->body());
@@ -326,6 +348,10 @@ namespace tempest::gen {
 
       case Expr::Kind::RETURN:
         return visitReturnStmt(static_cast<ReturnStmt*>(expr));
+
+      case Expr::Kind::CALL:
+      case Expr::Kind::CALL_SUPER:
+        return visitCall(static_cast<ApplyFnOp*>(expr));
 
       case Expr::Kind::ADD: {
         auto iop = static_cast<BinaryOp*>(expr);
@@ -515,7 +541,14 @@ namespace tempest::gen {
         return _builder.CreateFPTrunc(visitExpr(op->arg), ty);
       }
 
+      case Expr::Kind::ALLOC_OBJ:
+        return visitAllocObj(static_cast<SymbolRefExpr*>(expr));
+
+      case Expr::Kind::SELF:
+        return _irFunction->arg_begin();
+
       default:
+        diag.error() << "Invalid expression type: " << expr->kind;
         assert(false && "Invalid expression type");
     }
   }
@@ -540,7 +573,7 @@ namespace tempest::gen {
       setDebugLocation((*it)->location);
       if (!visitExpr(*it)) {
         //endLexicalBlock(savedScope);
-        return NULL;
+        return nullptr;
       }
     }
 
@@ -566,14 +599,14 @@ namespace tempest::gen {
     // Create the set of basic blocks. We don't know yet
     // if we need an else block or endif block.
     BasicBlock * blkThen = createBlock("if.then");
-    BasicBlock * blkElse = NULL;
-    BasicBlock * blkThenLast = NULL;
-    BasicBlock * blkElseLast = NULL;
-    BasicBlock * blkDone = NULL;
+    BasicBlock * blkElse = nullptr;
+    BasicBlock * blkThenLast = nullptr;
+    BasicBlock * blkElseLast = nullptr;
+    BasicBlock * blkDone = nullptr;
     // size_t savedRootCount = rootStackSize();
     // pushRoots(in->scope());
 
-    if (in->elseBlock != NULL) {
+    if (in->elseBlock != nullptr) {
       blkElse = createBlock("else");
       setDebugLocation(in->test->location);
       genTestExpr(in->test, blkThen, blkElse);
@@ -587,7 +620,7 @@ namespace tempest::gen {
     _builder.SetInsertPoint(blkThen);
     setDebugLocation(in->thenBlock->location);
     Value * thenVal = visitExpr(in->thenBlock);
-    Value * elseVal = NULL;
+    Value * elseVal = nullptr;
 
     // Only generate a branch if we haven't returned or thrown.
     if (!atTerminator()) {
@@ -597,7 +630,7 @@ namespace tempest::gen {
     }
 
     // Generate the contents of the 'else' block
-    if (blkElse != NULL) {
+    if (blkElse != nullptr) {
       moveToEnd(blkElse);
       _builder.SetInsertPoint(blkElse);
       setDebugLocation(in->elseBlock->location);
@@ -612,7 +645,7 @@ namespace tempest::gen {
     }
 
     // Continue at the 'done' block if there was one.
-    if (blkDone != NULL) {
+    if (blkDone != nullptr) {
       moveToEnd(blkDone);
       _builder.SetInsertPoint(blkDone);
       // popRootStack(savedRootCount);
@@ -621,17 +654,17 @@ namespace tempest::gen {
       if (!isVoidType(in->type)) {
         if (blkThenLast && blkElseLast) {
           // If both branches returned a result, then combine them with a phi-node.
-          assert(thenVal != NULL);
-          assert(elseVal != NULL);
+          assert(thenVal != nullptr);
+          assert(elseVal != nullptr);
           llvm::PHINode* phi = _builder.CreatePHI(thenVal->getType(), 2, "if");
           phi->addIncoming(thenVal, blkThenLast);
           phi->addIncoming(elseVal, blkElseLast);
           return phi;
         } else if (blkThenLast) {
-          assert(thenVal != NULL);
+          assert(thenVal != nullptr);
           return thenVal;
         } else if (blkElseLast) {
-          assert(elseVal != NULL);
+          assert(elseVal != nullptr);
           return elseVal;
         } else {
           assert(false && "No value to return from if-statement");
@@ -646,28 +679,28 @@ namespace tempest::gen {
 
   Value* CGFunctionBuilder::visitReturnStmt(ReturnStmt* in) {
     // Execute all cleanups
-    // for (BlockExits * be = blockExits_; be != NULL; be = be->parent()) {
-    //   if (be->cleanupBlock() != NULL) {
+    // for (BlockExits * be = blockExits_; be != nullptr; be = be->parent()) {
+    //   if (be->cleanupBlock() != nullptr) {
     //     callCleanup(be);
     //   }
     // }
 
     // setDebugLocation(in->location());
-    if (in->expr == NULL) {
+    if (in->expr == nullptr) {
       // Return nothing
-      _builder.CreateRetVoid();
+      return _builder.CreateRetVoid();
     } else {
       // Generate the return value.
       Expr* returnVal = in->expr;
       Value* value = visitExpr(returnVal);
-      if (value == NULL) {
-        return NULL;
+      if (value == nullptr) {
+        return nullptr;
       }
 
       // Handle struct returns and other conventions.
       // QualifiedType returnType = returnVal->canonicalType();
       // TypeShape returnShape = returnType->typeShape();
-      // DASSERT(value != NULL);
+      // DASSERT(value != nullptr);
 
       // if (returnShape == Shape_Large_Value) {
       //   value = loadValue(value, returnVal);
@@ -680,16 +713,217 @@ namespace tempest::gen {
       // }
       // DASSERT_TYPE_EQ(returnVal, returnType->irEmbeddedType(), value->getType());
 
-      // if (structRet_ != NULL) {
+      // if (structRet_ != nullptr) {
       //   _builder.CreateStore(value, structRet_);
-      //   _builder.CreateRet(NULL);
+      //   _builder.CreateRet(nullptr);
       // } else {
-      _builder.CreateRet(value);
+      return _builder.CreateRet(value);
       // }
     }
 
     return voidValue();
   }
+
+  Value* CGFunctionBuilder::visitCall(ApplyFnOp* in) {
+    auto fnref = cast<DefnRef>(in->function);
+    auto fndef = cast<FunctionDefn>(fnref->defn);
+    // auto fntype = fndef->type();
+    // bool saveIntermediateStackRoots = true;
+
+    if (fndef->intrinsic() != IntrinsicFn::NONE) {
+      return visitCallIntrinsic(in);
+    }
+
+    // size_t savedRootCount = rootStackSize();
+
+    llvm::SmallVector<Value*, 8> args;
+    // fnType->irType(); // Need to know the irType for isStructReturn.
+    // Value* retVal = nullptr;
+    // if (fnType->isStructReturn()) {
+    //   DASSERT(in->exprType() != Expr::CtorCall); // Constructors have no return.
+    //   retVal = builder_.CreateAlloca(fnType->returnType()->irType(), nullptr, "sret");
+    //   args.push_back(retVal);
+    // }
+
+    // Value* selfArg = nullptr;
+    Value* stemValue = nullptr;
+    if (fnref->stem != nullptr) {
+      stemValue = visitExpr(fnref->stem);
+      // Type::TypeClass selfTypeClass = in->selfArg()->type()->typeClass();
+      // if (selfTypeClass == Type::Struct) {
+      //   if (in->exprType() == Expr::CtorCall) {
+      //     selfArg = genExpr(in->selfArg());
+      //   } else {
+      //     selfArg = genLValueAddress(in->selfArg());
+      //   }
+      // } else {
+      //   selfArg = genArgExpr(in->selfArg(), saveIntermediateStackRoots);
+      // }
+
+      // assert(selfArg != nullptr);
+
+      // if (fn->storageClass() == Storage_Instance) {
+      //   args.push_back(selfArg);
+      // }
+    } else {
+      // Should have a null pointer.
+      assert(false && "Implement");
+    }
+    args.push_back(stemValue);
+
+    // const ExprList & inArgs = in->args();
+    for (auto arg : in->args) {
+      Value* argVal = visitExpr(arg /*, saveIntermediateStackRoots */);
+      if (argVal == nullptr) {
+        return nullptr;
+      }
+
+      // assert(argType->irParameterType() == argVal->getType());
+      args.push_back(argVal);
+    }
+
+    // Generate the function to call.
+    Value* fnVal;
+    // if (in->exprType() == Expr::VTableCall) {
+    //   assert(selfArg != nullptr);
+    //   const Type * classType = fnType->selfParam()->type().dealias().unqualified();
+    //   if (classType->typeClass() == Type::Class) {
+    //     fnVal = genVTableLookup(fn, static_cast<const CompositeType *>(classType), selfArg);
+    //   } else if (classType->typeClass() == Type::Interface) {
+    //     fnVal = genITableLookup(fn, static_cast<const CompositeType *>(classType), selfArg);
+    //   } else {
+    //     DASSERT(classType->typeClass() == Type::Struct);
+    //     // Struct or protocol.
+    //     fnVal = genFunctionValue(fn);
+    //   }
+    // } else {
+      fnVal = genFunctionValue(fndef);
+    // }
+
+    Value* result = genCallInstr(fnVal, args, fndef->name());
+    // if (in->exprType() == Expr::CtorCall) {
+    //   // Constructor call returns the 'self' argument.
+    //   TypeShape selfTypeShape = in->selfArg()->type()->typeShape();
+    //   // A large value type will, at this point, be a pointer.
+    //   if (selfTypeShape == Shape_Small_LValue) {
+    //     selfArg = builder_.CreateLoad(selfArg, "self");
+    //   }
+
+    //   result = selfArg;
+    // } else if (fnType->isStructReturn()) {
+      // result = retVal;
+    // }
+
+    // Clear out all the temporary roots
+    // popRootStack(savedRootCount);
+
+    if (in->flavor == ApplyFnOp::NEW) {
+      return stemValue;
+    }
+
+    return result;
+  }
+
+  Value* CGFunctionBuilder::genCallInstr(
+      Value* func,
+      ArrayRef<Value *> args,
+      const Twine & name) {
+    // checkCallingArgs(func, args);
+    // if (isUnwindBlock_) {
+    //   Function * f = currentFn_;
+    //   BasicBlock * normalDest = BasicBlock::Create(context_, "nounwind", f);
+    //   moveToEnd(normalDest);
+    //   Value * result = builder_.CreateInvoke(func, normalDest, getUnwindBlock(), args);
+    //   builder_.SetInsertPoint(normalDest);
+    //   if (!result->getType()->isVoidTy()) {
+    //     result->setName(name);
+    //   }
+    //   return result;
+    // } else {
+      Value * result = _builder.CreateCall(func, args);
+      if (!result->getType()->isVoidTy()) {
+        result->setName(name);
+      }
+      return result;
+    // }
+  }
+
+  Value* CGFunctionBuilder::visitCallIntrinsic(ApplyFnOp* in) {
+    auto fnref = cast<DefnRef>(in->function);
+    auto fndef = cast<FunctionDefn>(fnref->defn);
+
+    switch (fndef->intrinsic()) {
+      case IntrinsicFn::OBJECT_CTOR: {
+        return voidValue();
+      }
+
+      default:
+        assert(false && "Bad intrinsic");
+        return nullptr;
+    }
+  }
+
+  Value* CGFunctionBuilder::visitAllocObj(SymbolRefExpr* in) {
+    assert(in->sym);
+    auto clsSym = cast<ClassDescriptorSym>(in->sym);
+    auto clsDesc = _module->genClassDescValue(clsSym);
+    llvm::Type* clsType = _module->types().get(clsSym->typeDefn->type(), clsSym->typeArgs);
+    Value* args[2] = {
+      llvm::ConstantExpr::getSizeOf(clsType),
+      clsDesc,
+    };
+    auto alloc = _builder.CreateCall(_module->getGCAlloc(), args, "new");
+    return _builder.CreatePointerCast(alloc, clsType->getPointerTo(1));
+
+    // Get gc_alloc function reference
+    // arg list with size and class descriptor
+    // call it
+
+    // if (const CompositeType * ctdef = dyn_cast<CompositeType>(in->type().unqualified())) {
+    //   llvm::Type * type = ctdef->irTypeComplete();
+    //   if (ctdef->typeClass() == Type::Struct) {
+    //     if (ctdef->typeShape() == Shape_ZeroSize) {
+    //       // Don't allocate if it's zero size.
+    //       return ConstantPointerNull::get(type->getPointerTo());
+    //     }
+    //     return builder_.CreateAlloca(type, 0, ctdef->typeDefn()->name());
+    //   } else if (ctdef->typeClass() == Type::Class) {
+    //     DASSERT(gcAllocContext_ != NULL);
+    //     Function * alloc = getGcAlloc();
+    //     Value * newObj = builder_.CreateCall2(
+    //         alloc, gcAllocContext_,
+    //         llvm::ConstantExpr::getIntegerCast(
+    //             llvm::ConstantExpr::getSizeOf(type),
+    //             intPtrType_, false),
+    //         Twine(ctdef->typeDefn()->name(), "_new"));
+    //     newObj = builder_.CreatePointerCast(newObj, type->getPointerTo());
+    //     genInitObjVTable(ctdef, newObj);
+    //     return newObj;
+    //   }
+    // }
+
+    // DFAIL("IllegalState");
+  }
+
+  // llvm::Function * CodeGenerator::getGlobalAlloc() {
+  //   using namespace llvm;
+  //   using llvm::Type;
+  //   using llvm::FunctionType;
+
+  //   if (globalAlloc_ == NULL) {
+  //     std::vector<Type *> parameterTypes;
+  //     parameterTypes.push_back(builder_.getInt64Ty());
+  //     FunctionType * ftype = FunctionType::get(
+  //         builder_.getInt8Ty()->getPointerTo(),
+  //         parameterTypes,
+  //         false);
+
+  //     globalAlloc_ = cast<Function>(irModule_->getOrInsertFunction("malloc", ftype));
+  //     globalAlloc_->addFnAttr(Attribute::NoUnwind);
+  //   }
+
+  //   return globalAlloc_;
+  // }
 
   bool CGFunctionBuilder::genTestExpr(Expr* test, BasicBlock* blkTrue, BasicBlock* blkFalse) {
     switch (test->kind) {
@@ -719,7 +953,7 @@ namespace tempest::gen {
 
       default: {
         llvm::Value* testVal = visitExpr(test);
-        if (testVal == NULL) return false;
+        if (testVal == nullptr) return false;
         _builder.CreateCondBr(testVal, blkTrue, blkFalse);
         return true;
       }
@@ -728,10 +962,10 @@ namespace tempest::gen {
 
   void CGFunctionBuilder::moveToEnd(llvm::BasicBlock* blk) {
     llvm::BasicBlock* lastBlk = _builder.GetInsertBlock();
-    if (lastBlk == NULL && _irFunction != NULL && !_irFunction->empty()) {
+    if (lastBlk == nullptr && _irFunction != nullptr && !_irFunction->empty()) {
       lastBlk = &_irFunction->back();
     }
-    if (lastBlk != NULL) {
+    if (lastBlk != nullptr) {
       blk->moveAfter(lastBlk);
     }
   }
@@ -758,6 +992,7 @@ namespace tempest::gen {
   }
 
   bool CGFunctionBuilder::atTerminator() const {
-    return _builder.GetInsertBlock() == NULL || _builder.GetInsertBlock()->getTerminator() != NULL;
+    return _builder.GetInsertBlock() == nullptr
+        || _builder.GetInsertBlock()->getTerminator() != nullptr;
   }
 }

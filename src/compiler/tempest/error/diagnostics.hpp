@@ -76,6 +76,11 @@ namespace tempest::error {
     int setIndentLevel(int level) {
       return reporter->setIndentLevel(level);
     }
+
+    /** Reset the error counters. */
+    void reset() {
+      reporter->reset();
+    }
   };
 
   // Static diagnostics instance.

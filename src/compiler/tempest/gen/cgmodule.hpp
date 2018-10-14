@@ -47,6 +47,7 @@ namespace tempest::gen {
   class CGGlobal;
   class CGFunction;
   class CGStringLiteral;
+  class ClassDescriptorSym;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
   class CGModule {
@@ -92,6 +93,17 @@ namespace tempest::gen {
     /** Get a file from a program source. */
     llvm::DIFile* getDIFile(ProgramSource* src);
 
+    /** Generate static class descriptor struct. */
+    llvm::GlobalVariable* genClassDescValue(ClassDescriptorSym* clsSym);
+    llvm::GlobalVariable* genClassDesc(ClassDescriptorSym* clsSym);
+
+    /** Return a reference to the allocator function for garbage-collected memory. */
+    llvm::Function* getGCAlloc();
+
+    /** References to built-in types. */
+    llvm::Type* getObjectType();
+    llvm::StructType* getClassDescType();
+
   private:
     llvm::LLVMContext& _context;
     std::unique_ptr<llvm::Module> _irModule;
@@ -103,6 +115,9 @@ namespace tempest::gen {
     std::vector<CGFunction*> _functions;
     CGTypeBuilder _types;
     CGDebugTypeBuilder _diTypeBuilder;
+    llvm::Function* _gcAlloc = nullptr;
+    llvm::Type* _objectType = nullptr;
+    llvm::StructType* _classDescType = nullptr;
     bool _debug;
   };
 }

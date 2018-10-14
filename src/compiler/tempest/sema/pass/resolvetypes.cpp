@@ -6,6 +6,7 @@
 #include "tempest/sema/eval/evalconst.hpp"
 #include "tempest/sema/graph/env.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_lowered.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/infer/conditions.hpp"
@@ -1380,12 +1381,15 @@ namespace tempest::sema::pass {
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, stem, fnType);
       callExpr->type = const_cast<Type *>(returnType);
+      callExpr->flavor = ApplyFnOp::STATIC;
     } else if (callExpr->function->kind == Expr::Kind::TYPE_REF_OVERLOAD) {
       // Create a new singular constructor reference.
-      auto allocObj = new (*_alloc) Expr(Expr::Kind::ALLOC_OBJ, callExpr->location, fnSelfType);
+      auto allocObj = new (*_alloc) SymbolRefExpr(
+          Expr::Kind::ALLOC_OBJ, callExpr->location, nullptr, fnSelfType);
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, allocObj, fnSelfType);
       callExpr->type = fnSelfType;
+      callExpr->flavor = ApplyFnOp::NEW;
     } else if (callExpr->function->kind == Expr::Kind::SUPER) {
       // Create a new signular function reference.
       auto selfArg = new (*_alloc) SelfExpr(callExpr->location);
@@ -1393,6 +1397,7 @@ namespace tempest::sema::pass {
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, selfArg, fnType);
       callExpr->type = const_cast<Type *>(returnType);
+      callExpr->flavor = ApplyFnOp::STATIC;
     } else {
       assert(false && "Implement other callable types");
     }
@@ -1496,6 +1501,7 @@ namespace tempest::sema::pass {
 
       case Expr::Kind::SELF:
       case Expr::Kind::SUPER:
+      case Expr::Kind::ALLOC_OBJ:
         assert(e->type);
         return addCastIfNeeded(e, dstType);
 

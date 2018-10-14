@@ -34,6 +34,7 @@ public:
 namespace {
   /** Parse a module definition and apply buildgraph & nameresolution pass. */
   std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
+    diag.reset();
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
     CompilationUnit::theCU = &cu;

@@ -22,6 +22,7 @@ namespace tempest::sema::transform {
       case Expr::Kind::FLOAT_LITERAL:
       case Expr::Kind::SELF:
       case Expr::Kind::SUPER:
+      case Expr::Kind::ALLOC_OBJ:
         return expr;
 
       case Expr::Kind::CALL: {
@@ -109,7 +110,12 @@ namespace tempest::sema::transform {
       }
 
       case Expr::Kind::NEGATE:
-      case Expr::Kind::COMPLEMENT: {
+      case Expr::Kind::COMPLEMENT:
+      case Expr::Kind::CAST_SIGN_EXTEND:
+      case Expr::Kind::CAST_ZERO_EXTEND:
+      case Expr::Kind::CAST_INT_TRUNCATE:
+      case Expr::Kind::CAST_FP_EXTEND:
+      case Expr::Kind::CAST_FP_TRUNC: {
         auto op = static_cast<UnaryOp*>(expr);
         op->arg = visit(op->arg);
         return op;

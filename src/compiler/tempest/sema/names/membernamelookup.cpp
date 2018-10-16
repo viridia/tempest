@@ -77,8 +77,7 @@ namespace tempest::sema::names {
         }
         return;
       }
-      case Member::Kind::CONST_DEF:
-      case Member::Kind::LET_DEF:
+      case Member::Kind::VAR_DEF:
       case Member::Kind::FUNCTION_PARAM:
       case Member::Kind::ENUM_VAL:
       case Member::Kind::TUPLE_MEMBER:
@@ -171,8 +170,7 @@ namespace tempest::sema::names {
       case Member::Kind::SPECIALIZED:
         assert(false && "implement.");
         break;
-      case Member::Kind::CONST_DEF:
-      case Member::Kind::LET_DEF:
+      case Member::Kind::VAR_DEF:
       case Member::Kind::FUNCTION_PARAM:
       case Member::Kind::ENUM_VAL:
       case Member::Kind::TUPLE_MEMBER:

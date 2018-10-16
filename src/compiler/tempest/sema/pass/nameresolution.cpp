@@ -130,8 +130,7 @@ namespace tempest::sema::pass {
           break;
         }
 
-        case Member::Kind::CONST_DEF:
-        case Member::Kind::LET_DEF: {
+        case Member::Kind::VAR_DEF: {
           visitValueDefn(scope, static_cast<ValueDefn*>(defn));
           break;
         }
@@ -199,9 +198,7 @@ namespace tempest::sema::pass {
     }
 
     resolveBaseTypes(scope, td);
-    auto implicitSelf = new (*_alloc) SelfExpr(td->location());
-    implicitSelf->type = td->type();
-    td->setImplicitSelf(implicitSelf);
+    td->setImplicitSelf(new (*_alloc) SelfExpr(td->location(), td->type()));
 
     auto prevNumInstanceVars = _numInstanceVars;
     _numInstanceVars = 0;
@@ -482,7 +479,7 @@ namespace tempest::sema::pass {
 
     if (!vd->type() && !vd->init()) {
       diag.error(vd) << "No initializer, type cannot be inferred.";
-    } else if (vd->kind == Defn::Kind::CONST_DEF && vd->isStatic() && !vd->init()) {
+    } else if (vd->isConstant() && vd->isStatic() && !vd->init()) {
       diag.error(vd) << "Static constant must be initialized to a value.";
     }
 
@@ -884,11 +881,12 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::LOCAL_LET: {
         auto decl = static_cast<const ast::ValueDefn*>(node);
         ValueDefn* defn = new (*_alloc) ValueDefn(
-          node->kind == ast::Node::Kind::LOCAL_CONST ? Defn::Kind::CONST_DEF : Defn::Kind::LET_DEF,
+          Defn::Kind::VAR_DEF,
           node->location,
           _alloc->copyOf(decl->name),
           _func
         );
+        defn->setConstant(node->kind == ast::Node::Kind::LOCAL_CONST);
         if (decl->type) {
           defn->setType(resolveType(scope, decl->type));
         }

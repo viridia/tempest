@@ -130,14 +130,16 @@ namespace tempest::gen {
       elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
       auto base = td->extends()[0];
-      auto baseType = llvm::cast<TypeDefn>(base)->type();
+      auto baseType = cast<TypeDefn>(base)->type();
       elts.push_back(get(baseType, typeArgs));
     }
     // Data members
     for (auto member : td->members()) {
-      if (member->kind == Defn::Kind::LET_DEF && !member->isStatic()) {
+      if (member->kind == Defn::Kind::VAR_DEF && !member->isStatic()) {
         auto vd = static_cast<ValueDefn*>(member);
-        elts.push_back(getMemberType(vd->type(), typeArgs));
+        if (!vd->isConstant()) {
+          elts.push_back(getMemberType(vd->type(), typeArgs));
+        }
       }
     }
     return llvm::StructType::create(elts, linkageName);

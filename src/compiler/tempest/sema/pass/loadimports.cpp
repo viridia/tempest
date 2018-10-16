@@ -25,6 +25,9 @@ namespace tempest::sema::pass {
     auto modAst = static_cast<const ast::Module*>(mod->ast());
     // TODO: Make sure we don't load a given module twice.
     // TODO: Check for circular imports.
+    if (!modAst) {
+      return;
+    }
     for (auto node : modAst->imports) {
       // At this point I think all we need to do is load the imported modules.
       // We don't need to look up the imported symbols yet.

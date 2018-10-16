@@ -128,6 +128,7 @@ namespace tempest::gen {
   public:
     /** The variable definition. */
     ValueDefn* varDefn;
+    llvm::GlobalVariable* global = nullptr;
 
     GlobalVarSym(ValueDefn* varDefn, ArrayRef<const Type*> typeArgs)
       : OutputSym(Kind::GLOBAL, typeArgs)

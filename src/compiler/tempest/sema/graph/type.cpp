@@ -41,4 +41,16 @@ namespace tempest::sema::graph {
       case Kind::INFERRED: return "INFERRED";
     }
   }
+
+  const Type* unqualifiedAndUnspecialized(const Type* t) {
+    for (;;) {
+      if (auto mt = dyn_cast<ModifiedType>(t)) {
+        t = mt->base;
+      } else if (auto st = dyn_cast<SpecializedType>(t)) {
+        t = cast<TypeDefn>(st->spec->generic())->type();
+      } else {
+        return t;
+      }
+    }
+  }
 }

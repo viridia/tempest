@@ -36,12 +36,14 @@ namespace tempest::sema::graph {
       : Member(Kind::MODULE, name)
       , _source(std::move(source))
       , _memberScope(std::make_unique<SymbolTable>())
+      , _exportScope(std::make_unique<SymbolTable>())
     {}
 
     // Constructor for testing, program source is null.
     Module(const llvm::StringRef& name)
       : Member(Kind::MODULE, name)
       , _memberScope(std::make_unique<SymbolTable>())
+      , _exportScope(std::make_unique<SymbolTable>())
     {}
 
     /** Source file of this module. */

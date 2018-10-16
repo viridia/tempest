@@ -9,9 +9,6 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/Path.h>
-#include <llvm/Support/TargetRegistry.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
 
 namespace tempest::gen {
   using namespace tempest::sema::graph;
@@ -19,7 +16,6 @@ namespace tempest::gen {
   using llvm::BasicBlock;
   using llvm::GlobalVariable;
   using llvm::Value;
-  using llvm::cast;
 
   class CGGlobal;
   class CGFunction;
@@ -35,21 +31,6 @@ namespace tempest::gen {
     , _diTypeBuilder(_diBuilder, nullptr, _types)
     , _debug(false)
   {
-    auto targetTriple = llvm::sys::getDefaultTargetTriple();
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-    if (!target) {
-      diag.fatal() << error;
-      return;
-    }
-    auto CPU = "generic";
-    auto Features = "";
-
-    llvm::TargetOptions opt;
-    auto RM = llvm::Optional<llvm::Reloc::Model>();
-    auto targetMachine = target->createTargetMachine(targetTriple, CPU, Features, opt, RM);
-    _irModule->setDataLayout(targetMachine->createDataLayout());
-    _irModule->setTargetTriple(targetTriple);
   }
 
   void CGModule::diInit(llvm::StringRef fileName, llvm::StringRef dirName) {
@@ -102,6 +83,97 @@ namespace tempest::gen {
       llvm::Constant::getNullValue(llvm::Type::getVoidTy(_context)->getPointerTo()),
     });
     _builder.CreateRet(result);
+  }
+
+  Value* CGModule::genVarValue(GlobalVarSym* vsym) {
+    // Don't generate the IR if we've already done so.
+    if (vsym->global != NULL) {
+      return vsym->global;
+    }
+
+    return genGlobalVar(vsym);
+  }
+
+  llvm::Constant* CGModule::genGlobalVar(GlobalVarSym* vsym) {
+    assert(vsym->kind == OutputSym::Kind::GLOBAL);
+    assert(vsym->global == nullptr);
+    assert(vsym->varDefn->isStatic() || vsym->varDefn->isGlobal());
+
+    std::string linkageName;
+    linkageName.reserve(64);
+    getLinkageName(linkageName, vsym->varDefn, vsym->typeArgs);
+
+    GlobalVariable* gv = _irModule->getGlobalVariable(linkageName);
+    if (gv != nullptr) {
+      return gv;
+    }
+
+    auto var = vsym->varDefn;
+    // const Type* varType = var->type().unqualified();
+    assert(var->type() != nullptr);
+
+    // Create the global variable
+    auto linkType = llvm::Function::ExternalLinkage;
+    // if (var->isSynthetic()) {
+    //   linkType = Function::LinkOnceAnyLinkage;
+    // }
+
+    // The reason that this is irType instead of irEmbeddedType is because LLVM always turns
+    // the type of a global variable into a pointer anyway.
+    llvm::Type* irType = _types.get(var->type(), vsym->typeArgs);
+    gv = new GlobalVariable(*_irModule, irType, false, linkType, nullptr, linkageName,
+        NULL /*, var->isThreadLocal() */);
+
+    // Only supply an initialization expression if the variable was
+    // defined in this module - otherwise, it's an external declaration.
+    // if (var->module() == module_ || var->isSynthetic()) {
+    //   // addStaticRoot(gv, varType);
+    //   // if (debug_) {
+    //   //   genDIGlobalVariable(var, gv);
+    //   // }
+
+    //   // If it has an initialization expression
+    //   const Expr* initExpr = var->init();
+    //   if (initExpr != NULL) {
+    //     if (initExpr->isConstant()) {
+    //       Constant * initValue = genConstExpr(initExpr);
+    //       if (initValue == NULL) {
+    //         return NULL;
+    //       }
+
+    //       if (varType->isReferenceType()) {
+    //         initValue = new GlobalVariable(
+    //             *irModule_, initValue->getType(), false, linkType, initValue,
+    //             var->linkageName() + ".init");
+    //         initValue = llvm::ConstantExpr::getPointerCast(initValue, varType->irEmbeddedType());
+    //       }
+
+    //       gv->setInitializer(initValue);
+    //     } else {
+    //       genModuleInitFunc();
+
+    //       // Add it to the module init function
+    //       BasicBlock * savePoint = builder_.GetInsertBlock();
+    //       builder_.SetInsertPoint(moduleInitBlock_);
+
+    //       // Generate the expression.
+    //       Value * initValue = genExpr(initExpr);
+    //       if (initValue != NULL) {
+    //         gv->setInitializer(llvm::Constant::getNullValue(irType));
+    //         builder_.CreateStore(initValue, gv);
+    //       }
+
+    //       if (savePoint != NULL) {
+    //         builder_.SetInsertPoint(savePoint);
+    //       }
+    //     }
+    //   } else if (!var->isExtern()) {
+    //     // No initializer, so set the value to zerofill.
+    //     gv->setInitializer(llvm::Constant::getNullValue(irType));
+    //   }
+    // }
+
+    return gv;
   }
 
   llvm::Function* CGModule::getGCAlloc() {

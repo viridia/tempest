@@ -21,6 +21,7 @@ namespace tempest::compiler {
   private:
     CompilationUnit _cu;
 
+    int addPackageSearchPaths();
     int addSourceFiles();
     void runPasses();
     void selectTarget(tempest::gen::CGModule* mod);

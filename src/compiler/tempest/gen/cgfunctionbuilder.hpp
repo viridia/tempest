@@ -19,7 +19,9 @@
 
 namespace tempest::sema::graph {
   class ApplyFnOp;
+  class BinaryOp;
   class BlockStmt;
+  class DefnRef;
   class IfStmt;
   class IntegerLiteral;
   class ReturnStmt;
@@ -88,6 +90,14 @@ namespace tempest::gen {
     /** Generate a conditional branch based on a test expression. Handles inlining of logical
         operators. */
     bool genTestExpr(Expr* test, llvm::BasicBlock* blkTrue, llvm::BasicBlock* blkFalse);
+
+    /** Generate the address of an l-value expression. */
+    llvm::Value* genLValueAddress(Expr* lval);
+    llvm::Value* genMemberFieldAddr(DefnRef* lval);
+    llvm::Value* genGEPIndices(
+        Expr* expr, SmallVectorImpl<llvm::Value*>& indices, std::stringstream& label);
+    llvm::Value* genBaseAddress(
+        Expr* in, SmallVectorImpl<llvm::Value*>& indices, std::stringstream& label);
 
     /** Create a new basic block and append it to the current function. */
     llvm::BasicBlock* createBlock(const llvm::Twine& blkName);

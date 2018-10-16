@@ -1,0 +1,6 @@
+/** An interable sequence of characters. Strings are stored as UTF-8 encoded byte sequences.
+    For efficient random access to characters, conver the `String` into a character array.
+*/
+export class String {
+  size: int = 0;
+}

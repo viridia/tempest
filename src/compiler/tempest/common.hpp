@@ -15,6 +15,7 @@ using llvm::dyn_cast;
 using llvm::dyn_cast_or_null;
 using llvm::cast;
 using llvm::cast_or_null;
+using llvm::isa;
 using llvm::ArrayRef;
 using llvm::SmallString;
 using llvm::SmallVector;

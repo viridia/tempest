@@ -1,5 +1,6 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/import/fsimporter.hpp"
+#include "tempest/parse/parser.hpp"
 #include "tempest/source/programsource.hpp"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -9,6 +10,7 @@ namespace tempest::import {
   using namespace llvm::sys;
   using tempest::sema::graph::Module;
   using tempest::error::diag;
+  using tempest::parse::Parser;
 
   static auto TEMPEST_SOURCE_FILE_EXTENSION = ".te";
 
@@ -49,12 +51,12 @@ namespace tempest::import {
       auto it = _dirs.find(dirname);
       if (it == _dirs.end()) {
         std::error_code ec;
-        fs::directory_iterator iter(dirname, ec, false);
+        fs::directory_iterator iter(dirname, ec, true);
+        fs::directory_iterator end;
         llvm::StringSet<> entries;
-        while (ec) {
+        while (!ec && iter != end) {
           if (iter->status()->type() == fs::file_type::regular_file) {
-            diag.info() << iter->path();
-            entries.insert(iter->path());
+            entries.insert(path::filename(iter->path()));
           }
           iter.increment(ec);
         }
@@ -76,16 +78,13 @@ namespace tempest::import {
       //   diag.debug() << "Import: Found source module '" << qualName << "' at " << filepath;
       // }
 
-      return module;
+      Parser parser(module->source(), module->astAlloc());
+      auto ast = parser.module();
+      if (ast) {
+        module->setAst(ast);
+      }
 
-      // Parser parser(module->source(), module);
-      // if (parser.parse()) {
-      //   return module;
-      // } else {
-      //   delete module;
-      //   // module = NULL;
-      //   // return nullptr;
-      // }
+      return module;
     } else if (fs::is_directory(filepath)) {
       // If the original path, with no extension, is a directory, then treat it as a package.
       isPackage = true;

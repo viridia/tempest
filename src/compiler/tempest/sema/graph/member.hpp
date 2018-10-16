@@ -31,8 +31,7 @@ namespace tempest::sema::graph {
       // Definitions
       TYPE = 1,
       TYPE_PARAM,
-      CONST_DEF,
-      LET_DEF,
+      VAR_DEF,
       ENUM_VAL,
       FUNCTION,
       FUNCTION_PARAM,

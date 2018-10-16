@@ -128,7 +128,7 @@ namespace tempest::gen {
 
     auto it = _typeDefns.find(key);
     if (it != _typeDefns.end()) {
-      return llvm::cast<DICompositeType>(it->second);
+      return cast<DICompositeType>(it->second);
     }
 
     // Qualified name
@@ -139,7 +139,7 @@ namespace tempest::gen {
     DIFile* diFile = getDIFile(td->location().source);
     DIScope* diScope = _diCompileUnit;
 
-    auto irCls = llvm::cast<llvm::StructType>(_typeBuilder.get(cls, typeArgs));
+    auto irCls = cast<llvm::StructType>(_typeBuilder.get(cls, typeArgs));
     auto structLayout = _dataLayout->getStructLayout(irCls);
 
     // Base class
@@ -176,22 +176,24 @@ namespace tempest::gen {
       elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
       auto base = td->extends()[0];
-      auto baseType = llvm::cast<TypeDefn>(base)->type();
+      auto baseType = cast<TypeDefn>(base)->type();
       elts.push_back(get(baseType, typeArgs));
     }
     // Data members
-    int32_t memberIndex = 1; // Start from 1.
+    int32_t memberIndex = 1; // Start from 1 (base class is zero).
     for (auto member : td->members()) {
-      if (member->kind == Defn::Kind::LET_DEF && !member->isStatic()) {
+      if (member->kind == Defn::Kind::VAR_DEF && !member->isStatic()) {
         auto vd = static_cast<ValueDefn*>(member);
-        auto memberType = _typeBuilder.getMemberType(vd->type(), typeArgs);
-        elts.push_back(
-          _builder.createMemberType(
-            diScope, member->name(), diFile, member->location().startLine,
-            _dataLayout->getTypeSizeInBits(memberType),
-            _dataLayout->getPrefTypeAlignment(memberType),
-            structLayout->getElementOffsetInBits(memberIndex),
-            DINode::DIFlags::FlagZero, getMemberType(vd->type(), typeArgs)));
+        if (!vd->isConstant()) {
+          auto memberType = _typeBuilder.getMemberType(vd->type(), typeArgs);
+          elts.push_back(
+            _builder.createMemberType(
+              diScope, member->name(), diFile, member->location().startLine,
+              _dataLayout->getTypeSizeInBits(memberType),
+              _dataLayout->getPrefTypeAlignment(memberType),
+              structLayout->getElementOffsetInBits(memberIndex),
+              DINode::DIFlags::FlagZero, getMemberType(vd->type(), typeArgs)));
+        }
       }
       memberIndex += 1;
     }

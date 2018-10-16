@@ -1,4 +1,3 @@
 /** Standard built-in array class. */
-class Array[T] {
-
+export class Array[T] {
 }

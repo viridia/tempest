@@ -76,15 +76,14 @@ namespace tempest::sema::graph {
         break;
       }
 
-      case Member::Kind::CONST_DEF:
-      case Member::Kind::LET_DEF: {
+      case Member::Kind::VAR_DEF: {
         auto vd = static_cast<const ValueDefn*>(m);
         if (vd->visibility() == PRIVATE) {
           out << "private ";
         } else if (vd->visibility() == PROTECTED) {
           out << "protected ";
         }
-        if (vd->kind == Member::Kind::CONST_DEF) {
+        if (vd->isConstant()) {
           out << "const ";
         }
         out << vd->name();
@@ -441,6 +440,10 @@ namespace tempest::sema::graph {
         out << str;
         break;
       }
+
+      case Expr::Kind::SELF:
+        out << "self";
+        break;
 
       case Expr::Kind::FUNCTION_REF:
       case Expr::Kind::TYPE_REF:

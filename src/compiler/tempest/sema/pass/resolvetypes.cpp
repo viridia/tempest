@@ -305,8 +305,7 @@ namespace tempest::sema::pass {
         break;
       }
 
-      case Member::Kind::CONST_DEF:
-      case Member::Kind::LET_DEF: {
+      case Member::Kind::VAR_DEF: {
         visitValueDefn(static_cast<ValueDefn*>(d));
         break;
       }
@@ -423,8 +422,11 @@ namespace tempest::sema::pass {
       LowerOperatorsTransform transform(_cu, _scope, *_alloc);
       vd->setInit(transform.visit(vd->init()));
       auto initType = assignTypes(vd->init(), vd->type());
-      if (!vd->type() && !Type::isError(initType)) {
-        vd->setType(chooseIntegerType(initType));
+      if (!Type::isError(initType)) {
+        if (!vd->type()) {
+          vd->setType(chooseIntegerType(initType));
+        }
+        vd->setInit(coerceExpr(vd->init(), vd->type()));
       }
     }
   }
@@ -1392,8 +1394,7 @@ namespace tempest::sema::pass {
       callExpr->flavor = ApplyFnOp::NEW;
     } else if (callExpr->function->kind == Expr::Kind::SUPER) {
       // Create a new signular function reference.
-      auto selfArg = new (*_alloc) SelfExpr(callExpr->location);
-      selfArg->type = _selfType;
+      auto selfArg = new (*_alloc) SelfExpr(callExpr->location, _selfType);
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, selfArg, fnType);
       callExpr->type = const_cast<Type *>(returnType);

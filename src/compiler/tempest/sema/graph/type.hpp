@@ -189,6 +189,10 @@ namespace tempest::sema::graph {
       , base(base)
       , modifiers(modifiers)
     {}
+
+    /** Dynamic casting support. */
+    static bool classof(const ModifiedType* t) { return true; }
+    static bool classof(const Type* t) { return t->kind == Kind::MODIFIED; }
   };
 
   /** A type that represents a single value. */
@@ -237,6 +241,25 @@ namespace tempest::sema::graph {
     static bool classof(const SpecializedType* t) { return true; }
     static bool classof(const Type* t) { return t->kind == Kind::SPECIALIZED; }
   };
+
+  inline const Type* unqualified(const Type* t) {
+    for (;;) {
+      if (auto mt = dyn_cast<ModifiedType>(t)) {
+        t = mt->base;
+      } else {
+        return t;
+      }
+    }
+    // if (!m) {
+    //   return nullptr;
+    // }
+    // while (m->kind == Defn::Kind::SPECIALIZED) {
+    //   m = static_cast<SpecializedDefn*>(m)->generic();
+    // }
+    // return llvm::dyn_cast<Defn>(m);
+  }
+
+  const Type* unqualifiedAndUnspecialized(const Type* t);
 
   inline ::std::ostream& operator<<(::std::ostream& os, const Type* t) {
     format(os, t);

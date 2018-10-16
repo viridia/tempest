@@ -48,6 +48,7 @@ namespace tempest::gen {
   class CGFunction;
   class CGStringLiteral;
   class ClassDescriptorSym;
+  class GlobalVarSym;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
   class CGModule {
@@ -92,6 +93,9 @@ namespace tempest::gen {
 
     /** Get a file from a program source. */
     llvm::DIFile* getDIFile(ProgramSource* src);
+
+    llvm::Value* genVarValue(GlobalVarSym* vsym);
+    llvm::Constant* genGlobalVar(GlobalVarSym* vsym);
 
     /** Generate static class descriptor struct. */
     llvm::GlobalVariable* genClassDescValue(ClassDescriptorSym* clsSym);

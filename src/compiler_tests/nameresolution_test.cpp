@@ -65,7 +65,8 @@ TEST_CASE("NameResolution.Type", "[sema]") {
   SECTION("Resolve primitive type") {
     auto mod = compile(cu, "let X: i32;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::INTEGER);
     REQUIRE_THAT(vdef->type(), TypeEQ("i32"));
@@ -86,7 +87,8 @@ TEST_CASE("NameResolution.Type", "[sema]") {
   SECTION("Resolve union type") {
     auto mod = compile(cu, "let X: i32 | f32 | bool;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::UNION);
     REQUIRE(cast<UnionType>(vdef->type())->members.size() == 3);
@@ -96,7 +98,8 @@ TEST_CASE("NameResolution.Type", "[sema]") {
   SECTION("Resolve union of singletons") {
     auto mod = compile(cu, "let X: 1 | 2 | 3;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::UNION);
     REQUIRE(cast<UnionType>(vdef->type())->members.size() == 3);
@@ -112,7 +115,8 @@ TEST_CASE("NameResolution.Type", "[sema]") {
   SECTION("Resolve tuple type") {
     auto mod = compile(cu, "let X: (i32, f32, bool);");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::TUPLE);
     REQUIRE(cast<TupleType>(vdef->type())->members.size() == 3);
@@ -125,7 +129,8 @@ TEST_CASE("NameResolution.Type", "[sema]") {
       "let X: A;"
     );
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::ALIAS);
     REQUIRE_THAT(vdef->type(), TypeEQ("type A"));
@@ -144,7 +149,8 @@ TEST_CASE("NameResolution.Class", "[sema]") {
       "let X: A;"
     );
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
     REQUIRE_THAT(vdef->type(), TypeEQ("class A"));
@@ -158,7 +164,8 @@ TEST_CASE("NameResolution.Class", "[sema]") {
       "let X: A.B;"
     );
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
@@ -196,7 +203,8 @@ TEST_CASE("NameResolution.Class", "[sema]") {
     auto td = cast<TypeDefn>(mod->members().back());
     REQUIRE(td->kind == Defn::Kind::TYPE);
     auto vdef = cast<ValueDefn>(td->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::CONST_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE(vdef->isConstant());
     REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
   }
@@ -211,7 +219,7 @@ TEST_CASE("NameResolution.Class", "[sema]") {
     auto td = cast<TypeDefn>(mod->members().back());
     REQUIRE(td->kind == Defn::Kind::TYPE);
     auto vdef = cast<ValueDefn>(td->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::CONST_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
     REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
   }
@@ -225,7 +233,8 @@ TEST_CASE("NameResolution.Class", "[sema]") {
       "let X: C.B;"
     );
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
@@ -240,7 +249,8 @@ TEST_CASE("NameResolution.Class", "[sema]") {
       "let X: C.B;"
     );
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::SPECIALIZED);
     REQUIRE_THAT(vdef->type(), TypeEQ("class B[i32]"));
@@ -409,35 +419,40 @@ TEST_CASE("NameResolution.Literal", "[sema]") {
   SECTION("Character literal") {
     auto mod = compile(cu, "let X = 'a';");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE_THAT(vdef->init(), ExprEQ("97"));
   }
 
   SECTION("Integer literal") {
     auto mod = compile(cu, "let X = 1;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE_THAT(vdef->init(), ExprEQ("1"));
   }
 
   SECTION("Integer literal") {
     auto mod = compile(cu, "let X = 0x10;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE_THAT(vdef->init(), ExprEQ("16"));
   }
 
   SECTION("Float literal") {
     auto mod = compile(cu, "let X = 1.1;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE_THAT(vdef->init(), ExprEQ("1.1"));
   }
 
   SECTION("String literal") {
     auto mod = compile(cu, "let X = \"abc\";");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE_THAT(vdef->init(), ExprEQ("\"abc\""));
   }
 }

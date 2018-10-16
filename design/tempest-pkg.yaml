@@ -1,0 +1,15 @@
+# Example tempest-pkg.yaml file
+name: core
+description: Tempest Core Library
+version: 0.0.1
+main: index.te
+modules:
+  - core.bc
+author: Talin
+license: Apache-2.0
+dependencies:
+  bcrypt: ^1.0.3
+scripts:
+  build:
+    - cd ${workspace}/src
+    - tempestc -etc -stuff

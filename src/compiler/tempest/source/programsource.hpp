@@ -54,7 +54,7 @@ namespace tempest::source {
       if (_lines.size() == 0) {
         readLines(_lines);
       }
-      if (index <= _lines.size()) {
+      if (index < _lines.size()) {
         result = _lines[index];
         return true;
       } else {

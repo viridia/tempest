@@ -73,3 +73,4 @@ configure_file(
 
 add_subdirectory(compiler)
 add_subdirectory(compiler_tests)
+add_subdirectory(lib)

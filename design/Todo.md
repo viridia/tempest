@@ -1,10 +1,10 @@
 # TODOs
 
-* Constructors!
 * Infix operators
 * Constant infix operators
   * String
   * Boolean
+* Super calls
 * Unary operators
   * NOT
 * Boolean coercion
@@ -12,6 +12,7 @@
 * ADL lookup
 * Member function definitions don't really need 'fn'.
 * Member access operator
+  * Method overloads
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
   * inferred source types
   * structural typing in unification

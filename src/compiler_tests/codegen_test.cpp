@@ -176,4 +176,32 @@ TEST_CASE("CodeGen", "[gen]") {
     REQUIRE(testFn != nullptr);
     REQUIRE(testFn->size() > 0);
   }
+
+  SECTION("field initialization") {
+    CompilationUnit cu;
+    auto mod = compile(cu,
+      "class A {\n"
+      "  size: int = 0;\n"
+      "}\n"
+    );
+
+    CodeGen gen(context);
+    auto cgMod = gen.createModule("TestMod");
+    cgMod->diInit("testmod.te", "");
+    gen.genSymbols(cu.symbols());
+    cgMod->diFinalize();
+    // cgMod->irModule()->print(llvm::errs(), nullptr);
+    REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
+
+    // auto clsDecA = cgMod->irModule()->getGlobalVariable("test.mod.A::cldesc");
+    // REQUIRE(clsDecA != nullptr);
+
+    // auto ctorA = cgMod->irModule()->getFunction("test.mod.A.new");
+    // REQUIRE(ctorA != nullptr);
+    // REQUIRE(ctorA->size() > 0);
+
+    // auto testFn = cgMod->irModule()->getFunction("test.mod.test->test.mod.A");
+    // REQUIRE(testFn != nullptr);
+    // REQUIRE(testFn->size() > 0);
+  }
 }

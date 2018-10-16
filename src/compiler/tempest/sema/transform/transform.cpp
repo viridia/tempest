@@ -378,7 +378,8 @@ namespace tempest::sema::transform {
       case Expr::Kind::SUBTRACT:
       case Expr::Kind::MULTIPLY:
       case Expr::Kind::DIVIDE:
-      case Expr::Kind::REMAINDER: {
+      case Expr::Kind::REMAINDER:
+      case Expr::Kind::ASSIGN: {
         auto op = static_cast<BinaryOp*>(expr);
         auto a0 = transform(op->args[0]);
         auto a1 = transform(op->args[1]);

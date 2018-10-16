@@ -39,8 +39,7 @@ namespace tempest::sema::names {
         types.push_back(lr);
       } else if (m->kind == Member::Kind::FUNCTION) {
         functions.push_back(lr);
-      } else if (m->kind == Member::Kind::CONST_DEF
-          || m->kind == Member::Kind::LET_DEF
+      } else if (m->kind == Member::Kind::VAR_DEF
           || m->kind == Member::Kind::ENUM_VAL
           || m->kind == Member::Kind::FUNCTION_PARAM
           || m->kind == Member::Kind::TUPLE_MEMBER) {

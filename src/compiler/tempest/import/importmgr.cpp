@@ -24,7 +24,7 @@ namespace tempest::import {
 
   void ImportMgr::addImportPath(StringRef path) {
     bool success = false;
-    if (fs::is_directory(path, success) && success) {
+    if (!fs::is_directory(path, success) && success) {
       _importers.push_back(new FileSystemImporter(path));
   //   } else if (fs::is_regular_file(path, success) == errc::success && success) {
   //     if (path::extension(path) == ".bc") {
@@ -102,7 +102,7 @@ namespace tempest::import {
       const Location& loc, StringRef baseName, size_t parentLevels, StringRef qname) {
     llvm::SmallString<128> absName;
     llvm::SmallVector<StringRef, 8> pathComponents;
-    baseName.split(pathComponents, '.', false);
+    baseName.split(pathComponents, '.', -1, false);
     if (parentLevels > pathComponents.size()) {
       diag.error(loc) << "Invalid relative path: " << std::string(parentLevels, '.') << qname;
       return nullptr;

@@ -9,8 +9,8 @@ using tempest::sema::graph::Member;
 TEST_CASE("Symbol tables", "[symbol]") {
   SymbolTable sym;
   NameLookupResult res;
-  auto x = std::make_unique<Member>(Member::Kind::LET_DEF, "x");
-  auto y = std::make_unique<Member>(Member::Kind::LET_DEF, "y");
+  auto x = std::make_unique<Member>(Member::Kind::VAR_DEF, "x");
+  auto y = std::make_unique<Member>(Member::Kind::VAR_DEF, "y");
 
   SECTION("addMember") {
     sym.addMember(x.get());

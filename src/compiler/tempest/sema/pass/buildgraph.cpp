@@ -59,7 +59,8 @@ namespace tempest::sema::pass {
 
       if (node->kind == ast::Node::Kind::OBJECT_DEFN) {
         ValueDefn* singleton = new ValueDefn(
-            Member::Kind::CONST_DEF, ast->location, ast->name, parent);
+            Member::Kind::VAR_DEF, ast->location, ast->name, parent);
+        singleton->setConstant(true);
         singleton->setType(static_cast<TypeDefn*>(d)->type());
         singleton->setVisibility(astVisibility(ast));
         memberList.push_back(singleton);
@@ -73,10 +74,9 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::MEMBER_CONST:
       case ast::Node::Kind::MEMBER_VAR: {
         const ast::ValueDefn* ast = static_cast<const ast::ValueDefn*>(node);
-        Member::Kind kind = node->kind == ast::Node::Kind::MEMBER_CONST ?
-            Member::Kind::CONST_DEF : Member::Kind::LET_DEF;
         ValueDefn* vd = new ValueDefn(
-            kind, ast->location, ast->name, parent);
+            Member::Kind::VAR_DEF, ast->location, ast->name, parent);
+        vd->setConstant(node->kind == ast::Node::Kind::MEMBER_CONST);
         vd->setAst(ast);
         return vd;
       }

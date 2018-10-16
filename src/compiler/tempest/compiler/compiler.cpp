@@ -22,13 +22,15 @@
 #include "llvm/Target/TargetOptions.h"
 
 #include <vector>
+#include <cstdlib>
 
 using namespace llvm;
 using namespace llvm::sys;
 using namespace std;
 using namespace tempest::sema::pass;
 
-cl::list<string> PackageRoots("source-root", llvm::cl::desc("Source package root directory"));
+cl::list<string> SrcPackageRoots(
+    "source-root", llvm::cl::desc("Source package root directories (default current dir)"));
 cl::list<std::string> InputFilenames(
     cl::Positional, cl::desc("<Input files or dirs>"), cl::OneOrMore);
 cl::opt<string> OutputDir("d", llvm::cl::desc("Output directory"));
@@ -42,6 +44,7 @@ namespace tempest::compiler {
   }
 
   int Compiler::run() {
+    addPackageSearchPaths();
     addSourceFiles();
     CompilationUnit::theCU = &_cu;
     if (_cu.sourceModules().empty()) {
@@ -59,6 +62,7 @@ namespace tempest::compiler {
       selectTarget(mod);
       if (diag.errorCount() == 0) {
         llvm::verifyModule(*mod->irModule(), &(llvm::errs()));
+        // mod->irModule()->print(llvm::errs(), nullptr);
         outputModule(mod);
       }
     }
@@ -135,6 +139,23 @@ namespace tempest::compiler {
     llvm::WriteBitcodeToFile(mod->irModule(), binOut);
   }
 
+  int Compiler::addPackageSearchPaths() {
+    StringRef path = std::getenv("TEMPEST_PATH");
+    if (path.size()) {
+      SmallVector<StringRef, 8> paths;
+      #if defined(_WIN32)
+        auto sep = ';';
+      #else
+        auto sep = ':';
+      #endif
+      path.split(paths, sep, -1, false);
+      for (auto dirname : paths) {
+        diag.debug() << "Module path: " << dirname;
+      }
+    }
+    return 0;
+  }
+
   int Compiler::addSourceFiles() {
     SmallString<128> curDir;
     vector<SmallString<128>> rootPaths;
@@ -145,7 +166,7 @@ namespace tempest::compiler {
     }
 
     // Compute absolute paths for all package roots
-    for (auto root : PackageRoots) {
+    for (auto root : SrcPackageRoots) {
       SmallString<128> srcRoot;
       SmallString<128> realSrcRoot;
       if (path::is_absolute(root)) {
@@ -159,9 +180,11 @@ namespace tempest::compiler {
         return 1;
       }
       rootPaths.push_back(realSrcRoot);
+      _cu.importMgr().addImportPath(realSrcRoot);
     }
     if (rootPaths.empty()) {
       rootPaths.push_back(curDir);
+      _cu.importMgr().addImportPath(curDir);
     }
 
     SmallString<128> outFile;
@@ -247,12 +270,23 @@ namespace tempest::compiler {
       }
 
       bool success = false;
-      if (fs::is_directory(input, success) && success) {
-        assert(false && "implement source directory");
+      if (!fs::is_directory(input, success) && success) {
+        SmallString<128> dirIndex(input);
+        path::append(dirIndex, "index.te");
+        if (fs::exists(dirIndex)) {
+          if (!fs::is_directory(dirIndex, success) && success) {
+            diag.error() << "Directory index should be a file: '" << dirIndex;
+          } else {
+            modName.append(".index");
+            _cu.addSourceFile(dirIndex, modName);
+          }
+        }
       } else {
         auto ext = path::extension(input);
         if (ext == ".te") {
           _cu.addSourceFile(input, modName);
+        } else if (ext.empty()) {
+          diag.error() << "Unknown input file type: '" << input;
         } else {
           diag.error() << "Unknown extension: '" << ext << "': " << input;
           return 1;

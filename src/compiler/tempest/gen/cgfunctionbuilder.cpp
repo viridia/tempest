@@ -15,8 +15,6 @@
 namespace tempest::gen {
   using tempest::error::diag;
   using namespace tempest::sema::graph;
-  using llvm::cast;
-  using llvm::dyn_cast;
   using llvm::BasicBlock;
   using llvm::DIFile;
   using llvm::DINode;
@@ -25,6 +23,7 @@ namespace tempest::gen {
   using llvm::GlobalValue;
   using llvm::Twine;
   using llvm::Value;
+  using llvm::PointerType;
 
   CGFunctionBuilder::CGFunctionBuilder(
       CodeGen& gen,
@@ -352,6 +351,20 @@ namespace tempest::gen {
       case Expr::Kind::CALL:
       case Expr::Kind::CALL_SUPER:
         return visitCall(static_cast<ApplyFnOp*>(expr));
+
+      case Expr::Kind::ASSIGN: {
+        auto iop = static_cast<BinaryOp*>(expr);
+        auto lval = genLValueAddress(iop->args[0]);
+        auto rval = visitExpr(iop->args[1]);
+        if (lval && rval) {
+          // TODO: It's actually a lot more complicated than this.
+          // Zero-size structs
+          // Structs in general
+          // Post-assignment
+          return _builder.CreateStore(rval, lval);
+        }
+        return nullptr;
+      }
 
       case Expr::Kind::ADD: {
         auto iop = static_cast<BinaryOp*>(expr);
@@ -924,6 +937,287 @@ namespace tempest::gen {
 
   //   return globalAlloc_;
   // }
+
+  Value* CGFunctionBuilder::genLValueAddress(Expr* in) {
+    // if (in->exprType() == Expr::PtrDeref) {
+    //   const UnaryExpr * ue = static_cast<const UnaryExpr *>(in);
+    //   return genExpr(ue->arg());
+    // }
+
+    // if (in->type()->typeShape() == Shape_Large_Value) {
+    //   return genExpr(in);
+    // }
+
+    switch (in->kind) {
+      case Expr::Kind::GLOBAL_REF: {
+        auto sref = static_cast<SymbolRefExpr*>(in);
+        return _module->genVarValue(cast<GlobalVarSym>(sref->sym));
+      }
+
+      case Expr::Kind::VAR_REF: {
+        auto dref = static_cast<DefnRef*>(in);
+        // const LValueExpr * lval = static_cast<const LValueExpr *>(in);
+
+        // It's a reference to a class member.
+        if (dref->stem) {
+          Value* result = genMemberFieldAddr(dref);
+          // if (const VariableDefn* var = dyn_cast<VariableDefn>(lval->value())) {
+          //   if (var->isSharedRef()) {
+          //     result = builder_.CreateStructGEP(builder_.CreateLoad(result), 1, var->name());
+          //   }
+          // }
+          return result;
+        }
+
+        // It's a global, static, or parameter
+        const ValueDefn* vd = cast<ValueDefn>(dref->defn);
+        if (vd->kind == Defn::Kind::FUNCTION_PARAM) {
+          const ParameterDefn* param = static_cast<const ParameterDefn *>(vd);
+          // if (param->isSharedRef()) {
+          //   DFAIL("Implement");
+          // }
+          (void)param;
+          assert(false && "Implement");
+          // return param->irValue();
+        // } else if (var->defnType() == Defn::MacroArg) {
+        //   return genLValueAddress(static_cast<const VariableDefn *>(var)->initValue());
+        } else {
+          // const VariableDefn * v = static_cast<const VariableDefn *>(var);
+          // DASSERT(!v->isSharedRef());
+          // if (v->hasStorage()) {
+          //   return genVarValue(v);
+          // }
+          // TypeShape shape = lval->type()->typeShape();
+          // if (shape == Shape_Small_LValue || shape == Shape_Large_Value || shape == Shape_Reference) {
+          //   return genLetValue(v);
+          // }
+          diag.fatal(in->location) << "Can't take address of non-lvalue " << vd;
+          assert(false && "IllegalState");
+        }
+      }
+
+      // case Expr::ElementRef: {
+      //   return genElementAddr(static_cast<const BinaryExpr *>(in));
+      //   break;
+      // }
+
+      default:
+        diag.fatal(in->location) << "Not an LValue " << in->kind << " [" << in << "]";
+        assert(false && "Implement");
+    }
+  }
+
+  Value* CGFunctionBuilder::genMemberFieldAddr(DefnRef* lval) {
+    assert(lval->stem != nullptr);
+    SmallVector<Value*, 8> indices;
+    std::stringstream label;
+    Value * baseVal = genGEPIndices(lval, indices, label);
+    if (baseVal == nullptr) {
+      return nullptr;
+    }
+
+    assert(baseVal->getType()->isPointerTy());
+    return _builder.CreateInBoundsGEP(baseVal, indices, label.str());
+  }
+
+  Value* CGFunctionBuilder::genGEPIndices(
+      Expr* expr, SmallVectorImpl<Value*>& indices, std::stringstream& label) {
+    switch (expr->kind) {
+      case Expr::Kind::VAR_REF: {
+        // In this case, lvalue refers to a member of the base expression.
+        auto lval = static_cast<const DefnRef *>(expr);
+        Value* baseAddr = genBaseAddress(lval->stem, indices, label);
+        assert(isa<ValueDefn>(lval->defn));
+        auto field = cast<ValueDefn>(lval->defn);
+
+        assert(isa<PointerType>(baseAddr->getType()));
+        // DASSERT_TYPE_EQ(lval->base(),
+        //     lval->base()->type()->irType(),
+        //     getGEPType(baseAddr->getType(), indices.begin(), indices.end()));
+
+        // Handle upcasting of the base to match the field.
+        auto fieldClass = cast<TypeDefn>(field->definedIn());
+        // fieldClass->createIRTypeFields();
+        assert(fieldClass != nullptr);
+        auto baseClass = cast<UserDefinedType>(
+            unqualifiedAndUnspecialized(lval->stem->type))->defn();
+        // DASSERT(TypeRelation::isSubclass(baseClass, fieldClass));
+        while (baseClass != fieldClass) {
+          baseClass = cast<TypeDefn>(unwrapSpecialization(baseClass->extends()[0]));
+          indices.push_back(_builder.getInt32(0));
+        }
+
+        assert(field->fieldIndex() >= 0);
+        indices.push_back(_builder.getInt32(field->fieldIndex() + 1));
+        label << "." << field->name();
+
+        // Assert that the type is what we expected: A pointer to the field type.
+        // if (field->isSharedRef()) {
+        //   // TODO: Check type of shared ref.
+        // } else {
+        //   DASSERT_TYPE_EQ(expr,
+        //       expr->type()->irEmbeddedType(),
+        //       getGEPType(baseAddr->getType(), indices.begin(), indices.end()));
+        // }
+
+        return baseAddr;
+      }
+
+      // case Expr::ElementRef: {
+      //   const BinaryExpr * indexOp = static_cast<const BinaryExpr *>(expr);
+      //   const Expr * arrayExpr = indexOp->first();
+      //   const Expr * indexExpr = indexOp->second();
+      //   Value * arrayVal;
+
+      //   if (arrayExpr->type()->typeClass() == Type::NAddress) {
+      //     // Handle auto-deref of Address type.
+      //     arrayVal = genExpr(arrayExpr);
+      //     label << arrayExpr;
+      //   } else {
+      //     arrayVal = genBaseAddress(arrayExpr, indices, label);
+      //   }
+
+      //   // TODO: Make sure the dimensions are in the correct order here.
+      //   // I think they might be backwards.
+      //   label << "[" << indexExpr << "]";
+      //   Value * indexVal = genExpr(indexExpr);
+      //   if (indexVal == NULL) {
+      //     return NULL;
+      //   }
+
+      //   indices.push_back(indexVal);
+
+      //   // Assert that the type is what we expected: A pointer to the field or element type.
+      //   DASSERT_TYPE_EQ(expr,
+      //       expr->type()->irEmbeddedType(),
+      //       getGEPType(arrayVal->getType(), indices.begin(), indices.end()));
+
+      //   return arrayVal;
+      // }
+
+      default:
+        assert(false && "Bad GEP call");
+        break;
+    }
+
+    return nullptr;
+  }
+
+  Value* CGFunctionBuilder::genBaseAddress(
+      Expr* in, SmallVectorImpl<Value*>& indices, std::stringstream& label) {
+
+    // If the base is a pointer
+    bool needsDeref = false;
+    bool needsAddress = false;
+
+    // True if the base address itself has a base.
+    bool baseHasBase = false;
+
+    /*  Determine if the expression is actually a pointer that needs to be
+        dereferenced. This happens under the following circumstances:
+
+        1) The expression is an explicit pointer dereference.
+        2) The expression is a variable or parameter containing a reference type.
+        3) The expression is a variable of an aggregate value type.
+        4) The expression is a parameter to a value type, but has the reference
+          flag set (which should only be true for the 'self' parameter.)
+    */
+
+    Expr* base = in;
+    if (auto lval = dyn_cast<DefnRef>(base)) {
+      // const ValueDefn* field = lval->value();
+      // const Type* fieldType = field->type().dealias().unqualified();
+      // if (const ParameterDefn * param = dyn_cast<ParameterDefn>(field)) {
+      //   fieldType = dealias(param->internalType()).unqualified();
+      //   if (param->getFlag(ParameterDefn::Reference)) {
+      //     needsDeref = true;
+      //   }
+      // }
+
+      // if (const VariableDefn * var = dyn_cast<VariableDefn>(field)) {
+      //   DASSERT(!var->isSharedRef());
+      // }
+
+      // TypeShape typeShape = fieldType->typeShape();
+      // switch (typeShape) {
+      //   case Shape_ZeroSize:
+      //   case Shape_Primitive:
+      //   case Shape_Small_RValue:
+      //     break;
+
+      //   case Shape_Small_LValue:
+      //     needsAddress = true;
+      //     needsDeref = true;
+      //     break;
+
+      //   case Shape_Large_Value:
+      //   case Shape_Reference:
+      //     needsDeref = true;
+      //     break;
+
+      //   default:
+      //     diag.fatal(in) << "Invalid type shape";
+      // }
+
+      if (lval->stem != NULL) {
+        baseHasBase = true;
+      // } else {
+      }
+    // } else if (base->kind == Expr::PtrDeref) {
+    //   base = static_cast<const UnaryExpr *>(base)->arg();
+    //   needsDeref = true;
+    // } else if (base->kind == Expr::ElementRef) {
+    //   baseHasBase = true;
+    } else {
+      // TypeShape typeShape = base->type()->typeShape();
+      // switch (typeShape) {
+      //   case Shape_ZeroSize:
+      //   case Shape_Primitive:
+      //   case Shape_Small_RValue:
+      //   case Shape_Small_LValue:
+      //     break;
+
+      //   case Shape_Large_Value:
+      //   case Shape_Reference:
+          needsDeref = true;
+      //     break;
+
+      //   default:
+      //     diag.fatal(in) << "Invalid type shape";
+      // }
+    }
+
+    Value* baseAddr;
+    if (baseHasBase && !needsDeref) {
+      // If it's a field within a larger object, then we can simply take a
+      // relative address from the base.
+      baseAddr = genGEPIndices(base, indices, label);
+    } else {
+      // Otherwise generate a pointer value.
+      label << base;
+      if (needsAddress) {
+        baseAddr = genLValueAddress(base);
+      } else {
+        baseAddr = visitExpr(base);
+      }
+      if (needsDeref) {
+        // baseAddr is of pointer type, we need to add an extra 0 to convert it
+        // to the type of thing being pointed to.
+        indices.push_back(_builder.getInt32(0));
+      }
+    }
+
+    // Assert that the type is what we expected.
+    assert(in->type);
+    // if (!indices.empty()) {
+    //   DASSERT_TYPE_EQ(in,
+    //       in->type()->irType(),
+    //       getGEPType(baseAddr->getType(), indices.begin(), indices.end()));
+    // }
+
+    assert(isa<PointerType>(baseAddr->getType()));
+    return baseAddr;
+  }
 
   bool CGFunctionBuilder::genTestExpr(Expr* test, BasicBlock* blkTrue, BasicBlock* blkFalse) {
     switch (test->kind) {

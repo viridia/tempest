@@ -153,6 +153,7 @@ namespace tempest::sema::graph {
     //   CAST_OP,
 
       ALLOC_OBJ,                // Allocate a new object of the given type.
+      GLOBAL_REF,               // Reference to a global or static variable symbol (lowered)
 
       // Cast operators
       CAST_INT_TRUNCATE,        // Number truncation.
@@ -227,7 +228,7 @@ namespace tempest::sema::graph {
   /** The 'self' keyword. */
   class SelfExpr : public Expr {
   public:
-    SelfExpr(Location location): Expr(Kind::SELF, location) {}
+    SelfExpr(Location location, Type* type = nullptr): Expr(Kind::SELF, location, type) {}
 
     /** Dynamic casting support. */
     static bool classof(const SelfExpr* e) { return true; }

@@ -2,9 +2,10 @@
 type Optional[T] = T | void;
 
 /** Extend optional with useful methods. */
-extend Optional[T] implements Iterable[T] {
+// extend Optional[T] implements Iterable[T] {
+extend Optional[T] {
   /** Returns 1 or 0 depending on whether the value is present or absent. */
-  fn size: int {
+  get length: int {
     match self {
       T => 1;
       void => 0;
@@ -12,7 +13,7 @@ extend Optional[T] implements Iterable[T] {
   }
 
   /** Returns true or false depending on whether the value is absent or present. */
-  fn empty: int {
+  get empty: int {
     match self {
       T => false;
       void => true;

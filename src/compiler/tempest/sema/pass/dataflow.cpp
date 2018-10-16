@@ -89,8 +89,7 @@ namespace tempest::sema::pass {
           break;
         }
 
-        case Member::Kind::CONST_DEF:
-        case Member::Kind::LET_DEF: {
+        case Member::Kind::VAR_DEF: {
           visitValueDefn(static_cast<ValueDefn*>(defn));
           break;
         }
@@ -182,7 +181,7 @@ namespace tempest::sema::pass {
               }
               // TODO: Probably need to upcast self.
               auto dref = new (*_alloc) DefnRef(
-                  Expr::Kind::VAR_REF, fd->location(), ctor, td->implicitSelf());
+                  Expr::Kind::FUNCTION_REF, fd->location(), ctor, td->implicitSelf());
               initStmts.push_back(
                   new (*_alloc) ApplyFnOp(Expr::Kind::CALL_SUPER, fd->location(), dref, {}));
             }

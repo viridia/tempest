@@ -104,6 +104,7 @@ namespace tempest::sema::graph {
     //   case Kind::ADDRESS_OF: return "ADDRESS_OF";
 
       case Kind::ALLOC_OBJ: return "ALLOC_OBJ";
+      case Kind::GLOBAL_REF: return "GLOBAL_REF";
 
       case Kind::CAST_INT_TRUNCATE: return "CAST_INT_TRUNCATE";
       case Kind::CAST_SIGN_EXTEND: return "CAST_SIGN_EXTEND";

@@ -35,6 +35,18 @@ namespace tempest::sema::pass {
           return transform::ExprVisitor::visit(e);
         }
 
+        case Expr::Kind::VAR_REF: {
+          Env env;
+          auto dref = static_cast<DefnRef*>(e);
+          auto vd = cast<ValueDefn>(env.unwrap(dref->defn));
+          if (vd->isStatic() || vd->isGlobal()) {
+            auto sym = _cu.symbols().addGlobalVar(vd, env);
+            return new (_cu.types().alloc()) SymbolRefExpr(
+                Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type);
+          }
+          return transform::ExprVisitor::visit(e);
+        }
+
         default:
           return transform::ExprVisitor::visit(e);
       }
@@ -112,7 +124,17 @@ namespace tempest::sema::pass {
           return transform::ExprTransform::transform(e);
         }
 
-        // LET_DEF
+        case Expr::Kind::VAR_REF: {
+          Env env;
+          auto dref = static_cast<DefnRef*>(e);
+          auto vd = cast<ValueDefn>(env.unwrap(dref->defn));
+          if (vd->isStatic() || vd->isGlobal()) {
+            auto sym = _cu.symbols().addGlobalVar(vd, env);
+            return new (alloc()) SymbolRefExpr(
+                Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type);
+          }
+          return transform::ExprTransform::transform(e);
+        }
 
         case Expr::Kind::ALLOC_OBJ: {
           auto sref = static_cast<SymbolRefExpr*>(e);
@@ -189,8 +211,7 @@ namespace tempest::sema::pass {
           break;
         }
 
-        case Member::Kind::CONST_DEF:
-        case Member::Kind::LET_DEF: {
+        case Member::Kind::VAR_DEF: {
           auto vd = static_cast<ValueDefn*>(d);
           _cu.symbols().addGlobalVar(vd, empty);
           break;

@@ -78,7 +78,8 @@ TEST_CASE("ResolveTypes", "[sema]") {
   SECTION("Resolve primitive type") {
     auto mod = compile(cu, "let x = 0;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::INTEGER);
     REQUIRE_THAT(vdef->type(), TypeEQ("i32"));
@@ -87,7 +88,8 @@ TEST_CASE("ResolveTypes", "[sema]") {
   SECTION("Resolve primitive integer constant") {
     auto mod = compile(cu, "let x = 0 + 1;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::INTEGER);
     REQUIRE(vdef->init()->kind == Expr::Kind::INTEGER_LITERAL);
@@ -97,7 +99,8 @@ TEST_CASE("ResolveTypes", "[sema]") {
   SECTION("Resolve primitive float constant") {
     auto mod = compile(cu, "let x = 0. + 1.;");
     auto vdef = cast<ValueDefn>(mod->members().back());
-    REQUIRE(vdef->kind == Defn::Kind::LET_DEF);
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
     REQUIRE(vdef->type() != nullptr);
     REQUIRE(vdef->type()->kind == Type::Kind::FLOAT);
     REQUIRE(vdef->init()->kind == Expr::Kind::FLOAT_LITERAL);
@@ -127,6 +130,10 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto fd = cast<FunctionDefn>(mod->members().back());
     auto body = cast<BlockStmt>(fd->body());
     REQUIRE(isa<UnaryOp>(body->result));
+    auto varSt = cast<LocalVarStmt>(body->stmts[0]);
+    auto varDef = cast<ValueDefn>(varSt->defn);
+    REQUIRE_THAT(varDef->type(), TypeEQ("i8"));
+    REQUIRE_THAT(varDef->init()->type, TypeEQ("i8"));
     auto bodyRes = cast<UnaryOp>(body->result);
     REQUIRE_THAT(bodyRes->type, TypeEQ("i32"));
     REQUIRE_THAT(body->type, TypeEQ("i32"));

@@ -124,6 +124,9 @@ namespace tempest::sema::graph {
     bool isResolved() const { return _resolved; }
     void setResolved(bool value) { _resolved = value; }
 
+    /** True if this definition was defined at module scope. */
+    bool isGlobal() const { return _definedIn && _definedIn->kind == Kind::MODULE; }
+
     /** The list of attributes on this definition. */
     std::vector<Expr*>& attributes() { return _attributes; }
     const std::vector<Expr*>& attributes() const { return _attributes; }
@@ -139,8 +142,7 @@ namespace tempest::sema::graph {
     static bool classof(const Member* m) {
       return m->kind == Kind::TYPE
           || m->kind == Kind::TYPE_PARAM
-          || m->kind == Kind::CONST_DEF
-          || m->kind == Kind::LET_DEF
+          || m->kind == Kind::VAR_DEF
           || m->kind == Kind::ENUM_VAL
           || m->kind == Kind::FUNCTION
           || m->kind == Kind::FUNCTION_PARAM;
@@ -416,6 +418,10 @@ namespace tempest::sema::graph {
     int32_t fieldIndex() const { return _fieldIndex; }
     void setFieldIndex(int32_t index) { _fieldIndex = index; }
 
+    /** Whether this variable was declared with 'const'. */
+    bool isConstant() const { return _constant; }
+    void setConstant(bool constant) { _constant = constant; }
+
     /** Whether this variable is actually defined yet. This is used to detect uses of local
         variables which occur prior to the definition but are in the same block. */
     bool isDefined() const { return _defined; }
@@ -430,8 +436,7 @@ namespace tempest::sema::graph {
     /** Dynamic casting support. */
     static bool classof(const ValueDefn* m) { return true; }
     static bool classof(const Member* m) {
-      return m->kind == Kind::LET_DEF ||
-          m->kind == Kind::CONST_DEF ||
+      return m->kind == Kind::VAR_DEF ||
           m->kind == Kind::ENUM_VAL ||
           m->kind == Kind::FUNCTION_PARAM ||
           m->kind == Kind::TUPLE_MEMBER;
@@ -442,6 +447,7 @@ namespace tempest::sema::graph {
     Expr* _init;
     const ast::ValueDefn* _ast = nullptr;
     int32_t _fieldIndex;
+    bool _constant;
     bool _defined;
   };
 

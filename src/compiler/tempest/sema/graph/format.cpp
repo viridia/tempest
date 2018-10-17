@@ -54,6 +54,9 @@ namespace tempest::sema::graph {
           case Type::Kind::TRAIT:
             out << "trait";
             break;
+          case Type::Kind::ALIAS:
+            out << "type";
+            break;
           default:
             out << "<invalid>";
             break;

@@ -287,6 +287,219 @@ TEST_CASE("NameResolution.Class", "[sema]") {
   }
 }
 
+TEST_CASE("NameResolution.Interface", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Resolve interface type") {
+    auto mod = compile(cu,
+      "interface A {}\n"
+      "let X: A;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::INTERFACE);
+    REQUIRE_THAT(vdef->type(), TypeEQ("interface A"));
+  }
+
+  SECTION("Resolve interface member explicitly") {
+    auto mod = compile(cu,
+      "interface A {\n"
+      "  class B {}\n"
+      "}\n"
+      "let X: A.B;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
+    REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
+  }
+
+  SECTION("Interface members cannot be private") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "interface A {\n"
+        "  private class B {}\n"
+        "}\n"
+      ),
+      Catch::Contains("Interface members cannot be 'private' or 'protected'"));
+  }
+
+  SECTION("Interface members cannot be protected") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "interface A {\n"
+        "  protected class B {}\n"
+        "}\n"
+      ),
+      Catch::Contains("Interface members cannot be 'private' or 'protected'"));
+  }
+
+  SECTION("Resolve inherited interface member") {
+    auto mod = compile(cu,
+      "interface A {\n"
+      "  interface B {}\n"
+      "}\n"
+      "interface C extends A {}\n"
+      "let X: C.B;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::INTERFACE);
+    REQUIRE_THAT(vdef->type(), TypeEQ("interface B"));
+  }
+}
+
+TEST_CASE("NameResolution.Trait", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Class with trait constraint") {
+    auto mod = compile(cu,
+      "trait X {}\n"
+      "class A[T: X] {}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    auto param = td->typeParams().front();
+    REQUIRE(param->subtypeConstraints().size() == 1);
+  }
+
+  SECTION("Variable cannot be a trait") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "trait A {}\n"
+        "let X: A;"
+      ),
+      Catch::Contains("Variable type cannot be a trait."));
+  }
+
+  SECTION("Trait members cannot be private") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "trait A {\n"
+        "  private x: i32;\n"
+        "}\n"
+      ),
+      Catch::Contains("Trait members cannot be 'private' or 'protected'"));
+  }
+
+  SECTION("Trait members cannot be protected") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "trait A {\n"
+        "  protected x: i32;\n"
+        "}\n"
+      ),
+      Catch::Contains("Trait members cannot be 'private' or 'protected'"));
+  }
+
+}
+
+TEST_CASE("NameResolution.Struct", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Resolve struct type") {
+    auto mod = compile(cu,
+      "struct A {}\n"
+      "let X: A;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::STRUCT);
+    REQUIRE_THAT(vdef->type(), TypeEQ("struct A"));
+  }
+
+  SECTION("Resolve struct member explicitly") {
+    auto mod = compile(cu,
+      "struct A {\n"
+      "  struct B {}\n"
+      "}\n"
+      "let X: A.B;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::STRUCT);
+    REQUIRE_THAT(vdef->type(), TypeEQ("struct B"));
+  }
+}
+
+TEST_CASE("NameResolution.TypeAlias", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Resolve type alias") {
+    auto mod = compile(cu,
+      "type Optional[T] = T | void;\n"
+      "let X: Optional[i32];"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::SPECIALIZED);
+    auto sp = cast<SpecializedType>(vdef->type());
+    REQUIRE(cast<TypeDefn>(sp->spec->generic())->type()->kind == Type::Kind::ALIAS);
+    REQUIRE_THAT(vdef->type(), TypeEQ("type Optional[i32]"));
+  }
+
+  SECTION("Resolve class member via alias") {
+    auto mod = compile(cu,
+      "class A {\n"
+      "  class B {}\n"
+      "}\n"
+      "type C = A;\n"
+      "let X: C.B;"
+    );
+    auto vdef = cast<ValueDefn>(mod->members().back());
+    REQUIRE(vdef->kind == Defn::Kind::VAR_DEF);
+    REQUIRE_FALSE(vdef->isConstant());
+    REQUIRE(vdef->type() != nullptr);
+    REQUIRE(vdef->type()->kind == Type::Kind::CLASS);
+    REQUIRE_THAT(vdef->type(), TypeEQ("class B"));
+  }
+
+  SECTION("Cannot access private member outside of class via alias") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "class A {\n"
+        "  private class B {}\n"
+        "}\n"
+        "type C = A;\n"
+        "let X: C.B;"
+      ),
+      Catch::Contains("Cannot access private member 'B'"));
+  }
+
+  SECTION("Cannot access protected member outside of class via alias") {
+    REQUIRE_THAT(
+      compileError(cu,
+        "class A {\n"
+        "  protected class B {}\n"
+        "}\n"
+        "type C = A;\n"
+        "let X: C.B;"
+      ),
+      Catch::Contains("Cannot access protected member 'B'"));
+  }
+
+  SECTION("Specialize non-generic") {
+    REQUIRE_THAT(
+      compileError(cu, "class A {} type B = A; let X: B[i32]"),
+      Catch::Contains("Definition 'B' is not generic"));
+  }
+}
+
 TEST_CASE("NameResolution.Enum", "[sema]") {
   const Location L;
   CompilationUnit cu;

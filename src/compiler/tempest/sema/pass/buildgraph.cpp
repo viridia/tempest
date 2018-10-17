@@ -148,6 +148,7 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::ALIAS_DEFN: {
         const ast::TypeDefn* ast = static_cast<const ast::TypeDefn*>(node);
         TypeDefn* td = new TypeDefn(ast->location, ast->name, parent);
+        createTypeParamList(ast->typeParams, td, td->typeParamScope());
         UserDefinedType* cls = new (*_alloc) UserDefinedType(Type::Kind::ALIAS);
         td->setAst(ast);
         td->setType(cls);

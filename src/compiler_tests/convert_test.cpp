@@ -274,4 +274,31 @@ TEST_CASE("Convert.Assignable", "[sema]") {
     REQUIRE(isAssignable(letC, letB)
         == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
   }
+
+  SECTION("Convert alias") {
+    auto mod = compile(cu,
+      "class A {}\n"
+      "class B {}\n"
+      "interface I {}\n"
+      "class C extends A implements I {}\n"
+      "type A1 = A;\n"
+      "type B1 = B;\n"
+      "type C1 = C;\n"
+    );
+    auto clsA = cast<TypeDefn>(mod->members()[0])->type();
+    auto clsB = cast<TypeDefn>(mod->members()[1])->type();
+    auto intI = cast<TypeDefn>(mod->members()[2])->type();
+    auto clsC = cast<TypeDefn>(mod->members()[3])->type();
+    auto alA1 = cast<TypeDefn>(mod->members()[4])->type();
+    auto alB1 = cast<TypeDefn>(mod->members()[5])->type();
+    auto alC1 = cast<TypeDefn>(mod->members()[6])->type();
+    REQUIRE(isAssignable(clsA, alA1) == ConversionResult(ConversionRank::IDENTICAL));
+    REQUIRE(isAssignable(alA1, clsA) == ConversionResult(ConversionRank::IDENTICAL));
+    REQUIRE(isAssignable(alA1, clsB)
+        == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
+    REQUIRE(isAssignable(clsA, alB1)
+        == ConversionResult(ConversionRank::ERROR, ConversionError::INCOMPATIBLE));
+    REQUIRE(isAssignable(alA1, clsC) == ConversionResult(ConversionRank::EXACT));
+    REQUIRE(isAssignable(intI, alC1) == ConversionResult(ConversionRank::EXACT));
+  }
 }

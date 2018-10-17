@@ -119,6 +119,21 @@ namespace tempest::sema::pass {
 
   void NameResolutionPass::visitList(LookupScope* scope, DefnArray members) {
     for (auto defn : members) {
+      auto enclosingType = dyn_cast_or_null<TypeDefn>(defn->definedIn());
+      auto enclosingKind = enclosingType ? enclosingType->type()->kind : Type::Kind::VOID;
+
+      if (defn->visibility() == Visibility::PRIVATE && !enclosingType) {
+        diag.error(defn) << "Only class or struct members can have 'private' visibility.";
+      } else if (defn->visibility() == Visibility::PROTECTED && !enclosingType) {
+        diag.error(defn) << "Only class or struct members can have 'protected' visibility.";
+      } else if (enclosingType && defn->visibility() != Visibility::PUBLIC) {
+        if (enclosingKind == Type::Kind::INTERFACE) {
+          diag.error(defn) << "Interface members cannot be 'private' or 'protected'.";
+        } else if (enclosingKind == Type::Kind::TRAIT) {
+          diag.error(defn) << "Trait members cannot be 'private' or 'protected'.";
+        }
+      }
+
       switch (defn->kind) {
         case Member::Kind::TYPE: {
           visitTypeDefn(scope, static_cast<TypeDefn*>(defn));
@@ -149,7 +164,8 @@ namespace tempest::sema::pass {
     //     self.errorReporter, self.resolveExprs, self.resolveTypes, typeDefn).run()
     // typeDefn.setFriends(self.visitList(typeDefn.getFriends()))
     if (td->type()->kind == Type::Kind::ALIAS) {
-      td->setAliasTarget(resolveType(scope, td->ast()->extends[0]));
+      TypeParamScope tpScope(scope, td); // Scope used in resolving param types only.
+      td->setAliasTarget(resolveType(&tpScope, td->ast()->extends[0]));
     } else if (td->type()->kind == Type::Kind::ENUM) {
       visitEnumDefn(scope, td);
     } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
@@ -158,13 +174,6 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::visitCompositeDefn(LookupScope* scope, TypeDefn* td) {
-    auto enclosingType = dyn_cast_or_null<TypeDefn>(td->definedIn());
-    if (td->visibility() == Visibility::PRIVATE && !enclosingType) {
-      diag.error(td) << "Only inner types can have private visibility.";
-    } else if (td->visibility() == Visibility::PROTECTED && !enclosingType) {
-      diag.error(td) << "Only inner types can have protected visibility.";
-    }
-
     if (td->isFinal()) {
       if (td->isAbstract()) {
         diag.error(td) << "Type definition cannot be both abtract and final.";
@@ -197,7 +206,8 @@ namespace tempest::sema::pass {
       }
     }
 
-    resolveBaseTypes(scope, td);
+    TypeParamScope tpScope(scope, td); // Scope used in resolving param types only.
+    resolveBaseTypes(&tpScope, td);
     td->setImplicitSelf(new (*_alloc) SelfExpr(td->location(), td->type()));
 
     auto prevNumInstanceVars = _numInstanceVars;
@@ -272,13 +282,6 @@ namespace tempest::sema::pass {
     visitAttributes(scope, td, td->ast());
     resolveBaseTypes(scope, td);
 
-    auto enclosingType = dyn_cast_or_null<TypeDefn>(td->definedIn());
-    if (td->visibility() == Visibility::PRIVATE && !enclosingType) {
-      diag.error(td) << "Only inner types can have private visibility.";
-    } else if (td->visibility() == Visibility::PROTECTED && !enclosingType) {
-      diag.error(td) << "Only inner types can have protected visibility.";
-    }
-
     if (td->isStatic()) {
       diag.error(td) << "Enumeration types cannot be declared as 'static'.";
     } else if (td->isAbstract()) {
@@ -339,12 +342,6 @@ namespace tempest::sema::pass {
   void NameResolutionPass::visitFunctionDefn(LookupScope* scope, FunctionDefn* fd) {
     auto enclosingType = dyn_cast_or_null<TypeDefn>(fd->definedIn());
     auto enclosingKind = enclosingType ? enclosingType->type()->kind : Type::Kind::VOID;
-
-    if (fd->visibility() == Visibility::PRIVATE && !enclosingType) {
-      diag.error(fd) << "Only member functions can have private visibility.";
-    } else if (fd->visibility() == Visibility::PROTECTED && !enclosingType) {
-      diag.error(fd) << "Only member functions can have protected visibility.";
-    }
 
     if (fd->isNative()) {
       if (fd->isAbstract()) {
@@ -444,6 +441,9 @@ namespace tempest::sema::pass {
       visitAttributes(&tpScope, param, param->ast());
       if (param->ast()->type) {
         param->setType(resolveType(&tpScope, param->ast()->type));
+        if (param->type()->kind == Type::Kind::TRAIT) {
+          diag.error(param) << "Parameter type cannot be a trait.";
+        }
         paramTypes.push_back(param->type());
       } else {
         diag.error(param) << "Parameter type is required";
@@ -472,6 +472,9 @@ namespace tempest::sema::pass {
     visitAttributes(scope, vd, vd->ast());
     if (vd->ast()->type) {
       vd->setType(resolveType(scope, vd->ast()->type));
+      if (vd->type()->kind == Type::Kind::TRAIT) {
+        diag.error(vd) << "Variable type cannot be a trait.";
+      }
     }
     if (vd->ast()->init) {
       vd->setInit(visitExpr(scope, vd->ast()->init));
@@ -1344,7 +1347,10 @@ namespace tempest::sema::pass {
       if (result.size() > resultSize) {
         return true;
       }
-      if (typeDef->type()->kind == Type::Kind::CLASS) {
+      if (typeDef->type()->kind == Type::Kind::CLASS ||
+          typeDef->type()->kind == Type::Kind::INTERFACE ||
+          typeDef->type()->kind == Type::Kind::STRUCT ||
+          typeDef->type()->kind == Type::Kind::TRAIT) {
         eagerResolveBaseTypes(typeDef);
         for (auto extBase : typeDef->extends()) {
           resolveMemberName(loc, extBase, name, result);
@@ -1352,6 +1358,14 @@ namespace tempest::sema::pass {
         if (result.size() > resultSize) {
           return true;
         }
+      } else if (typeDef->type()->kind == Type::Kind::ALIAS) {
+        auto target = typeDef->aliasTarget();
+        if (auto udt = dyn_cast<UserDefinedType>(target)) {
+          return resolveMemberName(loc, udt->defn(), name, result);
+        } else if (auto sp = dyn_cast<SpecializedType>(target)) {
+          return resolveMemberName(loc, const_cast<SpecializedDefn*>(sp->spec), name, result);
+        }
+        return false;
       }
       return false;
     } else if (auto typeParam = dyn_cast<TypeParameter>(scope)) {

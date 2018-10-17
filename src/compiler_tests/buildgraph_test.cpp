@@ -45,6 +45,7 @@ TEST_CASE("BuildGraph", "[sema]") {
         "struct X {}\n"
         "trait X {}\n"
         "interface X {}\n"
+        "type Optional[T] = T | void;\n"
     );
     REQUIRE_THAT(
       mod.get(),
@@ -58,7 +59,9 @@ TEST_CASE("BuildGraph", "[sema]") {
         "  }\n"
         "  interface X {\n"
         "  }\n"
-        "}\n"
+        "  type Optional {\n"
+        "  }\n"
+      "}\n"
       ));
   }
 

@@ -17,6 +17,11 @@ namespace tempest::sema::convert {
       return src;
     }
 
+    while (dst->kind == Type::Kind::ALIAS) {
+      auto dstAlias = static_cast<UserDefinedType*>(dst);
+      dst = dstAlias->defn()->aliasTarget();
+    }
+
     switch (dst->kind) {
       case Type::Kind::INTEGER: {
         auto dstInt = static_cast<IntegerType*>(dst);

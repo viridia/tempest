@@ -144,6 +144,65 @@ TEST_CASE("Parser", "[parse]") {
       ));
   }
 
+  SECTION("Interface") {
+    tempest::support::BumpPtrAllocator alloc;
+
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "interface X {\n"
+        "  x: Point;\n"
+        "  private y: i32;\n"
+        "  final const z: [bool];\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#INTERFACE_DEFN X\n"
+        "  (#MEMBER_VAR x: Point)\n"
+        "  (#MEMBER_VAR\n"
+        "    #private y: i32)\n"
+        "  (#MEMBER_CONST\n"
+        "    #final z: (#ARRAY_TYPE bool)))\n"
+      ));
+  }
+
+  SECTION("Struct") {
+    tempest::support::BumpPtrAllocator alloc;
+
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "struct X {\n"
+        "  x: Point;\n"
+        "  private y: i32;\n"
+        "  final const z: [bool];\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#STRUCT_DEFN X\n"
+        "  (#MEMBER_VAR x: Point)\n"
+        "  (#MEMBER_VAR\n"
+        "    #private y: i32)\n"
+        "  (#MEMBER_CONST\n"
+        "    #final z: (#ARRAY_TYPE bool)))\n"
+      ));
+  }
+
+  SECTION("Type") {
+    tempest::support::BumpPtrAllocator alloc;
+
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "type Optional[T] = T | void;\n"
+      ),
+      ASTEQ(
+        "(#ALIAS_DEFN Optional\n"
+        "  (typeParams\n"
+        "    (#TYPE_PARAMETER T))\n"
+        "  (#UNION_TYPE\n"
+        "    T\n"
+        "    void))\n"
+      ));
+  }
+
   SECTION("Statement") {
     tempest::support::BumpPtrAllocator alloc;
 

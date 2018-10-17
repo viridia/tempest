@@ -296,6 +296,18 @@ namespace tempest::ast {
         break;
       }
 
+      case Node::Kind::ALIAS_DEFN: {
+        auto de = static_cast<const TypeDefn*>(node);
+        out << "(#" << Node::KindName(de->kind);
+        visitDefnFlags(de);
+        out << ' ' << de->name;
+        visitNamedList(de->attributes, "attributes");
+        visitNamedList(de->typeParams, "typeParams");
+        visitList(de->extends);
+        out << ')';
+        break;
+      }
+
       case Node::Kind::MEMBER_VAR:
       case Node::Kind::MEMBER_CONST: {
         auto de = static_cast<const ValueDefn*>(node);
@@ -309,6 +321,23 @@ namespace tempest::ast {
         if (de->init) {
           out << " = ";
           visit(de->init);
+        }
+        out << ')';
+        break;
+      }
+
+      case Node::Kind::TYPE_PARAMETER: {
+        auto tp = static_cast<const TypeParameter*>(node);
+        out << "(#" << Node::KindName(tp->kind);
+        visitDefnFlags(tp);
+        out << ' ' << tp->name;
+        // if (tp->type) {
+        //   out << ": ";
+        //   visit(tp->type);
+        // }
+        if (tp->init) {
+          out << " = ";
+          visit(tp->init);
         }
         out << ')';
         break;

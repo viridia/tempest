@@ -34,7 +34,7 @@ public:
 namespace {
   /** Parse a module definition and apply buildgraph & nameresolution pass. */
   std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
-    auto prevErrorCount = diag.errorCount();
+    diag.reset();
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
     CompilationUnit::theCU = &cu;
@@ -47,7 +47,7 @@ namespace {
     ResolveTypesPass rtPass(cu);
     rtPass.process(mod.get());
     CompilationUnit::theCU = nullptr;
-    REQUIRE(diag.errorCount() == prevErrorCount);
+    REQUIRE(diag.errorCount() == 0);
     return mod;
   }
 
@@ -117,6 +117,20 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto body = cast<BlockStmt>(fd->body());
     REQUIRE_THAT(body->type, TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+    REQUIRE(fd->localDefns().empty());
+  }
+
+  SECTION("Implicit cast of integer literal via alias") {
+    auto mod = compile(cu,
+        "type A = i32;\n"
+        "fn x() -> A {\n"
+        "  0\n"
+        "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto body = cast<BlockStmt>(fd->body());
+    REQUIRE_THAT(body->type, TypeEQ("i32"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("type A"));
     REQUIRE(fd->localDefns().empty());
   }
 
@@ -242,6 +256,26 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto letSt = cast<LocalVarStmt>(body->stmts[0]);
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("i32"));
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("i32"));
+  }
+
+  SECTION("Resolve overloaded function with type alias parameter") {
+    auto mod = compile(cu,
+        "fn x() {\n"
+        "  let result = y(1);\n"
+        "  result\n"
+        "}\n"
+        "type Y1 = i32;\n"
+        "type Y2 = f32;\n"
+        "type Y3 = bool;\n"
+        "fn y(i: Y1) => i;\n"
+        "fn y(i: Y2) => i;\n"
+        "fn y(i: Y3) => i;\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    auto body = cast<BlockStmt>(fd->body());
+    auto letSt = cast<LocalVarStmt>(body->stmts[0]);
+    REQUIRE_THAT(letSt->defn->type(), TypeEQ("type Y1"));
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("type Y1"));
   }
 
   SECTION("Multi-site overloads") {

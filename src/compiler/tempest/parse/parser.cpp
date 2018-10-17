@@ -539,6 +539,11 @@ namespace tempest::parse {
 
     auto d = new (_alloc) ast::TypeDefn(Node::Kind::ALIAS_DEFN, loc, name);
 
+    // Template parameters
+    NodeListBuilder templateParams(_alloc);
+    templateParamList(templateParams);
+    d->typeParams = templateParams.build();
+
     if (!match(TOKEN_ASSIGN)) {
       expected("=");
       skipOverDefn();

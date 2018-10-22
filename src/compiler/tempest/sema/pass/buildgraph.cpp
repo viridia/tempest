@@ -93,6 +93,7 @@ namespace tempest::sema::pass {
       case ast::Node::Kind::STRUCT_DEFN:
       case ast::Node::Kind::INTERFACE_DEFN:
       case ast::Node::Kind::TRAIT_DEFN:
+      case ast::Node::Kind::EXTEND_DEFN:
       case ast::Node::Kind::OBJECT_DEFN: {
         const ast::TypeDefn* ast = static_cast<const ast::TypeDefn*>(node);
         std::string typeName(ast->name.begin(), ast->name.end());
@@ -108,6 +109,8 @@ namespace tempest::sema::pass {
           tk = Type::Kind::INTERFACE;
         } else if (node->kind == ast::Node::Kind::TRAIT_DEFN) {
           tk = Type::Kind::TRAIT;
+        } else if (node->kind == ast::Node::Kind::EXTEND_DEFN) {
+          tk = Type::Kind::EXTENSION;
         }
         UserDefinedType* cls = new (*_alloc) UserDefinedType(tk);
         td->setAst(ast);

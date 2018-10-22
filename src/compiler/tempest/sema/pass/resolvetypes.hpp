@@ -16,6 +16,7 @@ namespace tempest::sema::graph {
   class LocalVarStmt;
   class Member;
   class DefnRef;
+  class MemberNameRef;
   class IfStmt;
   class MemberListExpr;
   class WhileStmt;
@@ -126,6 +127,7 @@ namespace tempest::sema::pass {
         ConstraintSolver& cs, SolutionTransform& st, ApplyFnOp* callExpr,
         CallSite* site, CallCandidate* cc);
     bool lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes);
+    Expr* resolveMemberNameRef(MemberNameRef* mref);
     Expr* addCastIfNeeded(Expr* expr, Type* ty);
     Type* combineTypes(llvm::ArrayRef<Type*> types);
     Type* chooseIntegerType(Type* ty);

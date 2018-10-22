@@ -57,6 +57,7 @@ namespace tempest::sema::graph {
       case Kind::CALL: return "CALL";
       case Kind::CALL_SUPER: return "CALL_SUPER";
       case Kind::REST_ARGS: return "REST_ARGS";
+      case Kind::MEMBER_NAME_REF: return "MEMBER_NAME_REF";
       case Kind::VAR_REF: return "VAR_REF";
       case Kind::TYPE_REF: return "TYPE_REF";
       case Kind::TYPE_REF_OVERLOAD: return "TYPE_REF_OVERLOAD";

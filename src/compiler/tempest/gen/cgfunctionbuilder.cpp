@@ -270,6 +270,10 @@ namespace tempest::gen {
   //       genDISubprogramStart(fdef);
   //       genLocalRoots(fdef->localScopes());
 
+        // Initialize table of local variable values.
+        _locals.resize(func->localDefns().size());
+        std::fill(_locals.begin(), _locals.end(), nullptr);
+
         BasicBlock * blkEntry = createBlock("entry");
         _builder.SetInsertPoint(blkEntry);
         auto retVal = visitExpr(body);
@@ -347,6 +351,12 @@ namespace tempest::gen {
 
       case Expr::Kind::RETURN:
         return visitReturnStmt(static_cast<ReturnStmt*>(expr));
+
+      case Expr::Kind::LOCAL_VAR:
+        return visitLocalVar(static_cast<LocalVarStmt*>(expr));
+
+      case Expr::Kind::VAR_REF:
+        return visitVarRef(static_cast<DefnRef*>(expr));
 
       case Expr::Kind::CALL:
       case Expr::Kind::CALL_SUPER:
@@ -735,6 +745,29 @@ namespace tempest::gen {
     }
 
     return voidValue();
+  }
+
+  Value* CGFunctionBuilder::visitLocalVar(LocalVarStmt* in) {
+    // Allocate space for the variable on the stack
+    auto vd = in->defn;
+    assert(_locals[vd->fieldIndex()] == nullptr);
+    auto varType = _module->types().getMemberType(vd->type(), _typeArgs);
+    auto varValue = _builder.CreateAlloca(varType, 0, vd->name());
+    _locals[vd->fieldIndex()] = varValue;
+    if (vd->init()) {
+      auto initValue = visitExpr(vd->init());
+      return _builder.CreateStore(initValue, varValue);
+    }
+    return varValue;
+  }
+
+  Value* CGFunctionBuilder::visitVarRef(DefnRef* in) {
+    auto vd = cast<ValueDefn>(in->defn);
+    if (vd->isLocal()) {
+      assert(_locals[vd->fieldIndex()] != nullptr);
+      return _builder.CreateLoad(_locals[vd->fieldIndex()], vd->name());
+    }
+    assert(false && "Implement member variable.");
   }
 
   Value* CGFunctionBuilder::visitCall(ApplyFnOp* in) {

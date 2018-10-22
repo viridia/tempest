@@ -121,6 +121,13 @@ namespace tempest::sema::transform {
         return op;
       }
 
+      case Expr::Kind::MEMBER_NAME_REF: {
+        auto mref = static_cast<MemberNameRef*>(expr);
+        mref->stem = visit(mref->stem);
+        mref->refs = visit(mref->refs);
+        return mref;
+      }
+
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(expr->kind);
         assert(false && "Invalid expression kind");

@@ -49,6 +49,7 @@ namespace tempest::sema::pass {
     // Module
 
     void resolveImports(Module* mod);
+    void buildExtensionMap(Module* mod);
 
     // Defns
 

@@ -50,9 +50,9 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::process(Module* mod) {
-    // diag.info() << "Resolving imports: " << mod->name();
     _alloc = &mod->semaAlloc();
     resolveImports(mod);
+    buildExtensionMap(mod);
     ModuleScope scope(nullptr, mod);
     visitList(&scope, mod->members());
   }
@@ -117,6 +117,38 @@ namespace tempest::sema::pass {
     }
   }
 
+  void NameResolutionPass::buildExtensionMap(Module* mod) {
+    auto extensionCallback = [mod](Member* member, llvm::StringRef name) {
+      // See if it's an extension type
+      if (auto td = dyn_cast<TypeDefn>(member)) {
+        if (td->type()->kind == Type::Kind::EXTENSION) {
+          // Find all type definitions that have the same name
+          NameLookupResult results;
+          mod->memberScope()->lookupName(name, results);
+          size_t numTargets = 0;
+          for (auto nlr : results) {
+            if (auto tdTarget = dyn_cast<TypeDefn>(nlr)) {
+              if (tdTarget->type()->kind != Type::Kind::EXTENSION) {
+                mod->extensions()->add(tdTarget, td);
+                numTargets += 1;
+              }
+            } else {
+              diag.error(source::Location(mod->source(), 0, 0, 0, 0)) <<
+                  "Type extension target '" << name << "' is not a type.";
+              numTargets += 1;
+              break;
+            }
+          }
+          if (numTargets == 0) {
+            diag.error(source::Location(mod->source(), 0, 0, 0, 0)) <<
+                "no valid targets found for type extension '" << name << "'.";
+          }
+        }
+      }
+    };
+    mod->memberScope()->forAllMembers(extensionCallback);
+  }
+
   void NameResolutionPass::visitList(LookupScope* scope, DefnArray members) {
     for (auto defn : members) {
       auto enclosingType = dyn_cast_or_null<TypeDefn>(defn->definedIn());
@@ -160,8 +192,6 @@ namespace tempest::sema::pass {
   void NameResolutionPass::visitTypeDefn(LookupScope* scope, TypeDefn* td) {
     visitAttributes(scope, td, td->ast());
     visitTypeParams(scope, td);
-    // resolverequirements.ResolveRequirements(
-    //     self.errorReporter, self.resolveExprs, self.resolveTypes, typeDefn).run()
     // typeDefn.setFriends(self.visitList(typeDefn.getFriends()))
     if (td->type()->kind == Type::Kind::ALIAS) {
       TypeParamScope tpScope(scope, td); // Scope used in resolving param types only.
@@ -362,22 +392,39 @@ namespace tempest::sema::pass {
         diag.error(fd) << "Static function may not be defined within an interface.";
       } else if (fd->isConstructor()) {
         diag.error(fd) << "Constructor functions cannot be declared as 'static'.";
+      } else if (fd->isFinal()) {
+        diag.error(fd) << "Static functions cannot be declared as 'final'.";
       }
     } else if (fd->isAbstract()) {
       if (fd->ast()->body) {
         diag.error(fd) << "Abstract function cannot have a function body.";
       } else if (fd->isUndef()) {
         diag.error(fd) << "Abstract function cannot be undefined.";
+      } else if (fd->isFinal()) {
+        diag.error(fd) << "Abstract function cannot be declared as 'final'.";
       } else if (!enclosingType || !enclosingType->isAbstract()) {
         diag.error(fd) << "Abstract function must be defined within an abstract class.";
       } else if (enclosingKind == Type::Kind::INTERFACE) {
         diag.error(fd) << "A function defined within an interface is implicitly abstract.";
+      } else if (enclosingKind == Type::Kind::EXTENSION) {
+        diag.error(fd) << "A function defined within a type extension cannot be abstract.";
       }
     } else if (fd->ast()->body) {
       if (fd->isUndef()) {
         diag.error(fd) << "Undefined function cannot have a function body.";
       } else if (enclosingType && enclosingType->type()->kind == Type::Kind::INTERFACE) {
-        diag.error(fd) << "A function within an interface cannot have a function body.";
+        diag.error(fd) << "A function within an interface definition cannot have a function body.";
+      } else if (fd->isFinal()) {
+        switch (enclosingKind) {
+          case Type::Kind::STRUCT:
+            diag.error(fd) << "Methods declared within a struct are always 'final'.";
+            break;
+          case Type::Kind::EXTENSION:
+            diag.error(fd) << "Methods declared within a type extension are always 'final'.";
+            break;
+          default:
+            break;
+        }
       }
     } else if (enclosingKind != Type::Kind::TRAIT && enclosingKind != Type::Kind::INTERFACE) {
       diag.error(fd) << "Non-abstract function must have a function body.";
@@ -388,6 +435,8 @@ namespace tempest::sema::pass {
         diag.error(fd) << "Constructor function must be a member of a type.";
       } else if (fd->isSetter() || fd->isGetter()) {
         diag.error(fd) << "Constructor function can not also be a getter / setter.";
+      } else if (enclosingKind == Type::Kind::EXTENSION) {
+        diag.error(fd) << "A constructor may not be declared within a type extension.";
       }
     } else if (fd->isGetter() && !fd->ast()->returnType) {
       diag.error(fd) << "Getter method must declare a return type.";
@@ -401,8 +450,6 @@ namespace tempest::sema::pass {
 
     visitAttributes(scope, fd, fd->ast());
     visitTypeParams(scope, fd);
-    // resolverequirements.ResolveRequirements(
-    //     self.errorReporter, self.resolveExprs, self.resolveTypes, func).run()
 
     TypeParamScope tpScope(scope, fd); // Scope used in resolving param types only.
     Type* returnType = nullptr;
@@ -469,6 +516,13 @@ namespace tempest::sema::pass {
   }
 
   void NameResolutionPass::visitValueDefn(LookupScope* scope, ValueDefn* vd) {
+    auto enclosingType = dyn_cast_or_null<TypeDefn>(vd->definedIn());
+    auto enclosingKind = enclosingType ? enclosingType->type()->kind : Type::Kind::VOID;
+
+    if (enclosingKind == Type::Kind::EXTENSION) {
+      diag.error(vd) << "Type extensions cannot declare member fields.";
+    }
+
     visitAttributes(scope, vd, vd->ast());
     if (vd->ast()->type) {
       vd->setType(resolveType(scope, vd->ast()->type));
@@ -540,7 +594,12 @@ namespace tempest::sema::pass {
             nullptr, false, false);
       }
 
-      // MEMBER,
+      case ast::Node::Kind::MEMBER: {
+        auto memberRef = static_cast<const ast::MemberRef*>(node);
+        auto stem = visitExpr(scope, memberRef->base);
+        return new (*_alloc) MemberNameRef(
+            Expr::Kind::MEMBER_NAME_REF, node->location, _alloc->copyOf(memberRef->name), stem);
+      }
       // SELF_NAME_REF,
       // BUILTIN_ATTRIBUTE,
       // BUILTIN_TYPE,
@@ -646,8 +705,6 @@ namespace tempest::sema::pass {
       // POST_INC,
       // PRE_DEC,
       // POST_DEC,
-      // STATIC,
-      // CONST,
       // PROVISIONAL_CONST,
       // OPTIONAL,
 
@@ -857,8 +914,6 @@ namespace tempest::sema::pass {
       // ARRAY_LITERAL,
       // LIST_LITERAL,
       // SET_LITERAL,
-      // CALL_REQUIRED,
-      // CALL_REQUIRED_STATIC,
       // LIST,       // List of opions for switch cases, catch blocks, etc.
 
       case ast::Node::Kind::BLOCK: {
@@ -902,6 +957,8 @@ namespace tempest::sema::pass {
         }
 
         auto index = _func ? _func->localDefns().size() : 0;
+        defn->setFieldIndex(index);
+        defn->setLocal(true);
         auto st = new (*_alloc) LocalVarStmt(node->location, defn, index);
         if (_func) {
           _func->localDefns().push_back(defn);
@@ -932,7 +989,6 @@ namespace tempest::sema::pass {
       }
 
       // /* Misc statements */
-      // ELSE,       // default for match or switch
       // FINALLY,    // finally block for try
 
       // FOR,        // for (vars, init, test, step, body)
@@ -951,25 +1007,6 @@ namespace tempest::sema::pass {
       // /* Other statements */
       // BREAK,
       // CONTINUE,
-
-      // /* Definitions */
-      // /* TODO: Move this outside */
-      // VISIBILITY,
-
-      // DEFN,
-      // TYPE_DEFN,
-      // TRAIT_DEFN,
-      // EXTEND_DEFN,
-      // OBJECT_DEFN,
-      // ENUM_DEFN,
-      // MEMBER_VAR,
-      // MEMBER_CONST,
-      // // VAR_LIST,   // A list of variable definitions
-      // ENUM_VALUE,
-      // PARAMETER,
-      // TYPE_PARAMETER,
-      // FUNCTION,
-      // DEFN_END,
 
       default:
         diag.error(node) << "Invalid expression type: " << ast::Node::KindName(node->kind);

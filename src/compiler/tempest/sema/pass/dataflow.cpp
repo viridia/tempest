@@ -238,6 +238,7 @@ namespace tempest::sema::pass {
       case Expr::Kind::FLOAT_LITERAL:
       case Expr::Kind::SELF:
       case Expr::Kind::SUPER:
+      case Expr::Kind::ALLOC_OBJ:
         break;
 
       case Expr::Kind::CALL:
@@ -255,14 +256,17 @@ namespace tempest::sema::pass {
       }
 
       case Expr::Kind::FUNCTION_REF:
-      case Expr::Kind::TYPE_REF:
+      case Expr::Kind::TYPE_REF: {
+        auto dref = static_cast<DefnRef*>(e);
+        visitExpr(dref->stem, flow);
         break;
+      }
 
       case Expr::Kind::VAR_REF: {
         auto dref = static_cast<DefnRef*>(e);
         auto vd = cast<ValueDefn>(dref->defn);
         visitExpr(dref->stem, flow);
-        if (vd->definedIn() == _currentMethod) {
+        if (vd->isLocal()) {
           if (!vd->init() && !flow.localVarsSet[vd->fieldIndex()]) {
             diag.error(e) << "Use of uninitialized variable '" << vd->name() << "'.";
             diag.info(vd->location()) << "Defined here.";

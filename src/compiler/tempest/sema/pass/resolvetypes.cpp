@@ -15,6 +15,7 @@
 #include "tempest/sema/infer/paramassignments.hpp"
 #include "tempest/sema/infer/solution.hpp"
 #include "tempest/sema/infer/types.hpp"
+#include "tempest/sema/names/closestname.hpp"
 #include "tempest/sema/names/createnameref.hpp"
 #include "tempest/sema/names/membernamelookup.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
@@ -431,27 +432,6 @@ namespace tempest::sema::pass {
     }
   }
 
-//   @accept(spark.graph.defn.Parameter)
-//   def visitParameter(self, param):
-//     '@type param: spark.graph.graph.Parameter'
-//     self.visitAttributes(param)
-//     if not param.hasType():
-//       self.errorAt(
-//           param.getLocation(), "Parameters must have an explicit type.")
-//       param.setType(graph.ErrorType.defaultInstance())
-//       return
-//     self.membersVisited.add(param)
-//     paramType = param.getType()
-//     if graphtools.isVariadicParam(paramType):
-//       paramType = self.typeStore.createArrayType(types.stripVariadic(paramType))
-//       param.setInternalType(paramType)
-
-//       # Check to see if the param type has the appropriate required methods.
-
-//     if param.hasInit():
-//       paramType = self.assignTypes(param.getInit(), paramType)
-//       assert paramType, param.getName()
-
   void ResolveTypesPass::visitAttributes(Defn* defn) {
     for (auto attr : defn->attributes()) {
       assignTypes(attr, intrinsic::IntrinsicDefns::get()->objectClass.get()->type());
@@ -529,6 +509,12 @@ namespace tempest::sema::pass {
   //   # TODO - this isn't right, it should probably be some special type
   //   # either that, or we need to tweak the lookup alg.
   //   return cs.renamer.transformType(expr.getType())
+
+      case Expr::Kind::MEMBER_NAME_REF: {
+        auto mlist = resolveMemberNameRef(static_cast<MemberNameRef*>(e));
+        (void)mlist;
+        assert(false && "Implement");
+      }
 
       case Expr::Kind::VAR_REF:
         return visitVarName(static_cast<DefnRef*>(e), cs);
@@ -685,6 +671,16 @@ namespace tempest::sema::pass {
   }
 
   Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
+    if (expr->function->kind == Expr::Kind::MEMBER_NAME_REF) {
+      // If it's a member name reference (expression.name), then replace the function with
+      // the list of possible members.
+      auto fn = resolveMemberNameRef(static_cast<MemberNameRef*>(expr->function));
+      if (Expr::isError(fn)) {
+        return &Type::ERROR;
+      }
+      expr->function = fn;
+    }
+
     switch (expr->function->kind) {
       case Expr::Kind::TYPE_REF_OVERLOAD:
       case Expr::Kind::FUNCTION_REF_OVERLOAD: {
@@ -721,6 +717,7 @@ namespace tempest::sema::pass {
 
         return addCallSite(expr, expr->function, lookupResult, expr->args, argTypes, cs);
       }
+
       default: {
         assert(false && "Implement");
         break;
@@ -775,8 +772,6 @@ namespace tempest::sema::pass {
     //   }
     // }
 
-//     cs.renamer.renamerChecker.traverseTypeList(argTypes)
-
     if (fn->kind == Expr::Kind::FUNCTION_REF_OVERLOAD) {
       auto mref = static_cast<MemberListExpr*>(fn);
       // TODO: ADL lookup.
@@ -800,16 +795,6 @@ namespace tempest::sema::pass {
       return addCallSite(callExpr, fn, ctors, args, argTypes, cs);
     }
 
-//     if isinstance(func, graph.ExplicitSpecialize):
-//       func = self.lookupSpecializedCallable(func, argTypes, cs)
-//       if self.isErrorExpr(func):
-//         return graph.ErrorType.defaultInstance()
-//       callExpr.getArgs()[0] = func
-//     elif func.getListType() == graph.MemberListType.INCOMPLETE:
-//       func = self.lookupCallable(func, argTypes, cs)
-//       if self.isErrorExpr(func):
-//         return graph.ErrorType.defaultInstance()
-
 //     listType = func.getListType()
 //     listType == graph.MemberListType.VARIABLE:
 //       assert len(func.getMembers()) == 1
@@ -820,14 +805,6 @@ namespace tempest::sema::pass {
 //       if self.isErrorExpr(func):
 //         return graph.ErrorType.defaultInstance()
 //       callExpr.getMutableArgs()[0] = func
-//     elif listType == graph.MemberListType.TYPE:
-//       func = self.findConstructors(func, cs)
-//       if self.isErrorExpr(func):
-//         return graph.ErrorType.defaultInstance()
-//       callExpr.getMutableArgs()[0] = func
-//     else:
-//       assert listType == graph.MemberListType.FUNCTION
-
 
     assert(false && "Implement");
   }
@@ -1384,6 +1361,9 @@ namespace tempest::sema::pass {
           Expr::Kind::FUNCTION_REF, site->location, method, stem, fnType);
       callExpr->type = const_cast<Type *>(returnType);
       callExpr->flavor = ApplyFnOp::STATIC;
+      if (stem) {
+        callExpr->flavor = ApplyFnOp::METHOD;
+      }
     } else if (callExpr->function->kind == Expr::Kind::TYPE_REF_OVERLOAD) {
       // Create a new singular constructor reference.
       auto allocObj = new (*_alloc) SymbolRefExpr(
@@ -1549,6 +1529,13 @@ namespace tempest::sema::pass {
         return addCastIfNeeded(callExpr, dstType);
       }
 
+      case Expr::Kind::MEMBER_NAME_REF: {
+        // We no longer need the MemberNameRef, just what it resolved to.
+        auto mref = cast<MemberNameRef>(e);
+        assert(mref->refs != nullptr);
+        coerceExpr(mref->refs, nullptr);
+      }
+
       case Expr::Kind::VAR_REF: {
         // Reference to a variable name.
         auto dref = static_cast<DefnRef*>(e);
@@ -1692,6 +1679,33 @@ namespace tempest::sema::pass {
 
   bool ResolveTypesPass::lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes) {
     assert(false);
+  }
+
+  Expr* ResolveTypesPass::resolveMemberNameRef(MemberNameRef* mref) {
+    auto stemType = assignTypes(mref->stem, nullptr);
+    if (Type::isError(stemType)) {
+      return &Expr::ERROR;
+    }
+
+    MemberNameLookup lookup(_cu.spec());
+    MemberLookupResult members;
+    lookup.lookup(mref->name, stemType, members, MemberNameLookup::INSTANCE_MEMBERS);
+
+    if (members.size() > 0) {
+      mref->refs = createNameRef(*_alloc, mref->location, members,
+          cast_or_null<Defn>(_scope->subject()),
+          mref->stem, false, false);
+    } else {
+      diag.error(mref) << "Member `" << mref->name << "` not found.";
+      ClosestName closest(mref->name);
+      lookup.forAllNames(stemType, std::ref(closest));
+      if (!closest.bestMatch.empty()) {
+        diag.info() << "Did you mean '" << closest.bestMatch << "'?";
+      }
+      mref->refs = &Expr::ERROR;
+    }
+
+    return mref->refs;
   }
 
   Expr* ResolveTypesPass::addCastIfNeeded(Expr* expr, Type* ty) {

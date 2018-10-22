@@ -843,4 +843,17 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(lval->type, TypeEQ("i32"));
     REQUIRE_THAT(rval->type, TypeEQ("i32"));
   }
+
+  SECTION("Method call") {
+    auto mod = compile(cu,
+      "class A {\n"
+      "  fn f() => 0;\n"
+      "}\n"
+      "let x = A();"
+      "let y = x.f();"
+    );
+    auto vd = cast<ValueDefn>(mod->members().back());
+    REQUIRE_THAT(vd->type(), TypeEQ("i32"));
+    REQUIRE_THAT(vd->init(), ExprEQ("x.f()"));
+  }
 }

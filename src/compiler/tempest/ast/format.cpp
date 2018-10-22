@@ -283,7 +283,8 @@ namespace tempest::ast {
       case Node::Kind::CLASS_DEFN:
       case Node::Kind::STRUCT_DEFN:
       case Node::Kind::INTERFACE_DEFN:
-      case Node::Kind::TRAIT_DEFN: {
+      case Node::Kind::TRAIT_DEFN:
+      case Node::Kind::EXTEND_DEFN: {
         auto de = static_cast<const Defn*>(node);
         out << "(#" << Node::KindName(de->kind);
         visitDefnFlags(de);

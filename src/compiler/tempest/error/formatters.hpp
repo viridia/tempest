@@ -1,7 +1,3 @@
-// ============================================================================
-// formatters.h: Various formatting helpers.
-// ============================================================================
-
 #ifndef TEMPEST_ERROR_FORMATTERS_HPP
 #define TEMPEST_ERROR_FORMATTERS_HPP 1
 

@@ -203,6 +203,27 @@ TEST_CASE("Parser", "[parse]") {
       ));
   }
 
+  SECTION("Extends") {
+    tempest::support::BumpPtrAllocator alloc;
+
+    REQUIRE_THAT(
+      parseModule(alloc,
+        "class X {\n"
+        "  fn a() -> void;\n"
+        "}\n"
+        "extend X {\n"
+        "  fn b() -> void;\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#MODULE\n"
+        "  (#CLASS_DEFN X\n"
+        "    (#FUNCTION a: void))\n"
+        "  (#EXTEND_DEFN X\n"
+        "    (#FUNCTION b: void)))\n"
+      ));
+  }
+
   SECTION("Statement") {
     tempest::support::BumpPtrAllocator alloc;
 

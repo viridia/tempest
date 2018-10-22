@@ -610,6 +610,43 @@ TEST_CASE("NameResolution.Enum", "[sema]") {
   }
 }
 
+TEST_CASE("NameResolution.Extend", "[sema]") {
+  const Location L;
+  CompilationUnit cu;
+
+  SECTION("Basic Extension") {
+    auto mod = compile(cu,
+      "class A {}\n"
+      "extend A {}"
+    );
+    auto cls = cast<TypeDefn>(mod->members().front());
+    auto ext = cast<TypeDefn>(mod->members().back());
+    REQUIRE(cls->kind == Defn::Kind::TYPE);
+    REQUIRE(ext->kind == Defn::Kind::TYPE);
+    REQUIRE(cls->type()->kind == Type::Kind::CLASS);
+    REQUIRE(ext->type()->kind == Type::Kind::EXTENSION);
+    auto result = mod->extensions()->lookup(cls);
+    REQUIRE(result.size() == 1);
+    REQUIRE(result[0] == ext);
+  }
+
+  SECTION("Extend an alias") {
+    auto mod = compile(cu,
+      "type A = i32 | void;\n"
+      "extend A {}"
+    );
+    auto cls = cast<TypeDefn>(mod->members().front());
+    auto ext = cast<TypeDefn>(mod->members().back());
+    REQUIRE(cls->kind == Defn::Kind::TYPE);
+    REQUIRE(ext->kind == Defn::Kind::TYPE);
+    REQUIRE(cls->type()->kind == Type::Kind::ALIAS);
+    REQUIRE(ext->type()->kind == Type::Kind::EXTENSION);
+    auto result = mod->extensions()->lookup(cls);
+    REQUIRE(result.size() == 1);
+    REQUIRE(result[0] == ext);
+  }
+}
+
 TEST_CASE("NameResolution.Attribute", "[sema]") {
   const Location L;
   CompilationUnit cu;

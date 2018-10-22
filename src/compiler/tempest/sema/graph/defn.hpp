@@ -69,6 +69,8 @@ namespace tempest::sema::graph {
       , _abstract(false)
       , _undef(false)
       , _static(false)
+      , _local(false)
+      , _member(false)
       , _resolving(false)
       , _resolved(false)
       , _overloadIndex(0)
@@ -87,6 +89,10 @@ namespace tempest::sema::graph {
     /** Whether this definition has the 'static' modifier. */
     bool isStatic() const { return _static; }
     void setStatic(bool value) { _static = value; }
+
+    /** Whether this definition was declared in a local scope. */
+    bool isLocal() const { return _local; }
+    void setLocal(bool value) { _local = value; }
 
     /** Whether this definition is a member variable. */
     bool isMember() const { return _member; }
@@ -160,6 +166,7 @@ namespace tempest::sema::graph {
     bool _abstract;
     bool _undef;                  // Undefined method
     bool _static;                 // Was declared static
+    bool _local;                  // Declared in a local scope
     bool _member;                 // Is a member variable
     bool _getter;                 // Declared as 'get'
     bool _setter;                 // Declared as 'set'

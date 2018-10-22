@@ -96,6 +96,7 @@ namespace tempest::sema::graph {
     enum Flavor {
       NEW,      // Call to a constructor, context is newly-allocated memory.
       STATIC,   // Call to a global or static function - null context argument.
+      METHOD,   // Call to a method with a 'self' argument.
       VTABLE,   // Call to a method via a vtable
       ITABLE,   // Call via interface dispatch
       INDIRECT, // Call via a function reference (with stem)

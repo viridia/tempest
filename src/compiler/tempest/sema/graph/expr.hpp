@@ -90,13 +90,12 @@ namespace tempest::sema::graph {
       REST_ARGS,                    // Varargs list
 
     // Member references
+      MEMBER_NAME_REF,              // Reference to a member name
       VAR_REF,                      // Reference to a variable
       TYPE_REF,                     // Reference to a type name
       TYPE_REF_OVERLOAD,            // Reference to an overloaded type name
       FUNCTION_REF,                 // Reference to a function
       FUNCTION_REF_OVERLOAD,        // Reference to an overloaded function name
-      // MEMBER_LIST,                  // List of members - results of a lookup
-      // DEFN_REF,                     // Reference to a definition (produced from MEMBER_LIST).
     //   PRIVATE_NAME,                 # Reference to private member (.a)
     //   FLUENT_MEMBER,                # Sticky reference to member (a.{b;c;d})
     //   TEMP_VAR,                     # Reference to an anonymous, temporary variable.
@@ -295,6 +294,38 @@ namespace tempest::sema::graph {
     static bool classof(const DefnRef* e) { return true; }
     static bool classof(const Expr* e) {
       return e->kind == Kind::TYPE_REF_OVERLOAD || e->kind == Kind::FUNCTION_REF_OVERLOAD;
+    }
+  };
+
+  /** Reference to a member (unresolved), with stem expression. */
+  class MemberNameRef : public Expr {
+  public:
+    /** The name of the members that were searched for. */
+    llvm::StringRef name;
+
+    /** Stem expression */
+    Expr* stem = nullptr;
+
+    /** List of potential members, filled in after we do name lookup. */
+    Expr* refs = nullptr;
+
+    MemberNameRef(
+        Expr::Kind kind,
+        Location location,
+        llvm::StringRef name,
+        Expr* stem = nullptr,
+        Expr* refs = nullptr,
+        Type* type = nullptr)
+      : Expr(kind, location, type)
+      , name(name)
+      , stem(stem)
+      , refs(refs)
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const MemberNameRef* e) { return true; }
+    static bool classof(const Expr* e) {
+      return e->kind == Kind::MEMBER_NAME_REF;
     }
   };
 

@@ -5,6 +5,10 @@
   #include "tempest/sema/graph/defn.hpp"
 #endif
 
+#ifndef TEMPEST_SEMA_GRAPH_EXTENSIONMAP_HPP
+  #include "tempest/sema/graph/extensionmap.hpp"
+#endif
+
 #ifndef TEMPEST_SOURCE_PROGRAMSOURCE_HPP
   #include "tempest/source/programsource.hpp"
 #endif
@@ -37,6 +41,7 @@ namespace tempest::sema::graph {
       , _source(std::move(source))
       , _memberScope(std::make_unique<SymbolTable>())
       , _exportScope(std::make_unique<SymbolTable>())
+      , _extensions(std::make_unique<ExtensionMap>())
     {}
 
     // Constructor for testing, program source is null.
@@ -44,6 +49,7 @@ namespace tempest::sema::graph {
       : Member(Kind::MODULE, name)
       , _memberScope(std::make_unique<SymbolTable>())
       , _exportScope(std::make_unique<SymbolTable>())
+      , _extensions(std::make_unique<ExtensionMap>())
     {}
 
     /** Source file of this module. */
@@ -68,6 +74,9 @@ namespace tempest::sema::graph {
     /** Symbol scope for the symbols exported by this module. */
     SymbolTable* exportScope() const { return _exportScope.get(); }
 
+    /** Extension map for this module. */
+    ExtensionMap* extensions() const { return _extensions.get(); }
+
     /** Allocator used for AST nodes. */
     tempest::support::BumpPtrAllocator& astAlloc() { return _astAlloc; }
 
@@ -86,9 +95,9 @@ namespace tempest::sema::graph {
     MemberList _imports;
     std::unique_ptr<SymbolTable> _memberScope;
     std::unique_ptr<SymbolTable> _exportScope;
+    std::unique_ptr<ExtensionMap> _extensions;
     tempest::support::BumpPtrAllocator _astAlloc;
     tempest::support::BumpPtrAllocator _semaAlloc;
-    // std::unordered_set<SpecializedDefn*> _syntheticFunctions;
   };
 }
 

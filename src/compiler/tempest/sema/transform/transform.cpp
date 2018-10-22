@@ -297,6 +297,18 @@ namespace tempest::sema::transform {
         // return mref;
       }
 
+      case Expr::Kind::MEMBER_NAME_REF: {
+        auto mref = static_cast<MemberNameRef*>(expr);
+        auto type = transformType(mref->type);
+        auto stem = transform(mref->stem);
+        auto refs = transform(mref->refs);
+        if (type != mref->type || stem != mref->stem || refs != mref->refs) {
+          return new (_alloc) MemberNameRef(
+              mref->kind, mref->location, mref->name, stem, refs, type);
+        }
+        return mref;
+      }
+
       case Expr::Kind::BLOCK: {
         auto block = static_cast<BlockStmt*>(expr);
         auto result = transform(block->result);

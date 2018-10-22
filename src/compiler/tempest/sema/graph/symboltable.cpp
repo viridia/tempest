@@ -47,25 +47,11 @@ namespace tempest::sema::graph {
     }
   }
 
-  // void SymbolTable::describe(std::ostream& strm) const {
-  //   if (_owner) {
-  //     if (_description.size() > 0) {
-  //       strm << _description << " scope for " << _owner->name();
-  //     } else {
-  //       strm << "scope for " << _owner->name();
-  //     }
-  //   } else if (_description.size() > 0) {
-  //     strm << _description << " scope";
-  //   } else {
-  //     strm << "scope containing " << _entries.size() << " members";
-  //   }
-  // }
-
-  // void SymbolTable::validate() const {
-  //   for (EntryMap::value_type v : _entries) {
-  //     for (auto m : v.second) {
-  //       assert(m->kind() >= Member::Kind::TYPE && m->kind() <= Member::Kind::TUPLE_MEMBER);
-  //     }
-  //   }
-  // }
+  void SymbolTable::forAllMembers(const MemberCallback& callback) const {
+    for (auto&& v : _entries) {
+      for (auto m : v.second) {
+        callback(m, v.first());
+      }
+    }
+  }
 }

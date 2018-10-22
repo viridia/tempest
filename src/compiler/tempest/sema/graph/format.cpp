@@ -57,6 +57,9 @@ namespace tempest::sema::graph {
           case Type::Kind::ALIAS:
             out << "type";
             break;
+          case Type::Kind::EXTENSION:
+            out << "extend";
+            break;
           default:
             out << "<invalid>";
             break;
@@ -452,6 +455,10 @@ namespace tempest::sema::graph {
       case Expr::Kind::TYPE_REF:
       case Expr::Kind::VAR_REF: {
         auto fnRef = static_cast<const DefnRef*>(e);
+        if (fnRef->stem) {
+          visitExpr(fnRef->stem);
+          out << ".";
+        }
         out << fnRef->defn->name();
         break;
       }

@@ -78,7 +78,7 @@ namespace tempest::sema::names {
             // If we found a type parameter with that name, return it.
             return;
           }
-          assert(false && "Implement");
+          // assert(false && "Implement");
           break;
         }
 

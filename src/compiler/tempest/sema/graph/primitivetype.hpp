@@ -1,7 +1,3 @@
-// ============================================================================
-// semq/graph/primitivetype.h: built-in types.
-// ============================================================================
-
 #ifndef TEMPEST_SEMA_GRAPH_PRIMITIVETYPE_HPP
 #define TEMPEST_SEMA_GRAPH_PRIMITIVETYPE_HPP 1
 

@@ -1,7 +1,3 @@
-// ============================================================================
-// programsource.hpp": Abstract class representing a source code file.
-// ============================================================================
-
 #ifndef TEMPEST_SOURCE_PROGRAMSOURCE_HPP
 #define TEMPEST_SOURCE_PROGRAMSOURCE_HPP 1
 

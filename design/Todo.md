@@ -1,6 +1,6 @@
 # TODOs
 
-* Infix operators
+* Finish infix operators
 * Constant infix operators
   * String
   * Boolean

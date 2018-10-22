@@ -104,7 +104,8 @@ namespace tempest::parse {
     }
 
     ast::Module* module();
-    ast::Defn* declaration(DeclarationScope scope);
+    ast::Defn* moduleLevelDeclaration();
+    ast::Defn* memberDeclaration();
     ast::Node* expression();
     ast::Node* typeExpression();
   private:
@@ -115,7 +116,7 @@ namespace tempest::parse {
     bool _recovering;
 
     ast::Node* importStmt(ast::Node::Kind kind);
-    bool memberDeclaration(NodeListBuilder& decls);
+    // bool memberDeclaration(NodeListBuilder& decls);
     ast::Node* attribute();
     // llvm::StringRef methodName();
     ast::Defn* compositeTypeDef();
@@ -124,7 +125,7 @@ namespace tempest::parse {
     ast::Defn* enumTypeDef();
     ast::Defn* aliasTypeDef();
     bool enumMember(NodeListBuilder &members);
-    ast::Defn* methodDef();
+    ast::Defn* methodDef(bool isMember);
     ast::Node* methodBody();
     void templateParamList(NodeListBuilder& params);
     ast::TypeParameter* templateParam();
@@ -135,9 +136,9 @@ namespace tempest::parse {
     ast::Node* requireCall(ast::Node::Kind kind, ast::Node* fn);
     bool paramList(NodeListBuilder& params);
 
-    ast::Defn* fieldDef();
+    ast::Defn* fieldDef(ast::Node::Kind kind, StringRef name);
     ast::ValueDefn* varDeclList(ast::Node::Kind kind);
-    ast::ValueDefn* varDecl(ast::Node::Kind kind);
+    ast::ValueDefn* varDecl(ast::Node::Kind kind, StringRef name);
 
     ast::Node* typeUnion();
     ast::Node* typeTerm(bool allowPartial = false);

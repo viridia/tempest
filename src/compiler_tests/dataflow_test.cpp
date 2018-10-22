@@ -84,7 +84,7 @@ TEST_CASE("DataFlow", "[sema]") {
     compile(cu,
       "class A {\n"
       "  x: i32;\n"
-      "  fn new() {\n"
+      "  new() {\n"
       "    let y: i32 = 0;\n"
       "    x = y;\n"
       "  }\n"
@@ -96,7 +96,7 @@ TEST_CASE("DataFlow", "[sema]") {
     compile(cu,
       "class A {\n"
       "  x: i32;\n"
-      "  fn new() {\n"
+      "  new() {\n"
       "    let y: i32;\n"
       "    y = 0;\n"
       "    x = y;\n"
@@ -110,7 +110,7 @@ TEST_CASE("DataFlow", "[sema]") {
       compileError(cu,
           "class A {\n"
           "  x: i32;\n"
-          "  fn new() {\n"
+          "  new() {\n"
           "    let x: i32 = 0;\n"
           "  }\n"
           "}\n"
@@ -123,7 +123,7 @@ TEST_CASE("DataFlow", "[sema]") {
       compileError(cu,
           "class A {\n"
           "  x: i32;\n"
-          "  fn new() {\n"
+          "  new() {\n"
           "    let y: i32;\n"
           "    x = y;\n"
           "  }\n"
@@ -137,7 +137,7 @@ TEST_CASE("DataFlow", "[sema]") {
       compileError(cu,
           "class A {\n"
           "  x: i32;\n"
-          "  fn new() {}\n"
+          "  new() {}\n"
           "}\n"
       ),
       Catch::Contains("Field not initialized"));
@@ -147,10 +147,10 @@ TEST_CASE("DataFlow", "[sema]") {
     REQUIRE_THAT(
       compileError(cu,
           "class A {\n"
-          "  fn new(x: i32) {}\n"
+          "  new(x: i32) {}\n"
           "}\n"
           "class B extends A {\n"
-          "  fn new() {}\n"
+          "  new() {}\n"
           "}\n"
       ),
       Catch::Contains("Base class has no default constructor"));
@@ -160,7 +160,7 @@ TEST_CASE("DataFlow", "[sema]") {
     auto mod = compile(cu,
       "class A {\n"
       "  x: i32 = 0;\n"
-      "  fn new() {}\n"
+      "  new() {}\n"
       "}\n"
     );
     auto td = cast<TypeDefn>(mod->members().back());
@@ -174,10 +174,10 @@ TEST_CASE("DataFlow", "[sema]") {
   SECTION("implicit call to super of templated base class") {
     auto mod = compile(cu,
       "class A[T] {\n"
-      "  fn new() {}\n"
+      "  new() {}\n"
       "}\n"
       "class B extends A[i32] {\n"
-      "  fn new() {}\n"
+      "  new() {}\n"
       "}\n"
     );
     auto td = cast<TypeDefn>(mod->members().back());

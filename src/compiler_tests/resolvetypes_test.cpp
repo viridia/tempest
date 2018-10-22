@@ -847,7 +847,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
   SECTION("Method call") {
     auto mod = compile(cu,
       "class A {\n"
-      "  fn f() => 0;\n"
+      "  f() => 0;\n"
       "}\n"
       "let x = A();"
       "let y = x.f();"

@@ -162,9 +162,9 @@ TEST_CASE("Convert.Narrower", "[sema]") {
 
   SECTION("Structural typing") {
     auto mod = compile(cu,
-      "class A { fn x() -> i32 { 0 } }\n"
-      "interface I { fn x() -> i32; }\n"
-      "interface J { fn x() -> bool; }\n"
+      "class A { x() -> i32 { 0 } }\n"
+      "interface I { x() -> i32; }\n"
+      "interface J { x() -> bool; }\n"
       "interface K extends I {}\n"
     );
     auto clsA = cast<TypeDefn>(mod->members()[0])->type();

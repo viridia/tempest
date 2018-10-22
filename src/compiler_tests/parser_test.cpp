@@ -30,7 +30,7 @@ namespace {
   Node* parseMemberDeclaration(tempest::support::BumpPtrAllocator& alloc, const char* srcText) {
     TestSource src(srcText);
     Parser parser(&src, alloc);
-    Node* result = parser.declaration(DECL_GLOBAL);
+    Node* result = parser.moduleLevelDeclaration();
     REQUIRE(parser.done());
     return result;
   }
@@ -135,13 +135,43 @@ TEST_CASE("Parser", "[parse]") {
     REQUIRE_THAT(
       parseMemberDeclaration(alloc,
         "class X {\n"
-        "  fn a() {}\n"
+        "  a() {}\n"
         "}\n"
       ),
       ASTEQ(
         "(#CLASS_DEFN X\n"
         "  (#FUNCTION a (#BLOCK)))\n"
       ));
+
+    // Member functions vs getters and setters
+    REQUIRE_THAT(
+      parseMemberDeclaration(alloc,
+        "class X {\n"
+        "  a: i32;\n"
+        "  b() {}\n"
+        "  c -> i32 {}\n"
+        "  d() -> i32 {}\n"
+        "  get e() {}\n"
+        "  get f: i32 {}\n"
+        "  get g(): i32 {}\n"
+        "  get h(p: i32): i32 {}\n"
+        "  set i() {}\n"
+        "  set j(value): i32 {}\n"
+        "}\n"
+      ),
+      ASTEQ(
+        "(#CLASS_DEFN X\n"
+        "  (#MEMBER_VAR a: i32)\n"
+        "  (#FUNCTION b (#BLOCK))\n"
+        "  (#FUNCTION c: i32 (#BLOCK))\n"
+        "  (#FUNCTION d: i32 (#BLOCK))\n"
+        "  (#FUNCTION e (#BLOCK))\n"
+        "  (#FUNCTION f: i32 (#BLOCK))\n"
+        "  (#FUNCTION g: i32 (#BLOCK))\n"
+        "  (#FUNCTION h: i32 (#BLOCK))\n"
+        "  (#FUNCTION i (#BLOCK))\n"
+        "  (#FUNCTION j: i32 (#BLOCK)))\n"
+    ));
   }
 
   SECTION("Interface") {
@@ -209,10 +239,10 @@ TEST_CASE("Parser", "[parse]") {
     REQUIRE_THAT(
       parseModule(alloc,
         "class X {\n"
-        "  fn a() -> void;\n"
+        "  a() -> void;\n"
         "}\n"
         "extend X {\n"
-        "  fn b() -> void;\n"
+        "  b() -> void;\n"
         "}\n"
       ),
       ASTEQ(

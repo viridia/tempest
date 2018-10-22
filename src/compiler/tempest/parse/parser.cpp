@@ -89,14 +89,14 @@ namespace tempest::parse {
             skipOverDefn();
           }
         } else {
-          Defn* d = declaration(DECL_GLOBAL);
+          Defn* d = moduleLevelDeclaration();
           if (d) {
             members.append(d);
             declDefined = true;
           }
         }
       } else {
-        Defn* d = declaration(DECL_GLOBAL);
+        Defn* d = moduleLevelDeclaration();
         if (d) {
           members.append(d);
           declDefined = true;
@@ -171,59 +171,89 @@ namespace tempest::parse {
 
   // Declaration
 
-  bool Parser::memberDeclaration(NodeListBuilder& decls) {
+  Defn* Parser::moduleLevelDeclaration() {
     NodeListBuilder attributes(_alloc);
     while (auto attr = attribute()) {
       attributes.append(attr);
     }
 
-    Defn* d;
-    bool isPrivate = false;
-    bool isProtected = false;
-    if (_token == TOKEN_PRIVATE || _token == TOKEN_PROTECTED) {
-      isPrivate = match(TOKEN_PRIVATE);
-      isProtected = match(TOKEN_PROTECTED);
-      if (match(TOKEN_LBRACE)) {
-        // It's a block of definitions with common visibility.
-        if (attributes.size() > 0) {
-          diag.error(location()) << "Visibility block may not have attributes.";
+    Defn* result = nullptr;
+    bool isAbstract = false;
+    bool isFinal = false;
+    bool isStatic = false;
+    for (;;) {
+      if (match(TOKEN_PRIVATE) || match(TOKEN_PRIVATE)) {
+        diag.error(location()) << "Visibility qualifier not valid at module level.";
+      } else if (match(TOKEN_ABSTRACT)) {
+        if (isAbstract) {
+          diag.error(location()) << "'abstract' already specified.";
         }
-        while (!match(TOKEN_RBRACE)) {
-          if (_token == TOKEN_END) {
-            diag.error(location()) << "Visibility block not closed.";
-            return false;
-          }
-          NodeListBuilder attributes2(_alloc);
-          while (auto attr = attribute()) {
-            attributes2.append(attr);
-          }
-          d = declaration(DECL_MEMBER);
-          if (d) {
-            d->attributes = attributes2.build();
-            d->setPrivate(isPrivate);
-            d->setProtected(isProtected);
-            decls.append(d);
-          } else {
-            return false;
-          }
+        isAbstract = true;
+      } else if (match(TOKEN_FINAL)) {
+        if (isFinal) {
+          diag.error(location()) << "'final' already specified.";
         }
-        return true;
+        isFinal = true;
+      } else if (match(TOKEN_STATIC)) {
+        if (isStatic) {
+          diag.error(location()) << "'static' already specified.";
+        }
+        isStatic = true;
+      } else {
+        break;
       }
     }
 
-    d = declaration(DECL_MEMBER);
-    if (d != nullptr) {
-      d->attributes = attributes.build();
-      d->setPrivate(isPrivate);
-      d->setProtected(isProtected);
-      decls.append(d);
-      return true;
+    switch (_token) {
+      case TOKEN_CONST:
+        next();
+        result = fieldDef(Node::Kind::MEMBER_CONST, "");
+        break;
+      case TOKEN_LET:
+        next();
+        result = fieldDef(Node::Kind::MEMBER_VAR, "");
+        break;
+      case TOKEN_ID:
+        diag.error(location()) << "Declaration expected.";
+        next();
+        return nullptr;
+      case TOKEN_CLASS:
+      case TOKEN_STRUCT:
+      case TOKEN_INTERFACE:
+      case TOKEN_EXTEND:
+      case TOKEN_OBJECT:
+      case TOKEN_TRAIT:
+        result = compositeTypeDef();
+        break;
+      case TOKEN_ENUM:
+        result = enumTypeDef();
+        break;
+      case TOKEN_TYPE:
+        result = aliasTypeDef();
+        break;
+      case TOKEN_FN:
+      case TOKEN_UNDEF:
+      case TOKEN_OVERRIDE:
+      case TOKEN_GET:
+      case TOKEN_SET:
+        result = methodDef(false);
+        break;
+      default:
+        diag.error(location()) << "Declaration expected.";
+        skipOverDefn();
+        return nullptr;
     }
-    diag.error(location()) << "declaration expected.";
-    return false;
+
+    if (result) {
+      result->setAbstract(isAbstract);
+      result->setFinal(isFinal);
+      result->setStatic(isStatic);
+      result->attributes = attributes.build();
+    }
+    return result;
   }
 
-  Defn* Parser::declaration(DeclarationScope scope) {
+  Defn* Parser::memberDeclaration() {
     NodeListBuilder attributes(_alloc);
     while (auto attr = attribute()) {
       attributes.append(attr);
@@ -256,26 +286,13 @@ namespace tempest::parse {
 
     switch (_token) {
       case TOKEN_CONST:
-        result = fieldDef();
+        next();
+        result = fieldDef(Node::Kind::MEMBER_CONST, "");
         break;
       case TOKEN_LET:
-        if (scope == DECL_MEMBER) {
-          diag.error(location()) << "'let' keyword not needed for member declaration.";
-          next();
-          return nullptr;
-        } else {
-          result = fieldDef();
-        }
-        break;
-      case TOKEN_ID:
-        if (scope == DECL_GLOBAL) {
-          diag.error(location()) << "Declaration expected.";
-          next();
-          return nullptr;
-        } else {
-          result = fieldDef();
-        }
-        break;
+        diag.error(location()) << "'let' keyword not needed for member declaration.";
+        next();
+        return nullptr;
       case TOKEN_CLASS:
       case TOKEN_STRUCT:
       case TOKEN_INTERFACE:
@@ -290,23 +307,29 @@ namespace tempest::parse {
       case TOKEN_TYPE:
         result = aliasTypeDef();
         break;
-      case TOKEN_FN:
+      case TOKEN_ID:
       case TOKEN_UNDEF:
       case TOKEN_OVERRIDE:
       case TOKEN_GET:
       case TOKEN_SET:
-        result = methodDef();
+        result = methodDef(true);
         break;
+      case TOKEN_FN:
+        diag.error(location()) << "'fn' keyword not needed for member declaration.";
+        skipOverDefn();
+        return nullptr;
       default:
         diag.error(location()) << "Declaration expected.";
         skipOverDefn();
         return nullptr;
     }
 
-    result->setAbstract(isAbstract);
-    result->setFinal(isFinal);
-    result->setStatic(isStatic);
-    result->attributes = attributes.build();
+    if (result) {
+      result->setAbstract(isAbstract);
+      result->setFinal(isFinal);
+      result->setStatic(isStatic);
+      result->attributes = attributes.build();
+    }
     return result;
   }
 
@@ -417,7 +440,54 @@ namespace tempest::parse {
         expected("';'");
       }
       friends.append(friendDecl);
-    } else if (!memberDeclaration(members)) {
+    } else {
+      NodeListBuilder attributes(_alloc);
+      while (auto attr = attribute()) {
+        attributes.append(attr);
+      }
+
+      Defn* d;
+      bool isPrivate = false;
+      bool isProtected = false;
+      if (_token == TOKEN_PRIVATE || _token == TOKEN_PROTECTED) {
+        isPrivate = match(TOKEN_PRIVATE);
+        isProtected = match(TOKEN_PROTECTED);
+        if (match(TOKEN_LBRACE)) {
+          // It's a block of definitions with common visibility.
+          if (attributes.size() > 0) {
+            diag.error(location()) << "Visibility block may not have attributes.";
+          }
+          while (!match(TOKEN_RBRACE)) {
+            if (_token == TOKEN_END) {
+              diag.error(location()) << "Visibility block not closed.";
+              return false;
+            }
+            NodeListBuilder attributes2(_alloc);
+            while (auto attr = attribute()) {
+              attributes2.append(attr);
+            }
+            d = memberDeclaration();
+            if (d) {
+              d->attributes = attributes2.build();
+              d->setPrivate(isPrivate);
+              d->setProtected(isProtected);
+              members.append(d);
+            } else {
+              return false;
+            }
+          }
+          return true;
+        }
+      }
+
+      d = memberDeclaration();
+      if (d) {
+        d->attributes = attributes.build();
+        d->setPrivate(isPrivate);
+        d->setProtected(isProtected);
+        members.append(d);
+        return true;
+      }
       return false;
     }
     return true;
@@ -570,7 +640,7 @@ namespace tempest::parse {
 
   // Method
 
-  Defn* Parser::methodDef() {
+  Defn* Parser::methodDef(bool isMember) {
     bool isUndef = false;
     bool isOverride = false;
     bool isGetter = false;
@@ -587,7 +657,7 @@ namespace tempest::parse {
       isSetter = true;
     }
 
-    if (!isUndef && !isOverride && !isGetter && !isSetter) {
+    if (!isMember && !isUndef && !isOverride && !isGetter && !isSetter) {
       if (!match(TOKEN_FN)) {
         assert(false && "Invalid function token.");
       }
@@ -599,6 +669,45 @@ namespace tempest::parse {
     if (_token == TOKEN_ID) {
       name = copyOf(tokenValue());
       next();
+
+      // If the name is followed by a colon, and it's not a getter or setter, then it's
+      // actually a variable declaration, not a method.
+      if (isMember && (_token == TOKEN_COLON || _token == TOKEN_ASSIGN) && !isGetter && !isSetter) {
+        return fieldDef(Node::Kind::MEMBER_VAR, name);
+        // ast::ValueDefn* val = new (_alloc) ast::ValueDefn(, loc, name);
+        // // TODO: Consolidate this with varDecl.
+        // if (match(TOKEN_COLON)) {
+        //   if (match(TOKEN_ELLIPSIS)) {
+        //     assert(false && "Implement pre-ellipsis");
+        //   }
+        //   auto valType = typeExpression();
+        //   if (valType == nullptr) {
+        //     skipUntil({TOKEN_SEMI});
+        //   } else {
+        //     val->type = valType;
+        //   }
+        // }
+
+        // // Initializer
+        // if (match(TOKEN_ASSIGN)) {
+        //   auto init = exprList();
+        //   if (init != nullptr) {
+        //     val->init = init;
+        //   }
+        // }
+
+        // if (!match(TOKEN_SEMI)) {
+        //   diag.error(location()) << "Semicolon expected.";
+        //   skipUntil({TOKEN_SEMI});
+        //   next();
+        // }
+
+        // return val;
+      }
+    } else {
+      if (isGetter || isSetter) {
+        diag.error(location()) << "Missing name for getter / setter.";
+      }
     }
 
     // Template parameters
@@ -617,17 +726,28 @@ namespace tempest::parse {
       return nullptr;
     }
 
-    if (name.empty()) {
-      name = "()";
-    }
-
     Node* returnType = nullptr;
-    if (match(TOKEN_RETURNS)) {
+    if (isGetter || isSetter) {
+      if (match(TOKEN_RETURNS)) {
+        diag.error(location()) << "Colon expected after getter / setter declaration.";
+      }
+      if (match(TOKEN_COLON)) {
+        returnType = typeExpression();
+        if (returnType == nullptr) {
+          skipOverDefn();
+          return nullptr;
+        }
+      }
+    } else if (match(TOKEN_RETURNS)) {
       returnType = typeExpression();
       if (returnType == nullptr) {
         skipOverDefn();
         return nullptr;
       }
+    }
+
+    if (name.empty()) {
+      name = "()";
     }
 
     if (returnType != nullptr ||
@@ -917,19 +1037,8 @@ namespace tempest::parse {
 
   // Variable
 
-  Defn* Parser::fieldDef() {
-    Node::Kind kind;
-    if (match(TOKEN_CONST)) {
-      kind = Node::Kind::MEMBER_CONST;
-    } else if (match(TOKEN_LET)) {
-      kind = Node::Kind::MEMBER_VAR;
-    } else if (_token == TOKEN_ID) {
-      kind = Node::Kind::MEMBER_VAR;
-    } else {
-      assert(false);
-    }
-
-    ast::ValueDefn* var = varDecl(kind);
+  Defn* Parser::fieldDef(Node::Kind kind, StringRef name) {
+    ast::ValueDefn* var = varDecl(kind, name);
 
     // Initializer
     if (match(TOKEN_ASSIGN)) {
@@ -950,7 +1059,7 @@ namespace tempest::parse {
 
   ast::ValueDefn* Parser::varDeclList(Node::Kind kind) {
     Location loc = location();
-    ast::ValueDefn* var = varDecl(kind);
+    ast::ValueDefn* var = varDecl(kind, "");
     if (var == nullptr) {
       return nullptr;
     }
@@ -978,14 +1087,17 @@ namespace tempest::parse {
     return var;
   }
 
-  ast::ValueDefn* Parser::varDecl(Node::Kind kind) {
-    if (_token != TOKEN_ID) {
-      diag.error(location()) << "Variable name expected.";
-      _recovering = true;
-    }
-    StringRef name = copyOf(tokenValue());
+  ast::ValueDefn* Parser::varDecl(Node::Kind kind, StringRef name) {
     Location loc = location();
-    next();
+    if (name.empty()) {
+      if (_token != TOKEN_ID) {
+        diag.error(location()) << "Variable name expected.";
+        _recovering = true;
+      }
+      name = copyOf(tokenValue());
+      loc = location();
+      next();
+    }
 
     ast::ValueDefn* val = new (_alloc) ast::ValueDefn(kind, loc, name);
     if (match(TOKEN_COLON)) {
@@ -1466,7 +1578,7 @@ namespace tempest::parse {
       kind = Node::Kind::LOCAL_LET;
     }
 
-    ast::ValueDefn* var = varDecl(kind);
+    ast::ValueDefn* var = varDecl(kind, StringRef());
 
     // Initializer
     if (match(TOKEN_ASSIGN)) {

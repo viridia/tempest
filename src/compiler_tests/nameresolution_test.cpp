@@ -774,8 +774,8 @@ TEST_CASE("NameResolution.Method", "[sema]") {
   SECTION("Class methods") {
     auto mod = compile(cu,
       "class A {\n"
-      "  fn a() {}\n"
-      "  get b() -> i32 {}\n"
+      "  a() {}\n"
+      "  get b(): i32 {}\n"
       "  set c(value: i32) {}\n"
       "}\n"
     );
@@ -822,7 +822,7 @@ TEST_CASE("NameResolution.Method", "[sema]") {
     REQUIRE_THAT(
       compileError(cu,
         "class A {\n"
-        "  set c(value: i32) -> i32 {}\n"
+        "  set c(value: i32): i32 {}\n"
         "}\n"
       ),
       Catch::Contains("Setter method may not declare a return type"));

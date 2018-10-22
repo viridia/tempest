@@ -150,7 +150,7 @@ TEST_CASE("CodeGen", "[gen]") {
     CompilationUnit cu;
     auto mod = compile(cu,
       "class A {\n"
-      "  fn new() {}\n"
+      "  new() {}\n"
       "}\n"
       "fn test {\n"
       "  return A();\n"
@@ -198,10 +198,10 @@ TEST_CASE("CodeGen", "[gen]") {
     CompilationUnit cu;
     auto mod = compile(cu,
       "class A {\n"
-      "  fn a() => 0;\n"
+      "  a() => 0;\n"
       "}\n"
       "class B {\n"
-      "  fn b() {\n"
+      "  b() {\n"
       "    let x = A();"
       "    let y = x.a();"
       "    return y;"

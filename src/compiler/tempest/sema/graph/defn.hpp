@@ -410,6 +410,8 @@ namespace tempest::sema::graph {
       , _type(type)
       , _init(nullptr)
       , _fieldIndex(0)
+      , _constant(false)
+      , _constantInit(false)
       , _defined(true)
     {}
 
@@ -428,6 +430,10 @@ namespace tempest::sema::graph {
     /** Whether this variable was declared with 'const'. */
     bool isConstant() const { return _constant; }
     void setConstant(bool constant) { _constant = constant; }
+
+    /** Whether the initalizer of this field is a constant. */
+    bool isConstantInit() const { return _constantInit; }
+    void setConstantInit(bool constant) { _constantInit = constant; }
 
     /** Whether this variable is actually defined yet. This is used to detect uses of local
         variables which occur prior to the definition but are in the same block. */
@@ -455,6 +461,7 @@ namespace tempest::sema::graph {
     const ast::ValueDefn* _ast = nullptr;
     int32_t _fieldIndex;
     bool _constant;
+    bool _constantInit;
     bool _defined;
   };
 

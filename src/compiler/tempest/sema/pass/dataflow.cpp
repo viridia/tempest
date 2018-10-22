@@ -193,9 +193,12 @@ namespace tempest::sema::pass {
             if (!vd->isStatic()) {
               if (!flow.memberVarsSet[vd->fieldIndex()]) {
                 if (vd->init()) {
-                  auto dref = new (*_alloc) DefnRef(
-                      Expr::Kind::VAR_REF, fd->location(), vd, td->implicitSelf());
-                  initStmts.push_back(new (*_alloc) BinaryOp(Expr::Kind::ASSIGN, dref, vd->init()));
+                  if (!(vd->isConstant() && vd->isConstantInit())) {
+                    auto dref = new (*_alloc) DefnRef(
+                        Expr::Kind::VAR_REF, fd->location(), vd, td->implicitSelf());
+                    initStmts.push_back(
+                        new (*_alloc) BinaryOp(Expr::Kind::ASSIGN, dref, vd->init()));
+                  }
                 } else {
                   diag.error(fd) << "Field not initialized: '" << vd->name() << "'.";
                 }

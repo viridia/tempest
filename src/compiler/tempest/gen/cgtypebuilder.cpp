@@ -137,7 +137,7 @@ namespace tempest::gen {
     for (auto member : td->members()) {
       if (member->kind == Defn::Kind::VAR_DEF && !member->isStatic()) {
         auto vd = static_cast<ValueDefn*>(member);
-        if (!vd->isConstant()) {
+        if (!(vd->isConstant() && vd->isConstantInit())) {
           elts.push_back(getMemberType(vd->type(), typeArgs));
         }
       }

@@ -194,6 +194,23 @@ TEST_CASE("CodeGen", "[gen]") {
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }
 
+  SECTION("const field initialization") {
+    CompilationUnit cu;
+    auto mod = compile(cu,
+      "class A {\n"
+      "  const size: int = 0;\n"
+      "}\n"
+    );
+
+    CodeGen gen(context);
+    auto cgMod = gen.createModule("TestMod");
+    cgMod->diInit("testmod.te", "");
+    gen.genSymbols(cu.symbols());
+    cgMod->diFinalize();
+    // cgMod->irModule()->print(llvm::errs(), nullptr);
+    REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
+  }
+
   SECTION("method call") {
     CompilationUnit cu;
     auto mod = compile(cu,

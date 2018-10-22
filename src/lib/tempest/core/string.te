@@ -1,6 +1,6 @@
-/** An interable sequence of characters. Strings are stored as UTF-8 encoded byte sequences.
+/** An iterable sequence of characters. The interal representation is a UTF-8 encoded byte sequence.
     For efficient random access to characters, conver the `String` into a character array.
 */
-export class String {
-  size: int = 0;
+export final class String {
+  const size: int = 0;
 }

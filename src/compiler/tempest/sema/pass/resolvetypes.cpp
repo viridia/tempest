@@ -172,37 +172,41 @@ namespace tempest::sema::pass {
       eval::EvalResult result;
       result.failSilentIfNonConst = true;
       if (eval::evalConstExpr(op, result)) {
-        switch (result.type) {
-          case eval::EvalResult::INT: {
-            auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
-            return new (_alloc) IntegerLiteral(
-              op->location,
-              _alloc.copyOf(result.intResult),
-              intType);
-          }
-          case eval::EvalResult::FLOAT: {
-            FloatType* ftype = &FloatType::F64;
-            if (result.size == eval::EvalResult::F32) {
-              ftype = &FloatType::F32;
-            }
-            return new (_alloc) FloatLiteral(
-              op->location,
-              result.floatResult,
-              false,
-              ftype);
-          }
-          case eval::EvalResult::BOOL:
-            assert(false && "Implement");
-            break;
-          case eval::EvalResult::STRING:
-            assert(false && "Implement");
-            break;
-        }
+        return evalResultToExpr(op->location, result);
       } else if (result.error) {
         return &Expr::ERROR;
       }
 
       return nullptr;
+    }
+
+    Expr* evalResultToExpr(const source::Location& location, eval::EvalResult& result) {
+      switch (result.type) {
+        case eval::EvalResult::INT: {
+          auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
+          return new (_alloc) IntegerLiteral(
+            location,
+            _alloc.copyOf(result.intResult),
+            intType);
+        }
+        case eval::EvalResult::FLOAT: {
+          FloatType* ftype = &FloatType::F64;
+          if (result.size == eval::EvalResult::F32) {
+            ftype = &FloatType::F32;
+          }
+          return new (_alloc) FloatLiteral(
+            location,
+            result.floatResult,
+            false,
+            ftype);
+        }
+        case eval::EvalResult::BOOL:
+          assert(false && "Implement");
+          break;
+        case eval::EvalResult::STRING:
+          assert(false && "Implement");
+          break;
+      }
     }
 
     Expr* resolveOperatorName(const Location& loc, const StringRef& name) {
@@ -428,6 +432,10 @@ namespace tempest::sema::pass {
           vd->setType(chooseIntegerType(initType));
         }
         vd->setInit(coerceExpr(vd->init(), vd->type()));
+        if (vd->init()->kind == Expr::Kind::INTEGER_LITERAL ||
+            vd->init()->kind == Expr::Kind::FLOAT_LITERAL) {
+          vd->setConstantInit(true);
+        }
       }
     }
   }

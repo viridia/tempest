@@ -1486,6 +1486,7 @@ namespace tempest::sema::pass {
         }
         auto& base = result[0];
         auto baseKind = typeKindOf(base.member);
+        auto baseDefn = cast<TypeDefn>(unwrapSpecialization(base.member));
         switch (td->type()->kind) {
           case Type::Kind::CLASS:
             if (baseKind != Type::Kind::CLASS) {
@@ -1493,6 +1494,11 @@ namespace tempest::sema::pass {
             } else if (!td->extends().empty()) {
               diag.error(astBase->location) <<
                   "Multiple implementation inheritance is not allowed.";
+            } else if (baseDefn->intrinsic() == IntrinsicType::FLEXALLOC_CLASS) {
+              if (!td->isFinal()) {
+                diag.error(astBase->location) <<
+                    "A class extending FlexAlloc must be declared as final.";
+              }
             }
             break;
           case Type::Kind::STRUCT:

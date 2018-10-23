@@ -238,7 +238,7 @@ TEST_CASE("CodeGen", "[gen]") {
   SECTION("flexalloc base") {
     CompilationUnit cu;
     auto mod = compile(cu,
-      "class A extends FlexAlloc[u8] {\n"
+      "final class A extends FlexAlloc[u8] {\n"
       "  size: i32 = 0;\n"
       "  new() { super(0); }\n"
       "}\n"

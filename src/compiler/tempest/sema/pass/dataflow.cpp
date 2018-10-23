@@ -26,15 +26,9 @@ namespace tempest::sema::pass {
       switch (e->kind) {
         case Expr::Kind::ASSIGN:
         case Expr::Kind::CALL: {
-          e = ExprVisitor::visit(e);
-          firstSt = false;
-          return e;
-        }
-
-        case Expr::Kind::CALL_SUPER: {
           auto callExpr = static_cast<ApplyFnOp*>(e);
           auto callable = callExpr->function;
-          if (callable->kind == Expr::Kind::FUNCTION_REF) {
+          if (callExpr->flavor == ApplyFnOp::SUPER && callable->kind == Expr::Kind::FUNCTION_REF) {
             auto dref = static_cast<DefnRef*>(callable);
             auto fnref = cast<FunctionDefn>(unwrapSpecialization(dref->defn));
             auto selfParam = dref->stem;
@@ -182,8 +176,9 @@ namespace tempest::sema::pass {
               // TODO: Probably need to upcast self.
               auto dref = new (*_alloc) DefnRef(
                   Expr::Kind::FUNCTION_REF, fd->location(), ctor, td->implicitSelf());
-              initStmts.push_back(
-                  new (*_alloc) ApplyFnOp(Expr::Kind::CALL_SUPER, fd->location(), dref, {}));
+              auto call = new (*_alloc) ApplyFnOp(Expr::Kind::CALL, fd->location(), dref, {});
+              call->flavor = ApplyFnOp::SUPER;
+              initStmts.push_back(call);
             }
           }
         }
@@ -209,16 +204,31 @@ namespace tempest::sema::pass {
 
         if (!initStmts.empty()) {
           // Append 'super' call and field initializations
-          // Uhhh, super has to come first.
           if (auto blk = dyn_cast<BlockStmt>(fd->body())) {
+            // Put the initialization statements between the call to super() and the rest
+            // of the block. If there's no call to super(), but them at the beginning.
+            auto insertionPt = blk->stmts.end();
             if (findSuper.superCall) {
-              assert(false && "Implement");
+              insertionPt = std::find(blk->stmts.begin(), blk->stmts.end(), findSuper.superCall);
+              if (insertionPt == blk->stmts.end()) {
+                diag.error(fd) << "Can't find location of call to super().";
+              } else {
+                insertionPt++;
+              }
             }
-            initStmts.append(blk->stmts.begin(), blk->stmts.end());
+
+            initStmts.insert(initStmts.begin(), blk->stmts.begin(), insertionPt);
+            initStmts.append(insertionPt, blk->stmts.end());
             blk->stmts = _alloc->copyOf(initStmts);
-          } else {
+          } else if (fd->body() == findSuper.superCall) {
+            initStmts.insert(initStmts.begin(), findSuper.superCall);
             fd->setBody(new (*_alloc) BlockStmt(
-              fd->body()->location, initStmts, fd->body(), fd->body()->type));
+                fd->body()->location, initStmts, nullptr, fd->body()->type));
+          } else if (!findSuper.superCall) {
+            fd->setBody(new (*_alloc) BlockStmt(
+                fd->body()->location, initStmts, fd->body(), fd->body()->type));
+          } else {
+            diag.error(fd) << "Can't find location of call to super().";
           }
         }
       }
@@ -244,8 +254,7 @@ namespace tempest::sema::pass {
       case Expr::Kind::ALLOC_OBJ:
         break;
 
-      case Expr::Kind::CALL:
-      case Expr::Kind::CALL_SUPER: {
+      case Expr::Kind::CALL: {
         auto callExpr = static_cast<ApplyFnOp*>(e);
         visitExpr(callExpr->function, flow);
         for (auto arg : callExpr->args) {

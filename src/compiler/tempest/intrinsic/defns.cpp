@@ -26,6 +26,7 @@ namespace tempest::intrinsic {
     // Base class of flex-alloc containers
     flexAllocClass = makeTypeDefn(Type::Kind::CLASS, "FlexAlloc");
     flexAllocClass->setIntrinsic(IntrinsicType::FLEXALLOC_CLASS);
+    flexAllocClass->extends().push_back(objectClass.get());
     flexAllocClass->typeParams().push_back(new (_types.alloc()) TypeParameter(Location(), "T"));
 
     // FlexAlloc constructor

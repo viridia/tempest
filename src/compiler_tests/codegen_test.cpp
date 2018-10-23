@@ -234,4 +234,22 @@ TEST_CASE("CodeGen", "[gen]") {
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }
+
+  SECTION("flexalloc base") {
+    CompilationUnit cu;
+    auto mod = compile(cu,
+      "class A extends FlexAlloc[u8] {\n"
+      "  size: i32 = 0;\n"
+      "  new() { super(0); }\n"
+      "}\n"
+    );
+
+    CodeGen gen(context);
+    auto cgMod = gen.createModule("TestMod");
+    cgMod->diInit("testmod.te", "");
+    gen.genSymbols(cu.symbols());
+    cgMod->diFinalize();
+    // cgMod->irModule()->print(llvm::errs(), nullptr);
+    REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
+  }
 }

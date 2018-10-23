@@ -112,6 +112,7 @@ namespace tempest::gen {
     getLinkageName(linkageName, td, typeArgs);
 
     // Base class
+    llvm::Type* flexAllocElementType = nullptr;
     if (td->intrinsic() != IntrinsicType::NONE) {
       switch (td->intrinsic()) {
         case IntrinsicType::OBJECT_CLASS: {
@@ -119,6 +120,11 @@ namespace tempest::gen {
           elts.push_back(llvm::PointerType::getUnqual(llvm::Type::getVoidTy(_context)));
           // GCInfo field - might be a forwarding pointer.
           elts.push_back(llvm::PointerType::getUnqual(llvm::Type::getVoidTy(_context)));
+          break;
+        }
+
+        case IntrinsicType::FLEXALLOC_CLASS: {
+          elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
           break;
         }
 
@@ -130,9 +136,18 @@ namespace tempest::gen {
       elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
       auto base = td->extends()[0];
-      auto baseType = cast<TypeDefn>(base)->type();
+      if (auto sp = dyn_cast<SpecializedDefn>(base)) {
+        typeArgs = sp->typeArgs();
+        base = sp->generic();
+      }
+      auto baseDefn = cast<TypeDefn>(base);
+      auto baseType = baseDefn->type();
       elts.push_back(get(baseType, typeArgs));
+      if (baseDefn->intrinsic() == IntrinsicType::FLEXALLOC_CLASS) {
+        flexAllocElementType = getMemberType(typeArgs[0], {});
+      }
     }
+
     // Data members
     for (auto member : td->members()) {
       if (member->kind == Defn::Kind::VAR_DEF && !member->isStatic()) {
@@ -142,6 +157,12 @@ namespace tempest::gen {
         }
       }
     }
+
+    // FlexAlloc inserts a variable-length array at the end of the structure.
+    if (flexAllocElementType) {
+      elts.push_back(llvm::ArrayType::get(flexAllocElementType, 0));
+    }
+
     return llvm::StructType::create(elts, linkageName);
   }
 }

@@ -259,8 +259,7 @@ namespace tempest::sema::transform {
         return expr;
       }
 
-      case Expr::Kind::CALL:
-      case Expr::Kind::CALL_SUPER: {
+      case Expr::Kind::CALL: {
         auto callExpr = static_cast<ApplyFnOp*>(expr);
         auto type = transformType(callExpr->type);
         auto function = transform(callExpr->function);

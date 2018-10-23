@@ -86,7 +86,6 @@ namespace tempest::sema::graph {
 
     //   # Evaluations and Invocations
       CALL,                         // Function call
-      CALL_SUPER,                   // Call superclass method
       REST_ARGS,                    // Varargs list
 
     // Member references

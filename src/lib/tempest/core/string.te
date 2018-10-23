@@ -1,6 +1,10 @@
 /** An iterable sequence of characters. The interal representation is a UTF-8 encoded byte sequence.
     For efficient random access to characters, conver the `String` into a character array.
 */
-export final class String {
+export final class String extends FlexAlloc[u8] {
   const size: int = 0;
+
+  new() {
+    super(0);
+  }
 }

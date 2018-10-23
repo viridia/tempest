@@ -594,6 +594,10 @@ namespace tempest::sema::pass {
             nullptr, false, false);
       }
 
+      case ast::Node::Kind::SUPER: {
+        return new (*_alloc) SuperExpr(node->location);
+      }
+
       case ast::Node::Kind::MEMBER: {
         auto memberRef = static_cast<const ast::MemberRef*>(node);
         auto stem = visitExpr(scope, memberRef->base);

@@ -359,7 +359,6 @@ namespace tempest::gen {
         return visitVarRef(static_cast<DefnRef*>(expr));
 
       case Expr::Kind::CALL:
-      case Expr::Kind::CALL_SUPER:
         return visitCall(static_cast<ApplyFnOp*>(expr));
 
       case Expr::Kind::ASSIGN: {

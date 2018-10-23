@@ -1386,7 +1386,7 @@ namespace tempest::sema::pass {
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, selfArg, fnType);
       callExpr->type = const_cast<Type *>(returnType);
-      callExpr->flavor = ApplyFnOp::STATIC;
+      callExpr->flavor = ApplyFnOp::SUPER;
     } else {
       assert(false && "Implement other callable types");
     }

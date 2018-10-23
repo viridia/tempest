@@ -55,7 +55,6 @@ namespace tempest::sema::graph {
     //   # case Kind::TPARAM_DEFAULT: return "TPARAM_DEFAULT";
 
       case Kind::CALL: return "CALL";
-      case Kind::CALL_SUPER: return "CALL_SUPER";
       case Kind::REST_ARGS: return "REST_ARGS";
       case Kind::MEMBER_NAME_REF: return "MEMBER_NAME_REF";
       case Kind::VAR_REF: return "VAR_REF";

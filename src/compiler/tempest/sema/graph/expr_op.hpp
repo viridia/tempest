@@ -95,6 +95,7 @@ namespace tempest::sema::graph {
   public:
     enum Flavor {
       NEW,      // Call to a constructor, context is newly-allocated memory.
+      SUPER,    // Call to superclass method.
       STATIC,   // Call to a global or static function - null context argument.
       METHOD,   // Call to a method with a 'self' argument.
       VTABLE,   // Call to a method via a vtable
@@ -121,7 +122,7 @@ namespace tempest::sema::graph {
     /** Dynamic casting support. */
     static bool classof(const BinaryOp* e) { return true; }
     static bool classof(const Expr* e) {
-      return e->kind == Kind::CALL || e->kind == Kind::CALL_SUPER;
+      return e->kind == Kind::CALL;
     }
   };
 }

@@ -168,6 +168,11 @@ namespace tempest::gen {
           break;
         }
 
+        case IntrinsicType::FLEXALLOC_CLASS: {
+          elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
+          break;
+        }
+
         default:
           assert(false && "Invalid class intrinsic");
       }

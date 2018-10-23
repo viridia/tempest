@@ -167,7 +167,8 @@ TEST_CASE("DataFlow", "[sema]") {
     auto fd = cast<FunctionDefn>(td->members().back());
     auto blk = cast<BlockStmt>(fd->body());
     REQUIRE(blk->stmts.size() == 2);
-    REQUIRE(blk->stmts[0]->kind == Expr::Kind::CALL_SUPER);
+    REQUIRE(blk->stmts[0]->kind == Expr::Kind::CALL);
+    REQUIRE(cast<ApplyFnOp>(blk->stmts[0])->flavor == ApplyFnOp::SUPER);
     REQUIRE(blk->stmts[1]->kind == Expr::Kind::ASSIGN);
   }
 
@@ -184,7 +185,8 @@ TEST_CASE("DataFlow", "[sema]") {
     auto fd = cast<FunctionDefn>(td->members().back());
     auto blk = cast<BlockStmt>(fd->body());
     REQUIRE(blk->stmts.size() == 1);
-    REQUIRE(blk->stmts[0]->kind == Expr::Kind::CALL_SUPER);
+    REQUIRE(blk->stmts[0]->kind == Expr::Kind::CALL);
+    REQUIRE(cast<ApplyFnOp>(blk->stmts[0])->flavor == ApplyFnOp::SUPER);
     auto call = cast<ApplyFnOp>(blk->stmts[0]);
     auto callable = cast<DefnRef>(call->function);
     REQUIRE(callable->defn->kind == Defn::Kind::SPECIALIZED);

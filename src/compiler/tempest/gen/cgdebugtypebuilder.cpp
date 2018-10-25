@@ -180,8 +180,9 @@ namespace tempest::gen {
       // Object base class.
       elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
-      auto base = td->extends()[0];
-      auto baseType = cast<TypeDefn>(base)->type();
+      auto base = unwrapSpecialization(td->extends()[0], typeArgs);
+      auto baseDefn = cast<TypeDefn>(base);
+      auto baseType = baseDefn->type();
       elts.push_back(get(baseType, typeArgs));
     }
     // Data members

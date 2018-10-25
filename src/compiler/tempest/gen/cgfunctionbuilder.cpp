@@ -54,11 +54,19 @@ namespace tempest::gen {
     // DASSERT_OBJ(fdef->isSingular(), fdef);
     // DASSERT_OBJ(fdef->defnType() != Defn::Macro, fdef);
 
+    bool flexCtor = false;
+    if (func->isConstructor()) {
+      auto td = cast<TypeDefn>(func->definedIn());
+      flexCtor = td->isFlex();
+    }
+
     auto& types = _module->types();
 
     llvm::SmallVector<llvm::Type*, 16> paramTypes;
     // Context parameter for objects and closures.
-    if (func->selfType()) {
+    if (flexCtor) {
+      // No self param for flex constructors.
+    } else if (func->selfType()) {
       paramTypes.push_back(types.get(func->selfType(), _typeArgs)->getPointerTo(1));
     } else {
       paramTypes.push_back(llvm::Type::getVoidTy(_gen.context)->getPointerTo());
@@ -68,6 +76,9 @@ namespace tempest::gen {
       paramTypes.push_back(types.getMemberType(param, _typeArgs));
     }
     auto returnType = types.getMemberType(func->type()->returnType, _typeArgs);
+    if (flexCtor) {
+      returnType = types.get(func->selfType(), _typeArgs)->getPointerTo(1);
+    }
     auto funcType = llvm::FunctionType::get(returnType, paramTypes, false);
 
     // Generate the function reference
@@ -79,7 +90,9 @@ namespace tempest::gen {
 
     // Assign names to parameters
     llvm::Function::arg_iterator args = fn->arg_begin();
-    if (func->selfType()) {
+    if (flexCtor) {
+      // No self param for flex constructors.
+    } else if (func->selfType()) {
       Value* self = args++;
       self->setName("self");
     } else {
@@ -123,7 +136,7 @@ namespace tempest::gen {
     // Create the function
     // Function * f = genFunctionValue(fdef);
 
-    if (func->body() && _irFunction->getBasicBlockList().empty()) {
+    if (body && _irFunction->getBasicBlockList().empty()) {
       // FunctionType * ftype = fdef->type();
 
       // if (fdef->isSynthetic()) {
@@ -177,6 +190,17 @@ namespace tempest::gen {
       //   structRet_ = it;
       //   ++it;
       // }
+
+      _implicitSelf = nullptr;
+      bool flexCtor = false;
+      if (func->isConstructor()) {
+        auto td = cast<TypeDefn>(func->definedIn());
+        flexCtor = td->isFlex();
+      }
+
+      if (!flexCtor) {
+        _implicitSelf = _irFunction->arg_begin();
+      }
 
       // // Handle the 'self' parameter
       // if (ftype->selfParam() != nullptr) {
@@ -281,12 +305,16 @@ namespace tempest::gen {
           diag.error() << "Code generation error.";
         }
         if (retVal && !atTerminator()) {
-          if (retVal->getType()->isVoidTy()) {
+          if (flexCtor) {
+            _builder.CreateRet(_implicitSelf);
+          } else if (retVal->getType()->isVoidTy()) {
             _builder.CreateRetVoid();
           } else {
             _builder.CreateRet(retVal);
           }
         }
+
+        _implicitSelf = nullptr;
 
         // if (!atTerminator()) {
         //   // if (func->type()->returnType->isVoidType()) {
@@ -363,8 +391,13 @@ namespace tempest::gen {
 
       case Expr::Kind::ASSIGN: {
         auto iop = static_cast<BinaryOp*>(expr);
-        auto lval = genLValueAddress(iop->args[0]);
         auto rval = visitExpr(iop->args[1]);
+        if (iop->args[0]->kind == Expr::Kind::SELF) {
+          assert(_implicitSelf == nullptr);
+          _implicitSelf = rval;
+          return rval;
+        }
+        auto lval = genLValueAddress(iop->args[0]);
         if (lval && rval) {
           // TODO: It's actually a lot more complicated than this.
           // Zero-size structs
@@ -566,8 +599,11 @@ namespace tempest::gen {
       case Expr::Kind::ALLOC_OBJ:
         return visitAllocObj(static_cast<SymbolRefExpr*>(expr));
 
+      case Expr::Kind::ALLOC_FLEX:
+        return visitAllocFlexObj(static_cast<FlexAllocExpr*>(expr));
+
       case Expr::Kind::SELF:
-        return _irFunction->arg_begin();
+        return _implicitSelf;
 
       default:
         diag.error() << "Invalid expression type: " << expr->kind;
@@ -770,14 +806,38 @@ namespace tempest::gen {
   }
 
   Value* CGFunctionBuilder::visitCall(ApplyFnOp* in) {
-    auto fnref = cast<DefnRef>(in->function);
-    auto fndef = cast<FunctionDefn>(fnref->defn);
+    Expr* stem = nullptr;
+    Value* fnVal = nullptr;
+    StringRef fnName;
+    if (auto sref = dyn_cast<SymbolRefExpr>(in->function)) {
+      stem = sref->stem;
+      if (auto fnSym = dyn_cast<FunctionSym>(sref->sym)) {
+        fnVal = fnSym->fnVal;
+        fnName = fnSym->function->name();
+      } else {
+        assert(false && "Symbol type not callable");
+      }
+    } else if (auto fnref = cast<DefnRef>(in->function)) {
+      stem = fnref->stem;
+      if (auto sp = dyn_cast<SpecializedDefn>(fnref->defn)) {
+        auto fndef = cast<FunctionDefn>(sp->generic());
+        if (fndef->intrinsic() != IntrinsicFn::NONE) {
+          return visitCallIntrinsic(in);
+        }
+        fnName = fndef->name();
+        assert(false && "Missing function value");
+      } else {
+        auto fndef = cast<FunctionDefn>(fnref->defn);
+        if (fndef->intrinsic() != IntrinsicFn::NONE) {
+          return visitCallIntrinsic(in);
+        }
+        fnName = fndef->name();
+        assert(false && "Missing function value");
+      }
+    }
+
     // auto fntype = fndef->type();
     // bool saveIntermediateStackRoots = true;
-
-    if (fndef->intrinsic() != IntrinsicFn::NONE) {
-      return visitCallIntrinsic(in);
-    }
 
     // size_t savedRootCount = rootStackSize();
 
@@ -791,30 +851,30 @@ namespace tempest::gen {
     // }
 
     // Value* selfArg = nullptr;
-    Value* stemValue = nullptr;
-    if (fnref->stem != nullptr) {
-      stemValue = visitExpr(fnref->stem);
-      // Type::TypeClass selfTypeClass = in->selfArg()->type()->typeClass();
-      // if (selfTypeClass == Type::Struct) {
-      //   if (in->exprType() == Expr::CtorCall) {
-      //     selfArg = genExpr(in->selfArg());
-      //   } else {
-      //     selfArg = genLValueAddress(in->selfArg());
-      //   }
-      // } else {
-      //   selfArg = genArgExpr(in->selfArg(), saveIntermediateStackRoots);
-      // }
+    Value* selfArg;
+    if (in->flavor != ApplyFnOp::FLEXNEW) {
+      if (stem != nullptr) {
+        selfArg = visitExpr(stem);
+        // Type::TypeClass selfTypeClass = in->selfArg()->type()->typeClass();
+        // if (selfTypeClass == Type::Struct) {
+        //   if (in->exprType() == Expr::CtorCall) {
+        //     selfArg = genExpr(in->selfArg());
+        //   } else {
+        //     selfArg = genLValueAddress(in->selfArg());
+        //   }
+        // } else {
+        //   selfArg = genArgExpr(in->selfArg(), saveIntermediateStackRoots);
+        // }
 
-      // assert(selfArg != nullptr);
-
-      // if (fn->storageClass() == Storage_Instance) {
-      //   args.push_back(selfArg);
-      // }
-    } else {
-      // Should have a null pointer.
-      assert(false && "Implement");
+        // if (fn->storageClass() == Storage_Instance) {
+        //   args.push_back(selfArg);
+        // }
+      } else {
+        // Should have a null pointer.
+        assert(false && "Implement");
+      }
+      args.push_back(selfArg);
     }
-    args.push_back(stemValue);
 
     // const ExprList & inArgs = in->args();
     for (auto arg : in->args) {
@@ -828,7 +888,7 @@ namespace tempest::gen {
     }
 
     // Generate the function to call.
-    Value* fnVal;
+    // Value* fnVal;
     // if (in->exprType() == Expr::VTableCall) {
     //   assert(selfArg != nullptr);
     //   const Type * classType = fnType->selfParam()->type().dealias().unqualified();
@@ -842,10 +902,10 @@ namespace tempest::gen {
     //     fnVal = genFunctionValue(fn);
     //   }
     // } else {
-      fnVal = genFunctionValue(fndef);
+      // fnVal = genFunctionValue(fndef);
     // }
 
-    Value* result = genCallInstr(fnVal, args, fndef->name());
+    Value* result = genCallInstr(fnVal, args, fnName);
     // if (in->exprType() == Expr::CtorCall) {
     //   // Constructor call returns the 'self' argument.
     //   TypeShape selfTypeShape = in->selfArg()->type()->typeShape();
@@ -863,7 +923,8 @@ namespace tempest::gen {
     // popRootStack(savedRootCount);
 
     if (in->flavor == ApplyFnOp::NEW) {
-      return stemValue;
+      assert(selfArg);
+      return selfArg;
     }
 
     return result;
@@ -873,6 +934,7 @@ namespace tempest::gen {
       Value* func,
       ArrayRef<Value *> args,
       const Twine & name) {
+    assert(func);
     // checkCallingArgs(func, args);
     // if (isUnwindBlock_) {
     //   Function * f = currentFn_;
@@ -895,11 +957,17 @@ namespace tempest::gen {
 
   Value* CGFunctionBuilder::visitCallIntrinsic(ApplyFnOp* in) {
     auto fnref = cast<DefnRef>(in->function);
-    auto fndef = cast<FunctionDefn>(fnref->defn);
+    ArrayRef<const Type*> typeArgs;
+    auto fndef = cast<FunctionDefn>(unwrapSpecialization(fnref->defn, typeArgs));
 
     switch (fndef->intrinsic()) {
       case IntrinsicFn::OBJECT_CTOR: {
         return voidValue();
+      }
+
+      case IntrinsicFn::FLEX_ALLOC: {
+        diag.debug() << typeArgs[0];
+        assert(false && "Implement flex allox");
       }
 
       default:
@@ -948,6 +1016,28 @@ namespace tempest::gen {
     // }
 
     // DFAIL("IllegalState");
+  }
+
+  Value* CGFunctionBuilder::visitAllocFlexObj(FlexAllocExpr* in) {
+    assert(in->cls);
+    assert(in->size);
+    auto numElements = visitExpr(in->size);
+    auto clsSym = cast<ClassDescriptorSym>(in->cls);
+    auto clsDesc = _module->genClassDescValue(clsSym);
+    auto clsType = cast<llvm::StructType>(
+        _module->types().get(clsSym->typeDefn->type(), clsSym->typeArgs));
+    auto arrayOffset = llvm::ConstantExpr::getOffsetOf(
+        clsType, clsSym->typeDefn->numInstanceVars());
+    auto elementOffset = _builder.CreateMul(
+      numElements,
+      llvm::ConstantExpr::getSizeOf(clsType->getElementType(2)));
+
+    Value* args[2] = {
+      _builder.CreateAdd(arrayOffset, elementOffset),
+      clsDesc,
+    };
+    auto alloc = _builder.CreateCall(_module->getGCAlloc(), args, "new");
+    return _builder.CreatePointerCast(alloc, clsType->getPointerTo(1));
   }
 
   // llvm::Function * CodeGenerator::getGlobalAlloc() {

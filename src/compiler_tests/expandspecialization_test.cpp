@@ -92,11 +92,11 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
 
   SECTION("Resolve addition operator") {
     auto mod = compile(cu, "fn x(arg: i32) => arg + 1;\n");
-    REQUIRE(cu.symbols().list().size() == 2);
+    REQUIRE(cu.symbols().list().size() == 1);
     auto sym = cu.symbols().list()[0];
     REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
-    sym = cu.symbols().list()[1];
-    REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
+    // sym = cu.symbols().list()[1];
+    // REQUIRE(sym->kind == tempest::gen::OutputSym::Kind::FUNCTION);
     // REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn infixAdd[i32]\n"));
   }
 

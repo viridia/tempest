@@ -14,6 +14,7 @@
 #endif
 
 namespace llvm {
+  class Function;
   class GlobalVariable;
 }
 
@@ -62,6 +63,9 @@ namespace tempest::gen {
     /** The template-expansion of the function body. */
     Expr* body = nullptr;
 
+    /** LLVM function value. */
+    llvm::Function* fnVal = nullptr;
+
     FunctionSym(FunctionDefn* function, ArrayRef<const Type*> typeArgs)
       : OutputSym(Kind::FUNCTION, typeArgs)
       , function(function)
@@ -78,6 +82,7 @@ namespace tempest::gen {
     /** The class definition. */
     TypeDefn* typeDefn;
 
+    /** Type descriptor constant. */
     llvm::GlobalVariable* desc = nullptr;
 
     ClassDescriptorSym(TypeDefn* typeDefn, ArrayRef<const Type*> typeArgs)

@@ -13,6 +13,6 @@ add_custom_command(
 )
 
 add_custom_target(
-  corelib ALL
+  corelib
   DEPENDS "corelib.bc"
 )

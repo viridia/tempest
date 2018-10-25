@@ -284,6 +284,10 @@ namespace tempest::sema::graph {
     Expr* implicitSelf() const { return _implicitSelf; }
     void setImplicitSelf(Expr* implicitSelf) { _implicitSelf = implicitSelf; }
 
+    /** Whether this type derives from FlexAlloc, i.e. is a variable-length class. */
+    bool isFlex() const { return _flex; }
+    void setFlex(bool value) { _flex = value; }
+
     /** Dynamic casting support. */
     static bool classof(const TypeDefn* m) { return true; }
     static bool classof(const Member* m) { return m->kind == Kind::TYPE; }
@@ -298,6 +302,7 @@ namespace tempest::sema::graph {
     std::unique_ptr<SymbolTable> _memberScope;
     IntrinsicType _intrinsic = IntrinsicType::NONE;
     bool _baseTypesResolved = false;
+    bool _flex = false;
     size_t _numInstanceVars = 0;
     Expr* _implicitSelf = nullptr;
 
@@ -379,8 +384,6 @@ namespace tempest::sema::graph {
         must be a subtype of every type listed. */
     const TypeArray& subtypeConstraints() const { return _subtypeConstraints; }
     void setSubtypeConstraints(const TypeArray& types) { _subtypeConstraints = types; }
-
-    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const TypeParameter* m) { return true; }
@@ -650,7 +653,7 @@ namespace tempest::sema::graph {
   class SpecializedDefn : public Member {
   public:
     SpecializedDefn(
-        Member* generic,
+        Defn* generic,
         const llvm::ArrayRef<const Type*>& typeArgs,
         const llvm::ArrayRef<TypeParameter*>& typeParams)
       : Member(Kind::SPECIALIZED, generic->name())
@@ -662,7 +665,7 @@ namespace tempest::sema::graph {
 
     /** The generic type that this is a specialiation of. Note that this could be
         a member of a template as well as the template itself. */
-    Member* generic() const { return _generic; }
+    Defn* generic() const { return _generic; }
 
     /** If this generic definition is a type then here's the corresponding type object. */
     SpecializedType* type() const { return _type; }
@@ -679,7 +682,7 @@ namespace tempest::sema::graph {
     static bool classof(const Member* m) { return m->kind == Kind::SPECIALIZED; }
 
   private:
-    Member* _generic;
+    Defn* _generic;
     SpecializedType* _type = nullptr;
     llvm::SmallVector<const Type*, 2> _typeArgs;
     llvm::ArrayRef<TypeParameter*> _typeParams;
@@ -689,8 +692,20 @@ namespace tempest::sema::graph {
     if (!m) {
       return nullptr;
     }
-    while (m->kind == Defn::Kind::SPECIALIZED) {
+    if (m->kind == Defn::Kind::SPECIALIZED) {
       m = static_cast<SpecializedDefn*>(m)->generic();
+    }
+    return llvm::dyn_cast<Defn>(m);
+  }
+
+  inline Defn* unwrapSpecialization(Member* m, llvm::ArrayRef<const Type*>& typeArgs) {
+    if (!m) {
+      return nullptr;
+    }
+    if (m->kind == Defn::Kind::SPECIALIZED) {
+      auto sp = static_cast<SpecializedDefn*>(m);
+      typeArgs = sp->typeArgs();
+      m = sp->generic();
     }
     return llvm::dyn_cast<Defn>(m);
   }

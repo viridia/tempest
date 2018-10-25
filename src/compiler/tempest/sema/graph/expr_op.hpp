@@ -95,6 +95,7 @@ namespace tempest::sema::graph {
   public:
     enum Flavor {
       NEW,      // Call to a constructor, context is newly-allocated memory.
+      FLEXNEW,  // Call to a constructor for variable-length type (string or array).
       SUPER,    // Call to superclass method.
       STATIC,   // Call to a global or static function - null context argument.
       METHOD,   // Call to a method with a 'self' argument.

@@ -215,7 +215,7 @@ TEST_CASE("CodeGen", "[gen]") {
     CompilationUnit cu;
     auto mod = compile(cu,
       "class A {\n"
-      "  a() => 0;\n"
+      "  final a() => 0;\n"
       "}\n"
       "class B {\n"
       "  b() {\n"
@@ -240,8 +240,11 @@ TEST_CASE("CodeGen", "[gen]") {
     auto mod = compile(cu,
       "final class A extends FlexAlloc[u8] {\n"
       "  size: i32 = 0;\n"
-      "  new() { super(0); }\n"
+      "  new() { self = __alloc(5); size = 5; }\n"
       "}\n"
+      "fn b() {"
+      "  A()"
+      "}"
     );
 
     CodeGen gen(context);

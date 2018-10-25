@@ -247,7 +247,7 @@ namespace tempest::sema::pass {
       _numInstanceVars = cast<TypeDefn>(baseDef)->numInstanceVars();
     }
 
-    TypeDefnScope tdScope(scope, td);
+    TypeDefnScope tdScope(scope, td, _cu.spec());
     visitList(&tdScope, td->members());
 
     td->setNumInstanceVars(_numInstanceVars);
@@ -326,7 +326,7 @@ namespace tempest::sema::pass {
 
     auto base = cast<IntegerType>(cast<TypeDefn>(td->extends()[0])->type());
     APInt index(base->bits(), 0, !base->isUnsigned());
-    TypeDefnScope tdScope(scope, td);
+    TypeDefnScope tdScope(scope, td, _cu.spec());
 
     for (auto m : td->members()) {
       assert(m->kind == Defn::Kind::ENUM_VAL);
@@ -596,6 +596,10 @@ namespace tempest::sema::pass {
 
       case ast::Node::Kind::SUPER: {
         return new (*_alloc) SuperExpr(node->location);
+      }
+
+      case ast::Node::Kind::SELF: {
+        return new (*_alloc) SelfExpr(node->location);
       }
 
       case ast::Node::Kind::MEMBER: {
@@ -1051,7 +1055,7 @@ namespace tempest::sema::pass {
         [argArray, this](auto& m) {
           auto generic = cast<GenericDefn>(m.member);
           MemberAndStem result = {
-            new (*_alloc) SpecializedDefn(m.member, argArray, generic->typeParams()),
+            new (*_alloc) SpecializedDefn(generic, argArray, generic->typeParams()),
             m.stem
           };
           return result;
@@ -1431,8 +1435,9 @@ namespace tempest::sema::pass {
       MemberLookupResult specLookup;
       resolveMemberName(loc, specDefn->generic(), name, specLookup);
       for (auto member : specLookup) {
+        // TODO: If member.member is already specialized, then compose type arguments.
         auto specMember = new (*_alloc) SpecializedDefn(
-            member.member, specDefn->typeArgs(), specDefn->typeParams());
+            cast<Defn>(member.member), specDefn->typeArgs(), specDefn->typeParams());
         if (isa<TypeDefn>(member.member)) {
           specMember->setType(new (*_alloc) SpecializedType(specMember));
         }
@@ -1454,7 +1459,7 @@ namespace tempest::sema::pass {
     std::function<void (Member* m)> findScopes;
 
     // Temporarily create a chain of enclosing lookup scopes.
-    findScopes = [&enclosingScopes, &findScopes](Member* m) {
+    findScopes = [&enclosingScopes, &findScopes, this](Member* m) {
       if (m) {
         // Do the outermost scopes first so they will be in order.
         findScopes(m->definedIn());
@@ -1463,7 +1468,7 @@ namespace tempest::sema::pass {
               std::make_unique<ModuleScope>(nullptr, mod));
         } else if (auto typeDefn = dyn_cast<TypeDefn>(m)) {
           enclosingScopes.push_back(
-              std::make_unique<TypeDefnScope>(enclosingScopes.back().get(), typeDefn));
+              std::make_unique<TypeDefnScope>(enclosingScopes.back().get(), typeDefn, _cu.spec()));
         }
       }
     };
@@ -1499,6 +1504,7 @@ namespace tempest::sema::pass {
                 diag.error(astBase->location) <<
                     "A class extending FlexAlloc must be declared as final.";
               }
+              td->setFlex(true);
             }
             break;
           case Type::Kind::STRUCT:

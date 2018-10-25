@@ -327,7 +327,7 @@ namespace tempest::sema::pass {
     auto prevSubject = setSubject(td);
     auto prevScope = _scope;
     TypeParamScope tpScope(_scope, td);
-    TypeDefnScope tdScope(&tpScope, td);
+    TypeDefnScope tdScope(&tpScope, td, _cu.spec());
     _scope = &tdScope;
 
     visitAttributes(td);
@@ -490,6 +490,7 @@ namespace tempest::sema::pass {
 
   Type* ResolveTypesPass::visitExpr(Expr* e, ConstraintSolver& cs) {
     switch (e->kind) {
+      case Expr::Kind::INVALID:
       case Expr::Kind::VOID:
         return &VoidType::VOID;
 
@@ -558,6 +559,10 @@ namespace tempest::sema::pass {
 
       case Expr::Kind::ASSIGN:
         return visitAssign(static_cast<BinaryOp*>(e), cs);
+
+      case Expr::Kind::SELF:
+        e->type = _selfType;
+        return _selfType;
 
   // def visitThrow(self, expr, cs):
   //   '''@type expr: spark.graph.graph.Throw
@@ -1380,6 +1385,11 @@ namespace tempest::sema::pass {
           Expr::Kind::FUNCTION_REF, site->location, method, allocObj, fnSelfType);
       callExpr->type = fnSelfType;
       callExpr->flavor = ApplyFnOp::NEW;
+      if (auto udSelf = dyn_cast<UserDefinedType>(fn->selfType())) {
+        if (udSelf->defn()->isFlex()) {
+          callExpr->flavor = ApplyFnOp::FLEXNEW;
+        }
+      }
     } else if (callExpr->function->kind == Expr::Kind::SUPER) {
       // Create a new signular function reference.
       auto selfArg = new (*_alloc) SelfExpr(callExpr->location, _selfType);
@@ -1556,17 +1566,12 @@ namespace tempest::sema::pass {
       case Expr::Kind::FUNCTION_REF: {
         // Reference to a function name.
         auto dref = static_cast<DefnRef*>(e);
-        Member* method = dref->defn;
+        ArrayRef<const Type*> typeArgs;
+        Member* method = unwrapSpecialization(dref->defn, typeArgs);
         coerceExpr(dref->stem, nullptr);
-        Env env;
-        if (auto spec = dyn_cast<SpecializedDefn>(dref->defn)) {
-          env.args.assign(spec->typeArgs().begin(), spec->typeArgs().end());
-          env.params = spec->typeParams();
-          method = spec->generic();
-        }
 
         if (auto fd = dyn_cast<FunctionDefn>(method)) {
-          ApplySpecialization transform(env.args);
+          ApplySpecialization transform(typeArgs);
           dref->type = const_cast<Type*>(transform.transform(fd->type()));
         } else {
           assert(false && "Invalid function ref");

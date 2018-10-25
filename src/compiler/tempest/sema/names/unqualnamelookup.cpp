@@ -3,6 +3,7 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/module.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include "tempest/sema/graph/specstore.hpp"
 
 #include <cassert>
 
@@ -11,6 +12,7 @@ namespace tempest::sema::names {
   using tempest::sema::graph::Module;
   using tempest::sema::graph::PrimitiveType;
   using tempest::sema::graph::MemberLookupResult;
+  using tempest::sema::graph::SpecializedDefn;
   using llvm::dyn_cast;
 
   void ModuleScope::lookup(const llvm::StringRef& name, MemberLookupResultRef& result) {
@@ -65,6 +67,7 @@ namespace tempest::sema::names {
       }
       return;
     }
+
     if (auto udt = dyn_cast<UserDefinedType>(typeDefn->type())) {
       switch (udt->kind) {
         case Type::Kind::CLASS:
@@ -78,6 +81,24 @@ namespace tempest::sema::names {
             // If we found a type parameter with that name, return it.
             return;
           }
+          for (auto base : typeDefn->extends()) {
+            if (auto sp = dyn_cast<SpecializedDefn>(base)) {
+              auto generic = cast<TypeDefn>(sp->generic());
+              generic->memberScope()->lookup(name, memberResults, typeDefn->implicitSelf());
+              // TODO: if gm is already specialized, then flatten
+              for (auto& m : memberResults) {
+                result.push_back({
+                  spec.specialize(static_cast<graph::Defn*>(m.member), sp->typeArgs()),
+                  isInstanceMember(m.member) ? m.stem : nullptr });
+              }
+            } else {
+              auto baseDefn = cast<TypeDefn>(base);
+              baseDefn->memberScope()->lookup(name, memberResults, typeDefn->implicitSelf());
+              for (auto& m : memberResults) {
+                result.push_back({ m.member, isInstanceMember(m.member) ? m.stem : nullptr });
+              }
+            }
+          }
           // assert(false && "Implement");
           break;
         }
@@ -90,6 +111,7 @@ namespace tempest::sema::names {
           break;
       }
     }
+
     if (result.empty() && prev) {
       prev->lookup(name, result);
     }

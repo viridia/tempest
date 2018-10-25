@@ -11,10 +11,10 @@ namespace tempest::gen {
   public:
     tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
-    FunctionSym* addFunction(FunctionDefn* function, Env& env);
-    ClassDescriptorSym* addClass(TypeDefn* clsDefn, Env& env);
-    InterfaceDescriptorSym* addInterface(TypeDefn* clsDefn, Env& env);
-    GlobalVarSym* addGlobalVar(ValueDefn* varDefn, Env& env);
+    FunctionSym* addFunction(FunctionDefn* function, const ArrayRef<const Type*>& typeArgs);
+    ClassDescriptorSym* addClass(TypeDefn* clsDefn, const ArrayRef<const Type*>& typeArgs);
+    InterfaceDescriptorSym* addInterface(TypeDefn* clsDefn, const ArrayRef<const Type*>& typeArgs);
+    GlobalVarSym* addGlobalVar(ValueDefn* varDefn, const ArrayRef<const Type*>& typeArgs);
     ClassInterfaceTranslationSym* addClassInterfaceTranslation(
         ClassDescriptorSym* cls,
         InterfaceDescriptorSym* iface);

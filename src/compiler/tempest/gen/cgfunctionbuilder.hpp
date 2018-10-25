@@ -22,6 +22,7 @@ namespace tempest::sema::graph {
   class BinaryOp;
   class BlockStmt;
   class DefnRef;
+  class FlexAllocExpr;
   class IfStmt;
   class IntegerLiteral;
   class LocalVarStmt;
@@ -73,6 +74,7 @@ namespace tempest::gen {
     llvm::Module* _irModule;
     llvm::Function* _irFunction = nullptr;
     llvm::DIScope* _lexicalScope = nullptr;
+    llvm::Value* _implicitSelf = nullptr;
     std::vector<llvm::Value*> _locals;
 
     llvm::Value* visitExpr(Expr* expr);
@@ -85,6 +87,7 @@ namespace tempest::gen {
     llvm::Value* visitCallIntrinsic(ApplyFnOp* in);
     llvm::Value* visitIntegerLiteral(IntegerLiteral* ret);
     llvm::Value* visitAllocObj(SymbolRefExpr* in);
+    llvm::Value* visitAllocFlexObj(FlexAllocExpr* fa);
 
     llvm::Value* genCallInstr(
         llvm::Value* func,

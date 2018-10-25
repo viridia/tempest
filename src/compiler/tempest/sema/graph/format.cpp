@@ -1,5 +1,6 @@
 #include "tempest/sema/graph/defn.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
+#include "tempest/sema/graph/expr_lowered.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
 #include "tempest/sema/graph/module.hpp"
@@ -7,6 +8,7 @@
 #include "tempest/sema/infer/overload.hpp"
 #include "tempest/sema/infer/types.hpp"
 #include "tempest/error/diagnostics.hpp"
+#include "tempest/gen/outputsym.hpp"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Casting.h"
 
@@ -472,6 +474,16 @@ namespace tempest::sema::graph {
         break;
       }
 
+      case Expr::Kind::ASSIGN: {
+        auto op = static_cast<const BinaryOp*>(e);
+        out << "(";
+        visitExpr(op->args[0]);
+        out << " = ";
+        visitExpr(op->args[1]);
+        out << ")";
+        break;
+      }
+
       case Expr::Kind::ADD: {
         auto op = static_cast<const BinaryOp*>(e);
         out << "(";
@@ -579,6 +591,38 @@ namespace tempest::sema::graph {
         auto op = static_cast<const UnaryOp*>(e);
         out << "(ftrunc ";
         visitExpr(op->arg);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::RETURN: {
+        auto op = static_cast<const UnaryOp*>(e);
+        out << "(return ";
+        visitExpr(op->arg);
+        out << ")";
+        break;
+      }
+
+      case Expr::Kind::ALLOC_OBJ:
+      case Expr::Kind::GLOBAL_REF: {
+        auto op = static_cast<const SymbolRefExpr*>(e);
+        out << (e->kind == Expr::Kind::ALLOC_OBJ ? "(alloc" : "(global");
+        switch (op->sym->kind) {
+          case gen::OutputSym::Kind::FUNCTION: {
+            out << " fn";
+            break;
+          }
+          case gen::OutputSym::Kind::CLS_DESC: {
+            out << " cls_desc";
+            break;
+          }
+          default:
+            break;
+        }
+        if (op->stem) {
+          out << " ";
+          visitExpr(op->stem);
+        }
         out << ")";
         break;
       }

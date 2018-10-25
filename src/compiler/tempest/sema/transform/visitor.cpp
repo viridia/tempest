@@ -16,6 +16,7 @@ namespace tempest::sema::transform {
     }
 
     switch (expr->kind) {
+      case Expr::Kind::INVALID:
       case Expr::Kind::VOID:
       case Expr::Kind::BOOLEAN_LITERAL:
       case Expr::Kind::INTEGER_LITERAL:

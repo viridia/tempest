@@ -42,6 +42,10 @@ namespace tempest::intrinsic {
 
     // Builtin methods
     OBJECT_CTOR,
+
+    FLEX_ALLOC,
+    FLEX_DATA,
+    FLEX_ELEMENT,
   };
 }
 

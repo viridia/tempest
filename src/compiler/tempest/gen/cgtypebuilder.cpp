@@ -124,7 +124,7 @@ namespace tempest::gen {
         }
 
         case IntrinsicType::FLEXALLOC_CLASS: {
-          elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
+          elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), {}));
           break;
         }
 
@@ -135,11 +135,8 @@ namespace tempest::gen {
       // Object base class.
       elts.push_back(get(IntrinsicDefns::get()->objectClass->type(), typeArgs));
     } else {
-      auto base = td->extends()[0];
-      if (auto sp = dyn_cast<SpecializedDefn>(base)) {
-        typeArgs = sp->typeArgs();
-        base = sp->generic();
-      }
+      // TODO: Do we need to compose type args here?
+      auto base = unwrapSpecialization(td->extends()[0], typeArgs);
       auto baseDefn = cast<TypeDefn>(base);
       auto baseType = baseDefn->type();
       elts.push_back(get(baseType, typeArgs));

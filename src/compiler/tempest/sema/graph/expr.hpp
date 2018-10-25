@@ -151,6 +151,7 @@ namespace tempest::sema::graph {
     //   CAST_OP,
 
       ALLOC_OBJ,                // Allocate a new object of the given type.
+      ALLOC_FLEX,               // Allocate a new flex object.
       GLOBAL_REF,               // Reference to a global or static variable symbol (lowered)
 
       // Cast operators

@@ -14,14 +14,43 @@ namespace tempest::sema::graph {
   class SymbolRefExpr : public Expr {
   public:
     gen::OutputSym* sym;
+    Expr* stem = nullptr;
     SymbolRefExpr(
           Kind kind,
           Location location,
           gen::OutputSym* sym,
-          Type* type = nullptr)
+          Type* type = nullptr,
+          Expr* stem = nullptr)
       : Expr(kind, location, type)
       , sym(sym)
+      , stem(stem)
     {}
+
+    /** Dynamic casting support. */
+    static bool classof(const SymbolRefExpr* e) { return true; }
+    static bool classof(const Expr* e) {
+      return e->kind == Kind::GLOBAL_REF || e->kind == Kind::ALLOC_OBJ;
+    }
+  };
+
+  /** A call to allocate a variable-length class. */
+  class FlexAllocExpr : public Expr {
+  public:
+    gen::OutputSym* cls;
+    Expr* size = nullptr;
+    FlexAllocExpr(
+          Location location,
+          gen::OutputSym* cls,
+          Expr* size,
+          Type* type = nullptr)
+      : Expr(Kind::ALLOC_FLEX, location, type)
+      , cls(cls)
+      , size(size)
+    {}
+
+    /** Dynamic casting support. */
+    static bool classof(const FlexAllocExpr* e) { return true; }
+    static bool classof(const Expr* e) { return e->kind == Kind::ALLOC_FLEX; }
   };
 }
 

@@ -25,6 +25,10 @@
   #include <llvm/ADT/SmallPtrSet.h>
 #endif
 
+namespace tempest::sema::graph {
+  class SpecializationStore;
+}
+
 namespace tempest::sema::names {
   using tempest::sema::graph::Expr;
   using tempest::sema::graph::GenericDefn;
@@ -35,6 +39,7 @@ namespace tempest::sema::names {
   using tempest::sema::graph::Type;
   using tempest::sema::graph::NameCallback;
   using tempest::sema::graph::SymbolTable;
+  using tempest::sema::graph::SpecializationStore;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::UserDefinedType;
   using tempest::sema::graph::MemberLookupResultRef;
@@ -86,10 +91,12 @@ namespace tempest::sema::names {
   /** A lookup scope representing an enclosing type definition. */
   struct TypeDefnScope : public LookupScope {
     TypeDefn* typeDefn;
+    SpecializationStore& spec;
 
-    TypeDefnScope(LookupScope* prev, TypeDefn* typeDefn)
+    TypeDefnScope(LookupScope* prev, TypeDefn* typeDefn, SpecializationStore& spec)
       : LookupScope(prev)
       , typeDefn(typeDefn)
+      , spec(spec)
     {}
     void lookup(const llvm::StringRef& name, MemberLookupResultRef& result);
     void forEach(const NameCallback& nameFn);

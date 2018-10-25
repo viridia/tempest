@@ -3,6 +3,7 @@
 #include "tempest/sema/transform/applyspec.hpp"
 #include "tempest/sema/graph/expr.hpp"
 #include "tempest/sema/graph/expr_lowered.hpp"
+#include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
 #include "tempest/sema/transform/mapenv.hpp"
 #include "tempest/sema/transform/visitor.hpp"
@@ -16,45 +17,22 @@ namespace tempest::sema::pass {
   using namespace tempest::gen;
   using tempest::sema::transform::MapEnvTransform;
 
-  /** Add references to output symbols where needed. */
-  class GenSymVisitor final : public transform::ExprVisitor {
-  public:
-    GenSymVisitor(CompilationUnit& cu) : _cu(cu) {}
-
-    Expr* visit(Expr* e) override {
-      if (e == nullptr) {
-        return e;
-      }
-
-      switch (e->kind) {
-        case Expr::Kind::ALLOC_OBJ: {
-          Env empty;
-          auto sref = static_cast<SymbolRefExpr*>(e);
-          auto udt = cast<UserDefinedType>(e->type);
-          sref->sym = _cu.symbols().addClass(udt->defn(), empty);
-          return transform::ExprVisitor::visit(e);
-        }
-
-        case Expr::Kind::VAR_REF: {
-          Env env;
-          auto dref = static_cast<DefnRef*>(e);
-          auto vd = cast<ValueDefn>(env.unwrap(dref->defn));
-          if (vd->isStatic() || vd->isGlobal()) {
-            auto sym = _cu.symbols().addGlobalVar(vd, env);
-            return new (_cu.types().alloc()) SymbolRefExpr(
-                Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type);
-          }
-          return transform::ExprVisitor::visit(e);
-        }
-
-        default:
-          return transform::ExprVisitor::visit(e);
-      }
+  bool isDirectlyCallable(FunctionDefn* fd) {
+    if (fd->intrinsic() != IntrinsicFn::NONE) {
+      return false;
     }
-
-  private:
-    CompilationUnit& _cu;
-  };
+    if (fd->isStatic() || fd->isFinal() || fd->isConstructor() || fd->isGlobal()) {
+      return true;
+    }
+    auto enclosingTypeDefn = dyn_cast_or_null<TypeDefn>(fd->definedIn());
+    if (!enclosingTypeDefn) {
+      return true;
+    }
+    if (enclosingTypeDefn->isFinal() || enclosingTypeDefn->type()->kind == Type::Kind::STRUCT) {
+      return true;
+    }
+    return false;
+  }
 
   /** Replace all type variables with the types they are bound to in an environment. */
   class SpecializeTypeTransform final : public transform::UniqueTypeTransform {
@@ -107,17 +85,37 @@ namespace tempest::sema::pass {
             // Make a new specialization with concrete type arguments, and add it to the list
             // of reachable specializations in the compilation unit.
             if (auto fd = dyn_cast<FunctionDefn>(generic)) {
-              _cu.symbols().addFunction(fd, newEnv);
+              if (isDirectlyCallable(fd)) {
+                auto sym = _cu.symbols().addFunction(fd, newEnv.args);
+                assert(sym->kind == OutputSym::Kind::FUNCTION);
+                return new (_cu.types().alloc()) SymbolRefExpr(
+                    Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type, stem);
+              } else {
+                // It's a virtual method call or an intrinsic.
+              }
             } else if (auto td = dyn_cast<TypeDefn>(generic)) {
               if (td->type()->kind == Type::Kind::CLASS) {
-                _cu.symbols().addClass(td, newEnv);
+                _cu.symbols().addClass(td, newEnv.args);
               } else if (td->type()->kind == Type::Kind::INTERFACE) {
-                _cu.symbols().addInterface(td, newEnv);
+                _cu.symbols().addInterface(td, newEnv.args);
               }
             }
             auto newSp = _cu.spec().specialize(generic, newEnv.args);
             if (newSp != sp || stem != dref->stem || type != dref->type) {
               return new (alloc()) DefnRef(dref->kind, dref->location, newSp, stem, type);
+            }
+            return dref;
+          } else if (auto fd = dyn_cast<FunctionDefn>(dref->defn)) {
+            auto stem = transform(dref->stem);
+            auto type = transformType(dref->type);
+            if (isDirectlyCallable(fd)) {
+              assert(fd->allTypeParams().empty());
+              auto sym = _cu.symbols().addFunction(fd, {});
+              return new (_cu.types().alloc()) SymbolRefExpr(
+                  Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type, stem);
+            }
+            if (stem != dref->stem || type != dref->type) {
+              return new (alloc()) DefnRef(dref->kind, dref->location, fd, stem, type);
             }
             return dref;
           }
@@ -129,9 +127,29 @@ namespace tempest::sema::pass {
           auto dref = static_cast<DefnRef*>(e);
           auto vd = cast<ValueDefn>(env.unwrap(dref->defn));
           if (vd->isStatic() || vd->isGlobal()) {
-            auto sym = _cu.symbols().addGlobalVar(vd, env);
+            auto sym = _cu.symbols().addGlobalVar(vd, env.args);
             return new (alloc()) SymbolRefExpr(
                 Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type);
+          }
+          return transform::ExprTransform::transform(e);
+        }
+
+        case Expr::Kind::CALL: {
+          auto call = static_cast<ApplyFnOp*>(e);
+          if (auto dref = dyn_cast<DefnRef>(call->function)) {
+            ArrayRef<const Type*> typeArgs;
+            auto defn = unwrapSpecialization(dref->defn, typeArgs);
+            if (auto fn = dyn_cast<FunctionDefn>(defn)) {
+              if (fn->intrinsic() == IntrinsicFn::FLEX_ALLOC) {
+                assert(typeArgs.size() == 1);
+                assert(call->args.size() == 1);
+                auto udt = cast<UserDefinedType>(typeArgs[0]);
+                auto cls = _cu.symbols().addClass(udt->defn(), _env.args);
+                auto size = transform(call->args[0]);
+                return new (alloc()) FlexAllocExpr(
+                    call->location, cls, size, const_cast<UserDefinedType*>(udt));
+              }
+            }
           }
           return transform::ExprTransform::transform(e);
         }
@@ -139,7 +157,7 @@ namespace tempest::sema::pass {
         case Expr::Kind::ALLOC_OBJ: {
           auto sref = static_cast<SymbolRefExpr*>(e);
           auto udt = cast<UserDefinedType>(e->type);
-          sref->sym = _cu.symbols().addClass(udt->defn(), _env);
+          sref->sym = _cu.symbols().addClass(udt->defn(), _env.args);
           return transform::ExprTransform::transform(e);
         }
 
@@ -151,6 +169,12 @@ namespace tempest::sema::pass {
     virtual Type* transformType(Type* type) override final {
       return const_cast<Type*>(_typeTransform.transform(type));
     }
+
+    // void composeTypeArgs(ArrayRef<const Type*>& typeArgs) {
+    //   if (typeArgs.size() > 0 && _env.args.size() > 0) {
+    //     typeArgs[0] = transformType(typeArgs[0]);
+    //   }
+    // }
 
   private:
     tempest::support::BumpPtrAllocator& alloc() { return _cu.types().alloc(); }
@@ -182,7 +206,6 @@ namespace tempest::sema::pass {
   }
 
   void ExpandSpecializationPass::process(Module* mod) {
-    Env empty;
     // Add all top-level members as output symbols.
     for (auto d : mod->members()) {
       switch (d->kind) {
@@ -191,9 +214,9 @@ namespace tempest::sema::pass {
           // Don't include templates.
           if (td->allTypeParams().empty()) {
             if (td->type()->kind == Type::Kind::CLASS) {
-              _cu.symbols().addClass(td, empty);
+              _cu.symbols().addClass(td, {});
             } else if (td->type()->kind == Type::Kind::INTERFACE) {
-              _cu.symbols().addInterface(td, empty);
+              _cu.symbols().addInterface(td, {});
             }
           }
           break;
@@ -203,17 +226,18 @@ namespace tempest::sema::pass {
           auto fd = static_cast<FunctionDefn*>(d);
           // Don't include templates.
           if (fd->allTypeParams().empty()) {
-            auto fsym = _cu.symbols().addFunction(fd, empty);
-            GenSymVisitor visitor(_cu);
-            visitor.visit(fd->body());
-            fsym->body = fd->body();
+            auto fsym = _cu.symbols().addFunction(fd, {});
+            (void)fsym;
+            // GenSymVisitor visitor(_cu);
+            // visitor.visit(fd->body());
+            // fsym->body = fd->body();
           }
           break;
         }
 
         case Member::Kind::VAR_DEF: {
           auto vd = static_cast<ValueDefn*>(d);
-          _cu.symbols().addGlobalVar(vd, empty);
+          _cu.symbols().addGlobalVar(vd, {});
           break;
         }
 
@@ -232,7 +256,9 @@ namespace tempest::sema::pass {
     auto fd = fsym->function;
     if (fd->body()) {
       assert(env.args.size() == fd->allTypeParams().size());
-      fsym->body = expandExpr(fd->body(), env);
+      if (!fsym->body) {
+        fsym->body = expandExpr(fd->body(), env);
+      }
     }
   }
 
@@ -246,8 +272,10 @@ namespace tempest::sema::pass {
         // Static
         // Final or overloaded
         // Interface / Class
-        if (!fd->isStatic() && fd->allTypeParams().size() == csym->typeArgs.size()) {
-          auto fsym = _cu.symbols().addFunction(fd, env);
+        if (!fd->isStatic() &&
+            fd->intrinsic() == IntrinsicFn::NONE &&
+            fd->allTypeParams().size() == csym->typeArgs.size()) {
+          auto fsym = _cu.symbols().addFunction(fd, env.args);
           (void)fsym;
         }
       }

@@ -35,13 +35,33 @@ namespace tempest::intrinsic {
     flexAllocCtor->setIntrinsic(IntrinsicFn::OBJECT_CTOR);
 
     auto count = new (_types.alloc()) ParameterDefn(
-        Location(), "count", flexAllocCtor, &IntegerType::I64);
+        Location(), "size", flexAllocCtor, &IntegerType::I64);
     flexAllocCtor->params().push_back(count);
     flexAllocCtor->setType(_types.createFunctionType(
         &VoidType::VOID, { &IntegerType::I64 }, false));
     flexAllocCtor->setSelfType(flexAllocClass->type());
     flexAllocClass->members().push_back(flexAllocCtor);
     flexAllocClass->memberScope()->addMember(flexAllocCtor);
+
+    // FlexAlloc __alloc
+    auto flexAllocFn = new FunctionDefn(Location(), "__alloc", flexAllocClass.get());
+    flexAllocFn->setIntrinsic(IntrinsicFn::FLEX_ALLOC);
+
+    auto AllocT = new (_types.alloc()) TypeParameter(Location(), "T");
+    AllocT->setTypeVar(new (_types.alloc()) TypeVar(AllocT));
+    flexAllocFn->typeParams().push_back(AllocT);
+    flexAllocFn->allTypeParams().push_back(AllocT);
+    flexAllocFn->setStatic(true);
+    // flexAllocFn->setVisibility(Visibility::PROTECTED);
+
+    count = new (_types.alloc()) ParameterDefn(
+        Location(), "size", flexAllocFn, &IntegerType::I64);
+    flexAllocFn->params().push_back(count);
+    flexAllocFn->setType(_types.createFunctionType(
+        AllocT->typeVar(), { &IntegerType::I64 }, false));
+    flexAllocFn->setSelfType(flexAllocClass->type());
+    flexAllocClass->members().push_back(flexAllocFn);
+    flexAllocClass->memberScope()->addMember(flexAllocFn);
 
     // std::unique_ptr<TypeDefn*> throwableClass;
     // std::unique_ptr<TypeDefn*> classDescriptorStruct;

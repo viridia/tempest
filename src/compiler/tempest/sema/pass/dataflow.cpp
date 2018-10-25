@@ -165,7 +165,9 @@ namespace tempest::sema::pass {
               }
             }
 
-            if (!defaultCtor) {
+            if (td->isFlex()) {
+              // Flex alloc types don't need a call to supertype.
+            } else if (!defaultCtor) {
               diag.error(td) << "Base class has no default constructor";
             } else {
               // Inset automatically-generated superclass contructor call.
@@ -380,6 +382,13 @@ namespace tempest::sema::pass {
             flow.memberVarsSet[vd->fieldIndex()] = true;
           } else if (vd->definedIn() == _currentMethod) {
             flow.localVarsSet[vd->fieldIndex()] = true;
+          }
+        } else if (lval->kind == Expr::Kind::SELF) {
+          if (_currentMethod->isConstructor() &&
+              cast<TypeDefn>(_currentMethod->definedIn())->isFlex()) {
+            // Assignment to self is legal here.
+          } else {
+            diag.debug() << "Assignment to 'self' is not permitted.";
           }
         } else {
           assert(false && "Implement");

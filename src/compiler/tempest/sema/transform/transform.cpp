@@ -146,6 +146,7 @@ namespace tempest::sema::transform {
     }
 
     switch (ty->kind) {
+      case Type::Kind::NOT_EXPR:
       case Type::Kind::INVALID:
       case Type::Kind::NEVER:
       case Type::Kind::IGNORED:
@@ -331,6 +332,8 @@ namespace tempest::sema::transform {
               st->defn->definedIn());
           var->setInit(init);
           var->setType(type);
+          var->setLocal(st->defn->isLocal());
+          var->setFieldIndex(st->defn->fieldIndex());
           return new (_alloc) LocalVarStmt(st->location, var, st->localVarIndex);
         }
         return st;
@@ -424,6 +427,7 @@ namespace tempest::sema::transform {
       if (newEl != el) {
         changed = true;
       }
+      out.push_back(newEl);
     }
     return changed;
   }

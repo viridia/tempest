@@ -1,5 +1,10 @@
 # TODOs
 
+* Experiment: We don't actually need Env.
+* Experiment: What would happen if we made Expr.type const?
+* Break out visitors into separate files.
+* Implement const members
+* Implement Slice and Iterable
 * Finish infix operators
 * Constant infix operators
   * String
@@ -9,8 +14,8 @@
   * NOT
 * Boolean coercion
   * isTruthy function
+  * NOT / if()
 * ADL lookup
-* Member function definitions don't really need 'fn'.
 * Member access operator
   * Method overloads
 * isNarrower, equal, assignable have lots of unimplemented cases. Need tests.
@@ -28,16 +33,14 @@
 * Type inference for constructor calls
 * Unify structural typing
 * Unify function types
-* Constructor calls
 * Expression callables
 * Private / Protected visibility tests
 * Class method overload tests
-* Support for 'self' and 'super'
+* Finish Support for 'self' and 'super'
 * Type parameter defaults
 * Get rid of classes we don't need
 * More statement types
 * Extend unification to not need isAssignable
-* Intrinsic functions
 * Methods returning 'self'
 * Self as a template parameter.
 * Downcasting
@@ -73,11 +76,10 @@
 * check for circular imports
 * make sure we don't load a module twice in one file.
 * support for 'int' and 'uint' types.
+* support for 'char' type.
 * nameresolution.cpp: various TODOs
 * keyword argument support
 * variadic params should be slice type
 * transform default args
 * coerce empty collections to boolean type.
 * Don't allow specialization of specializations - flatten first
-
-74keazz24dqlzk4nzm6lwlbid3q6kfvwpbczpjkglygtjyaee2sa

@@ -713,6 +713,18 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
   }
 
+  SECTION("Resolve equal operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg == 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
+  SECTION("Resolve not-equal operator") {
+    auto mod = compile(cu, "fn x(arg: u32) => arg != 1;\n");
+    auto fd = cast<FunctionDefn>(mod->members().front());
+    REQUIRE_THAT(fd->type()->returnType, TypeEQ("bool"));
+  }
+
   SECTION("No bitwise for floats") {
     REQUIRE_THAT(
       compileError(cu,

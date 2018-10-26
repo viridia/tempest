@@ -22,11 +22,8 @@ namespace tempest::intrinsic {
     BIT_AND,
     BIT_XOR,
     EQ,
-    NE,
     LE,
     LT,
-    GE,
-    GT,
     NEGATE,
     COMPLEMENT,
 

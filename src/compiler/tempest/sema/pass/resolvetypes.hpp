@@ -131,6 +131,7 @@ namespace tempest::sema::pass {
     Expr* addCastIfNeeded(Expr* expr, Type* ty);
     Type* combineTypes(llvm::ArrayRef<Type*> types);
     Type* chooseIntegerType(Type* ty);
+    Expr* replaceIntrinsic(ApplyFnOp* expr);
 
     GenericDefn* setSubject(GenericDefn* subject) {
       auto prevSubject = _subject;

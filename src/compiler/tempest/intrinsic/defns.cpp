@@ -104,6 +104,8 @@ namespace tempest::intrinsic {
     intOps.bitXor = makeInfixOp("infixBitXOr", &IntegerType::I64, IntrinsicFn::BIT_XOR);
     uintOps.bitXor = makeInfixOp("infixBitXOr", &IntegerType::U64, IntrinsicFn::BIT_XOR);
 
+    eq = makeRelationalOp("isEqualTo", nullptr, IntrinsicFn::EQ);
+
     intOps.lt = makeRelationalOp("isLessThan", &IntegerType::I64, IntrinsicFn::LT);
     uintOps.lt = makeRelationalOp("isLessThan", &IntegerType::U64, IntrinsicFn::LT);
     floatOps.lt = makeRelationalOp("isLessThan", &FloatType::F64, IntrinsicFn::LT);
@@ -157,10 +159,12 @@ namespace tempest::intrinsic {
     fd->setIntrinsic(intrinsic);
     auto T = new (_types.alloc()) TypeParameter(Location(), "T");
     T->setTypeVar(new (_types.alloc()) TypeVar(T));
-    SmallVector<Type*, 1> subtypeConstraints;
-    subtypeConstraints.push_back(argType);
+    if (argType) {
+      SmallVector<Type*, 1> subtypeConstraints;
+      subtypeConstraints.push_back(argType);
+      T->setSubtypeConstraints(_types.alloc().copyOf(subtypeConstraints));
+    }
     SmallVector<Type*, 2> paramTypes;
-    T->setSubtypeConstraints(_types.alloc().copyOf(subtypeConstraints));
     auto param0 = new (_types.alloc()) ParameterDefn(Location(), "a0", fd.get(), T->typeVar());
     fd->params().push_back(param0);
     paramTypes.push_back(T->typeVar());

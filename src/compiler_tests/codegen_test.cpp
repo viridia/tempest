@@ -241,6 +241,7 @@ TEST_CASE("CodeGen", "[gen]") {
       "final class A extends FlexAlloc[u8] {\n"
       "  size: i32 = 0;\n"
       "  new() { self = __alloc(5); size = 5; }\n"
+      "  get empty: bool => size == 0;\n"
       "}\n"
       "fn b() {"
       "  A()"

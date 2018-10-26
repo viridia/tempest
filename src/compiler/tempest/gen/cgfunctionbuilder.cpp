@@ -801,8 +801,11 @@ namespace tempest::gen {
     if (vd->isLocal()) {
       assert(_locals[vd->fieldIndex()] != nullptr);
       return _builder.CreateLoad(_locals[vd->fieldIndex()], vd->name());
+    } else if (vd->isMember() && !vd->isStatic()) {
+      auto lval = genLValueAddress(in);
+      return _builder.CreateLoad(lval, in->defn->name());
     }
-    assert(false && "Implement member variable.");
+    assert(false && "Implement variable.");
   }
 
   Value* CGFunctionBuilder::visitCall(ApplyFnOp* in) {

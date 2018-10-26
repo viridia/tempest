@@ -393,6 +393,14 @@ namespace tempest::sema::transform {
       case Expr::Kind::MULTIPLY:
       case Expr::Kind::DIVIDE:
       case Expr::Kind::REMAINDER:
+      case Expr::Kind::LSHIFT:
+      case Expr::Kind::RSHIFT:
+      case Expr::Kind::BIT_AND:
+      case Expr::Kind::BIT_OR:
+      case Expr::Kind::BIT_XOR:
+      case Expr::Kind::EQ:
+      case Expr::Kind::LE:
+      case Expr::Kind::LT:
       case Expr::Kind::ASSIGN: {
         auto op = static_cast<BinaryOp*>(expr);
         auto a0 = transform(op->args[0]);

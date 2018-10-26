@@ -70,6 +70,8 @@ namespace tempest::sema::pass {
         case Expr::Kind::BIT_OR:
         case Expr::Kind::BIT_AND:
         case Expr::Kind::BIT_XOR:
+        case Expr::Kind::NE:
+        case Expr::Kind::EQ:
         case Expr::Kind::LE:
         case Expr::Kind::LT:
         case Expr::Kind::GE:
@@ -92,6 +94,7 @@ namespace tempest::sema::pass {
 
       StringRef funcName;
       llvm::ArrayRef<Expr*> args(op->args);
+      bool inverted = false;
       switch (op->kind) {
         case Expr::Kind::ADD:
           funcName = "infixAdd";
@@ -123,6 +126,13 @@ namespace tempest::sema::pass {
         case Expr::Kind::BIT_XOR:
           funcName = "infixBitXOr";
           break;
+        case Expr::Kind::EQ:
+          funcName = "isEqualTo";
+          break;
+        case Expr::Kind::NE:
+          funcName = "isEqualTo";
+          inverted = true;
+          break;
         case Expr::Kind::LT:
           funcName = "isLessThan";
           break;
@@ -144,7 +154,11 @@ namespace tempest::sema::pass {
       }
 
       auto fnRef = resolveOperatorName(op->location, funcName);
-      return new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, args);
+      auto result = new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, args);
+      if (inverted) {
+        return new (_alloc) UnaryOp(Expr::Kind::NOT, result);
+      }
+      return result;
     }
 
     Expr* visitUnaryOperator(UnaryOp* op) {
@@ -563,6 +577,12 @@ namespace tempest::sema::pass {
       case Expr::Kind::SELF:
         e->type = _selfType;
         return _selfType;
+
+      case Expr::Kind::NOT: {
+        auto notOp = static_cast<UnaryOp*>(e);
+        assignTypes(notOp->arg, nullptr);
+        return &BooleanType::BOOL;
+      }
 
   // def visitThrow(self, expr, cs):
   //   '''@type expr: spark.graph.graph.Throw
@@ -1543,8 +1563,14 @@ namespace tempest::sema::pass {
         assert(e->type);
         auto callExpr = static_cast<ApplyFnOp*>(e);
         coerceExpr(callExpr->function, nullptr);
+        if (auto fnRef = dyn_cast<DefnRef>(callExpr->function)) {
+          auto fn = dyn_cast<FunctionDefn>(unwrapSpecialization(fnRef->defn));
+          if (fn->intrinsic() != IntrinsicFn::NONE) {
+            e = replaceIntrinsic(callExpr);
+          }
+        }
         // Deep coercion of arg trees should already have been handled.
-        return addCastIfNeeded(callExpr, dstType);
+        return addCastIfNeeded(e, dstType);
       }
 
       case Expr::Kind::MEMBER_NAME_REF: {
@@ -1659,6 +1685,14 @@ namespace tempest::sema::pass {
         return addCastIfNeeded(op, dstType);
       }
 
+      case Expr::Kind::NOT: {
+        auto op = static_cast<UnaryOp*>(e);
+        // TODO: Implicit boolean conversion
+        coerceExpr(op->arg, nullptr);
+        op->type = &BooleanType::BOOL;
+        return addCastIfNeeded(op, dstType);
+      }
+
       case Expr::Kind::ASSIGN: {
         auto op = static_cast<BinaryOp*>(e);
         coerceExpr(op->args[0], nullptr);
@@ -1670,6 +1704,91 @@ namespace tempest::sema::pass {
       default:
         diag.debug() << "Invalid expression kind: " << Expr::KindName(e->kind);
         assert(false && "Invalid expression kind");
+    }
+  }
+
+  Expr* ResolveTypesPass::replaceIntrinsic(ApplyFnOp* call) {
+    auto fnRef = cast<DefnRef>(call->function);
+    ArrayRef<const Type*> typeArgs;
+    auto fd = cast<FunctionDefn>(unwrapSpecialization(fnRef->defn, typeArgs));
+    switch (fd->intrinsic()) {
+      case IntrinsicFn::EQ: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::EQ, call->location, call->args[0], call->args[1], &BooleanType::BOOL);
+      }
+
+      case IntrinsicFn::LE: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::LE, call->location, call->args[0], call->args[1], &BooleanType::BOOL);
+      }
+
+      case IntrinsicFn::LT: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::LT, call->location, call->args[0], call->args[1], &BooleanType::BOOL);
+      }
+
+      case IntrinsicFn::ADD: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::ADD, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::SUBTRACT: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::SUBTRACT, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::MULTIPLY: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::MULTIPLY, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::DIVIDE: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::DIVIDE, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::REMAINDER: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::REMAINDER, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::LSHIFT: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::LSHIFT, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::RSHIFT: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::RSHIFT, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::BIT_AND: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::BIT_AND, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::BIT_OR: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::BIT_OR, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      case IntrinsicFn::BIT_XOR: {
+        return new (*_alloc) BinaryOp(
+            Expr::Kind::BIT_XOR, call->location, call->args[0], call->args[1],
+            const_cast<Type*>(typeArgs[0]));
+      }
+
+      default:
+        return call;
     }
   }
 

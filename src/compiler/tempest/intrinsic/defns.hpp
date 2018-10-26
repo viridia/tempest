@@ -61,6 +61,9 @@ namespace tempest::intrinsic {
     PrimitiveOperators uintOps;
     PrimitiveOperators floatOps;
 
+    // Equality intrinsic
+    std::unique_ptr<FunctionDefn> eq;
+
     // Singleton getter.
     static IntrinsicDefns* get();
 

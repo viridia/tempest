@@ -2,9 +2,16 @@
     For efficient random access to characters, conver the `String` into a character array.
 */
 export final class String extends FlexAlloc[u8] {
-  const size: int = 0;
+  const size: int;
 
   new() {
-    super(0);
+    self = __alloc(0);
+    size = 0;
   }
+
+  get empty: bool => size == 0;
+
+  // Need Slice.
+  // Construct from byte slice
+  // Construct from char slice
 }

@@ -38,20 +38,20 @@ namespace tempest::sema::graph {
     IntegerLiteral(
           Location location,
           const MPInt& value,
-          IntegerType* type = nullptr)
+          const IntegerType* type = nullptr)
       : Expr(Kind::INTEGER_LITERAL, location, type)
       , _value(value)
     {}
 
     IntegerLiteral(
           const MPInt& value,
-          IntegerType* type = nullptr)
+          const IntegerType* type = nullptr)
       : Expr(Kind::INTEGER_LITERAL, Location(), type)
       , _value(value)
     {}
 
     /** Type downcast to integer type. */
-    IntegerType* intType() const { return cast <IntegerType>(type); }
+    const IntegerType* intType() const { return cast<IntegerType>(type); }
 
     /** The value as an arbitrary-precision integer. */
     MPInt value() { return _value; }

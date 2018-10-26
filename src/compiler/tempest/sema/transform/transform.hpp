@@ -63,7 +63,6 @@ namespace tempest::sema::transform {
       , _specs(specs)
     {}
 
-    Type* operator()(Type* in) { return const_cast<Type*>(transform(in)); }
     const Type* operator()(const Type* in) { return transform(in); }
 
     const Type* transform(const Type* in);
@@ -84,7 +83,7 @@ namespace tempest::sema::transform {
     {}
 
     virtual Expr* transform(Expr* in);
-    virtual Type* transformType(Type* type) { return type; }
+    virtual const Type* transformType(const Type* type) { return type; }
     virtual Member* transformMember(Member* member) { return member; }
 
     bool transformArray(const ArrayRef<Expr*>& in, llvm::SmallVectorImpl<Expr*>& out);

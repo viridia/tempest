@@ -108,7 +108,7 @@ namespace tempest::sema::names {
 
   void MemberNameLookup::lookupInherited(
       const llvm::StringRef& name,
-      UserDefinedType* udt,
+      const UserDefinedType* udt,
       MemberLookupResultRef& result,
       size_t flags) {
     if (!(flags & INHERITED_ONLY)) {
@@ -134,20 +134,21 @@ namespace tempest::sema::names {
     }
   }
 
-  void MemberNameLookup::forAllNames(const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn) {
+  void MemberNameLookup::forAllNames(
+      const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn) {
     for (auto m : stem) {
       forAllNames(m, nameFn);
     }
   }
 
-  void MemberNameLookup::forAllNames(Member* stem, const NameCallback& nameFn) {
+  void MemberNameLookup::forAllNames(const Member* stem, const NameCallback& nameFn) {
     std::vector<Member*> members;
     switch (stem->kind) {
       case Member::Kind::MODULE:
-        static_cast<Module*>(stem)->memberScope()->forAllNames(nameFn);
+        static_cast<const Module*>(stem)->memberScope()->forAllNames(nameFn);
         break;
       case Member::Kind::TYPE: {
-        auto td = static_cast<TypeDefn*>(stem);
+        auto td = static_cast<const TypeDefn*>(stem);
         if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
           udt->defn()->memberScope()->forAllNames(nameFn);
           for (auto ext : udt->defn()->extends()) {
@@ -159,7 +160,7 @@ namespace tempest::sema::names {
         break;
       }
       case Member::Kind::TYPE_PARAM: {
-        auto tp = static_cast<TypeParameter*>(stem);
+        auto tp = static_cast<const TypeParameter*>(stem);
         for (auto st : tp->subtypeConstraints()) {
           if (auto comp = dyn_cast<UserDefinedType>(st)) {
             forAllNames(comp->defn(), nameFn);
@@ -180,7 +181,7 @@ namespace tempest::sema::names {
     }
   }
 
-  void MemberNameLookup::forAllNames(Type* stem, const NameCallback& nameFn) {
+  void MemberNameLookup::forAllNames(const Type* stem, const NameCallback& nameFn) {
     if (auto comp = dyn_cast<UserDefinedType>(stem)) {
       forAllNames(comp->defn(), nameFn);
     } else if (auto pr = dyn_cast<PrimitiveType>(stem)) {

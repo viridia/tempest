@@ -239,14 +239,14 @@ namespace tempest::sema::infer {
   public:
     ApplyFnOp* callExpr;
     llvm::SmallVector<Expr*, 8> argList;
-    const llvm::SmallVector<Type*, 8> argTypes;
+    const llvm::SmallVector<const Type*, 8> argTypes;
     bool isOperator = false;
 
     CallSite(
         const source::Location& location,
         ApplyFnOp* callExpr,
         const llvm::ArrayRef<Expr*> &argList,
-        llvm::ArrayRef<Type*> argTypes)
+        llvm::ArrayRef<const Type*> argTypes)
       : OverloadSite(OverloadKind::CALL, location)
       , callExpr(callExpr)
       , argList(argList.begin(), argList.end())

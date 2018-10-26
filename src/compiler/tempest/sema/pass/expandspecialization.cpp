@@ -146,8 +146,7 @@ namespace tempest::sema::pass {
                 auto udt = cast<UserDefinedType>(typeArgs[0]);
                 auto cls = _cu.symbols().addClass(udt->defn(), _env.args);
                 auto size = transform(call->args[0]);
-                return new (alloc()) FlexAllocExpr(
-                    call->location, cls, size, const_cast<UserDefinedType*>(udt));
+                return new (alloc()) FlexAllocExpr(call->location, cls, size, udt);
               }
             }
           }
@@ -166,8 +165,8 @@ namespace tempest::sema::pass {
       }
     }
 
-    virtual Type* transformType(Type* type) override final {
-      return const_cast<Type*>(_typeTransform.transform(type));
+    virtual const Type* transformType(const Type* type) override final {
+      return _typeTransform.transform(type);
     }
 
     // void composeTypeArgs(ArrayRef<const Type*>& typeArgs) {

@@ -11,22 +11,22 @@ namespace tempest::sema::convert {
   using namespace llvm;
   using tempest::error::diag;
 
-  Expr* TypeCasts::cast(Type* dst, Expr* src) {
+  Expr* TypeCasts::cast(const Type* dst, Expr* src) {
     auto srcType = src->type;
     if (srcType == dst) {
       return src;
     }
 
     while (dst->kind == Type::Kind::ALIAS) {
-      auto dstAlias = static_cast<UserDefinedType*>(dst);
+      auto dstAlias = static_cast<const UserDefinedType*>(dst);
       dst = dstAlias->defn()->aliasTarget();
     }
 
     switch (dst->kind) {
       case Type::Kind::INTEGER: {
-        auto dstInt = static_cast<IntegerType*>(dst);
+        auto dstInt = static_cast<const IntegerType*>(dst);
         if (srcType->kind == Type::Kind::INTEGER) {
-          auto srcInt = static_cast<IntegerType*>(srcType);
+          auto srcInt = static_cast<const IntegerType*>(srcType);
           if (srcInt->bits() == dstInt->bits()) {
             return src;
           } else if (srcInt->bits() < dstInt->bits()) {
@@ -44,7 +44,7 @@ namespace tempest::sema::convert {
       }
 
       case Type::Kind::FLOAT: {
-        auto dstFlt = static_cast<FloatType*>(dst);
+        auto dstFlt = static_cast<const FloatType*>(dst);
         if (auto srcFlt = dyn_cast<FloatType>(srcType)) {
           if (srcFlt->bits() == dstFlt->bits()) {
             return src;
@@ -74,7 +74,7 @@ namespace tempest::sema::convert {
     return src;
   }
 
-  Expr* TypeCasts::makeCast(Expr::Kind kind, Expr* arg, Type* type) {
+  Expr* TypeCasts::makeCast(Expr::Kind kind, Expr* arg, const Type* type) {
     return new (_alloc) UnaryOp(kind, arg->location, arg, type);
   }
 }

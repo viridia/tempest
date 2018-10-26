@@ -75,15 +75,15 @@ namespace tempest::sema::names {
 
     /** Iterate through all names. */
     void forAllNames(const llvm::ArrayRef<Member*>& stem, const NameCallback& nameFn);
-    void forAllNames(Member* stem, const NameCallback& nameFn);
-    void forAllNames(Type* stem, const NameCallback& nameFn);
+    void forAllNames(const Member* stem, const NameCallback& nameFn);
+    void forAllNames(const Type* stem, const NameCallback& nameFn);
 
   private:
     graph::SpecializationStore& _specs;
 
     void lookupInherited(
         const llvm::StringRef& name,
-        UserDefinedType* stem,
+        const UserDefinedType* stem,
         MemberLookupResultRef& result,
         size_t flags);
   };

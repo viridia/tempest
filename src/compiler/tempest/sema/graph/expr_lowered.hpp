@@ -19,7 +19,7 @@ namespace tempest::sema::graph {
           Kind kind,
           Location location,
           gen::OutputSym* sym,
-          Type* type = nullptr,
+          const Type* type = nullptr,
           Expr* stem = nullptr)
       : Expr(kind, location, type)
       , sym(sym)
@@ -42,7 +42,7 @@ namespace tempest::sema::graph {
           Location location,
           gen::OutputSym* cls,
           Expr* size,
-          Type* type = nullptr)
+          const Type* type = nullptr)
       : Expr(Kind::ALLOC_FLEX, location, type)
       , cls(cls)
       , size(size)

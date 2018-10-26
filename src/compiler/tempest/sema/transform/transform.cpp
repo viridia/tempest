@@ -172,7 +172,7 @@ namespace tempest::sema::transform {
         auto ct = static_cast<const ModifiedType*>(ty);
         auto base = transform(ct->base);
         if (base != ct->base) {
-          return _types.createModifiedType(const_cast<Type*>(base), ct->modifiers);
+          return _types.createModifiedType(base, ct->modifiers);
         }
         return ct;
       }

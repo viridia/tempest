@@ -280,11 +280,11 @@ namespace tempest::sema::pass {
 
           MapEnvTransform transform(_cu.types(), _cu.spec(), baseEnv);
           auto baseFn = cast<FunctionDefn>(baseCtor);
-          llvm::SmallVector<Type*, 8> paramTypes;
+          llvm::SmallVector<const Type*, 8> paramTypes;
           llvm::SmallVector<Expr*, 8> superParams;
           llvm::SmallVector<Expr*, 8> ctorStmts;
           for (auto param : baseFn->params()) {
-            auto paramType = const_cast<Type*>(transform.transform(param->type()));
+            auto paramType = transform.transform(param->type());
             auto np = new ParameterDefn(td->location(), param->name(), defaultCtor, paramType);
             defaultCtor->params().push_back(np);
             defaultCtor->paramScope()->addMember(np);
@@ -483,7 +483,7 @@ namespace tempest::sema::pass {
       fd->setSelfType(enclosingType->type());
     }
 
-    SmallVector<Type*, 8> paramTypes;
+    SmallVector<const Type*, 8> paramTypes;
     for (auto param : fd->params()) {
       visitAttributes(&tpScope, param, param->ast());
       if (param->ast()->type) {

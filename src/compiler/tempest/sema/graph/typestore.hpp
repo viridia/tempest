@@ -99,13 +99,13 @@ namespace tempest::sema::graph {
         bool isVariadic = false);
 
     /** Create a const type. */
-    ModifiedType* createModifiedType(Type* base, uint32_t modifiers);
+    ModifiedType* createModifiedType(const Type* base, uint32_t modifiers);
 
   private:
-    typedef std::pair<Type*, uint32_t> ModifiedKey;
+    typedef std::pair<const Type*, uint32_t> ModifiedKey;
     struct ModifiedKeyHash {
       inline std::size_t operator()(const ModifiedKey& value) const {
-        std::size_t result = std::hash<Type*>()(value.first);
+        std::size_t result = std::hash<const Type*>()(value.first);
         hash_combine(result, std::hash<uint32_t>()(value.second));
         return result;
       }

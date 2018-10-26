@@ -23,12 +23,12 @@ namespace tempest::sema::convert {
   public:
     TypeCasts(tempest::support::BumpPtrAllocator& alloc) : _alloc(alloc) {}
 
-    Expr* cast(Type* dst, Expr* src);
+    Expr* cast(const Type* dst, Expr* src);
 
   private:
     tempest::support::BumpPtrAllocator& _alloc;
 
-    Expr* makeCast(Expr::Kind kind, Expr* arg, Type* type);
+    Expr* makeCast(Expr::Kind kind, Expr* arg, const Type* type);
   };
 }
 

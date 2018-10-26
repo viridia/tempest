@@ -199,14 +199,13 @@ namespace tempest::sema::infer {
     // Inferred types - add to unification results.
     if (lt->kind == Type::Kind::INFERRED) {
       auto infType = static_cast<const InferredType*>(lt);
-      result.push_back({ const_cast<InferredType*>(infType), rt, predicate, when });
+      result.push_back({ infType, rt, predicate, when });
       return true;
     }
 
     if (rt->kind == Type::Kind::INFERRED) {
       auto infType = static_cast<const InferredType*>(rt);
-      result.push_back({
-          const_cast<InferredType*>(infType), lt, inverseRelation(predicate), when });
+      result.push_back({ infType, lt, inverseRelation(predicate), when });
       return true;
     }
 
@@ -335,12 +334,12 @@ namespace tempest::sema::infer {
           if (rtInferred) {
             if (ltMembers.size() == 1) {
               memberResult.push_back({
-                  const_cast<InferredType*>(rtInferred), ltMembers[0],
+                  rtInferred, ltMembers[0],
                   inverseRelation(predicate), when });
             } else {
               auto tempUnion = new (alloc) UnionType(alloc.copyOf(ltMembers));
               memberResult.push_back({
-                  const_cast<InferredType*>(rtInferred), tempUnion,
+                  rtInferred, tempUnion,
                   inverseRelation(predicate), when });
             }
             ltMembers.clear();
@@ -356,12 +355,10 @@ namespace tempest::sema::infer {
         if (!rtMembers.empty()) {
           if (ltInferred) {
             if (rtMembers.size() == 1) {
-              memberResult.push_back({
-                  const_cast<InferredType*>(ltInferred), rtMembers[0], predicate, when });
+              memberResult.push_back({ ltInferred, rtMembers[0], predicate, when });
             } else {
               auto tempUnion = new (alloc) UnionType(alloc.copyOf(rtMembers));
-              memberResult.push_back({
-                  const_cast<InferredType*>(ltInferred), tempUnion, predicate, when });
+              memberResult.push_back({ ltInferred, tempUnion, predicate, when });
             }
             rtMembers.clear();
           }

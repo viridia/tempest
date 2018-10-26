@@ -408,7 +408,7 @@ namespace tempest::sema::graph {
         const source::Location& location,
         llvm::StringRef name,
         Member* definedIn = nullptr,
-        Type* type = nullptr)
+        const Type* type = nullptr)
       : Defn(kind, location, name, definedIn)
       , _type(type)
       , _init(nullptr)
@@ -419,8 +419,8 @@ namespace tempest::sema::graph {
     {}
 
     /** Type of this value. */
-    Type* type() const { return _type; }
-    void setType(Type* type) { _type = type; }
+    const Type* type() const { return _type; }
+    void setType(const Type* type) { _type = type; }
 
     /** Initialization expression or default value. */
     Expr* init() const { return _init; }
@@ -459,7 +459,7 @@ namespace tempest::sema::graph {
     }
 
   private:
-    Type* _type;
+    const Type* _type;
     Expr* _init;
     const ast::ValueDefn* _ast = nullptr;
     int32_t _fieldIndex;
@@ -498,7 +498,7 @@ namespace tempest::sema::graph {
         const source::Location& location,
         llvm::StringRef name,
         Member* definedIn = nullptr,
-        Type* paramType = nullptr)
+        const Type* paramType = nullptr)
       : ValueDefn(Kind::FUNCTION_PARAM, location, name, definedIn, paramType)
       , _internalType(nullptr)
       , _keywordOnly(false)

@@ -113,8 +113,8 @@ namespace tempest::sema::graph {
     return tt;
   }
 
-  ModifiedType* TypeStore::createModifiedType(Type* base, uint32_t modifiers) {
-    auto key = std::pair<Type*, uint32_t>(base, modifiers);
+  ModifiedType* TypeStore::createModifiedType(const Type* base, uint32_t modifiers) {
+    auto key = std::pair<const Type*, uint32_t>(base, modifiers);
     auto it = _modifiedTypes.find(key);
     if (it != _modifiedTypes.end()) {
       return it->second;

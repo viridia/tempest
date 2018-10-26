@@ -72,20 +72,20 @@ namespace tempest::sema::pass {
 
     // Exprs
 
-    Type* visitExpr(Expr* expr, ConstraintSolver& cs);
+    const Type* visitExpr(Expr* expr, ConstraintSolver& cs);
     void visitExprArray(
-        llvm::SmallVectorImpl<Type*>& types,
+        llvm::SmallVectorImpl<const Type*>& types,
         const llvm::ArrayRef<Expr*>& exprs,
         ConstraintSolver& cs);
 
-    Expr* coerceExpr(Expr* expr, Type* dstType);
+    Expr* coerceExpr(Expr* expr, const Type* dstType);
 
     // Inference
 
     /** Solve type inference for this expression subtree. Note that if there are subtrees within
         this tree that don't contribute to the result type (like statements in a block) then those
         will be solved separately. */
-    Type* assignTypes(Expr* e, const Type* dstType, bool downCast = false);
+    const Type* assignTypes(Expr* e, const Type* dstType, bool downCast = false);
 
   protected:
     CompilationUnit& _cu;
@@ -94,33 +94,33 @@ namespace tempest::sema::pass {
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
     GenericDefn* _subject = nullptr;
     Module* _module = nullptr;
-    Type* _selfType = nullptr;
-    std::vector<Type*> _returnTypes;
+    const Type* _selfType = nullptr;
+    std::vector<const Type*> _returnTypes;
     const Type* _functionReturnType;
     names::LookupScope* _scope = nullptr;
 
-    Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
-    Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
-    Type* visitIf(IfStmt* expr, ConstraintSolver& cs);
-    Type* visitWhile(WhileStmt* expr, ConstraintSolver& cs);
-    Type* visitAssign(BinaryOp* expr, ConstraintSolver& cs);
-    Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
-    Type* visitCallName(
+    const Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
+    const Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);
+    const Type* visitIf(IfStmt* expr, ConstraintSolver& cs);
+    const Type* visitWhile(WhileStmt* expr, ConstraintSolver& cs);
+    const Type* visitAssign(BinaryOp* expr, ConstraintSolver& cs);
+    const Type* visitCall(ApplyFnOp* expr, ConstraintSolver& cs);
+    const Type* visitCallName(
         ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs);
     void findConstructors(const ArrayRef<MemberAndStem>& types, MemberLookupResultRef& ctors);
-    Type* addCallSite(
+    const Type* addCallSite(
         ApplyFnOp* callExpr,
         Expr* fn,
         const ArrayRef<MemberAndStem>& methodList,
         const ArrayRef<Expr*>& args,
-        const ::ArrayRef<Type*>& argTypes,
+        const ::ArrayRef<const Type*>& argTypes,
         ConstraintSolver& cs);
-    Type* visitVarName(DefnRef* expr, ConstraintSolver& cs);
-    Type* visitFunctionName(DefnRef* expr, ConstraintSolver& cs);
-    Type* visitTypeName(DefnRef* expr, ConstraintSolver& cs);
+    const Type* visitVarName(DefnRef* expr, ConstraintSolver& cs);
+    const Type* visitFunctionName(DefnRef* expr, ConstraintSolver& cs);
+    const Type* visitTypeName(DefnRef* expr, ConstraintSolver& cs);
 
     Expr* booleanTest(Expr* expr);
-    Type* doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs);
+    const Type* doTypeInference(Expr* expr, const Type* exprType, ConstraintSolver& cs);
     void applySolution(ConstraintSolver& cs, SolutionTransform& st);
     void updateCallSite(ConstraintSolver& cs, CallSite* site, SolutionTransform& st);
     void reorderCallingArgs(
@@ -128,9 +128,9 @@ namespace tempest::sema::pass {
         CallSite* site, CallCandidate* cc);
     bool lookupADLName(MemberListExpr* m, ArrayRef<Type*> argTypes);
     Expr* resolveMemberNameRef(MemberNameRef* mref);
-    Expr* addCastIfNeeded(Expr* expr, Type* ty);
-    Type* combineTypes(llvm::ArrayRef<Type*> types);
-    Type* chooseIntegerType(Type* ty);
+    Expr* addCastIfNeeded(Expr* expr, const Type* ty);
+    const Type* combineTypes(llvm::ArrayRef<const Type*> types);
+    const Type* chooseIntegerType(const Type* ty);
     Expr* replaceIntrinsic(ApplyFnOp* expr);
 
     GenericDefn* setSubject(GenericDefn* subject) {

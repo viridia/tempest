@@ -185,10 +185,11 @@ namespace tempest::sema::graph {
 
     const Kind kind;
     const Location location;
-    Type* type = nullptr;
+    const Type* type = nullptr;
 
     Expr(Kind kind, Location location) : kind(kind), location(location) {}
-    Expr(Kind kind, Location location, Type* type) : kind(kind), location(location), type(type) {}
+    Expr(Kind kind, Location location, const Type* type)
+        : kind(kind), location(location), type(type) {}
     Expr() = delete;
     Expr(const Expr& src) = delete;
 
@@ -227,7 +228,7 @@ namespace tempest::sema::graph {
   /** The 'self' keyword. */
   class SelfExpr : public Expr {
   public:
-    SelfExpr(Location location, Type* type = nullptr): Expr(Kind::SELF, location, type) {}
+    SelfExpr(Location location, const Type* type = nullptr): Expr(Kind::SELF, location, type) {}
 
     /** Dynamic casting support. */
     static bool classof(const SelfExpr* e) { return true; }
@@ -247,7 +248,7 @@ namespace tempest::sema::graph {
 
     DefnRef(Expr::Kind kind, Location location): Expr(kind, location) {}
     DefnRef(Expr::Kind kind, Location location, Member* defn, Expr* stem = nullptr,
-        Type* type = nullptr)
+        const Type* type = nullptr)
       : Expr(kind, location, type)
       , defn(defn)
       , stem(stem)
@@ -315,7 +316,7 @@ namespace tempest::sema::graph {
         llvm::StringRef name,
         Expr* stem = nullptr,
         Expr* refs = nullptr,
-        Type* type = nullptr)
+        const Type* type = nullptr)
       : Expr(kind, location, type)
       , name(name)
       , stem(stem)

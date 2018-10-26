@@ -13,11 +13,11 @@ namespace tempest::sema::graph {
   public:
     Expr* arg;
 
-    UnaryOp(Kind kind, Location location, Expr* arg, Type* type = nullptr)
+    UnaryOp(Kind kind, Location location, Expr* arg, const Type* type = nullptr)
       : Expr(kind, location, type)
       , arg(arg)
     {}
-    UnaryOp(Kind kind, Expr* arg, Type* type = nullptr)
+    UnaryOp(Kind kind, Expr* arg, const Type* type = nullptr)
       : Expr(kind, Location(), type)
       , arg(arg)
     {}
@@ -49,13 +49,13 @@ namespace tempest::sema::graph {
           Location location,
           Expr* lhs,
           Expr* rhs,
-          Type* type = nullptr)
+          const Type* type = nullptr)
       : Expr(kind, location, type)
     {
       args[0] = lhs;
       args[1] = rhs;
     }
-    BinaryOp(Kind kind, Expr* lhs, Expr* rhs, Type* type = nullptr)
+    BinaryOp(Kind kind, Expr* lhs, Expr* rhs, const Type* type = nullptr)
       : Expr(kind, Location(), type)
     {
       args[0] = lhs;
@@ -78,7 +78,7 @@ namespace tempest::sema::graph {
           Kind kind,
           Location location,
           llvm::ArrayRef<Expr*> args,
-          Type* type = nullptr)
+          const Type* type = nullptr)
       : Expr(kind, location, type)
       , args(args)
     {}
@@ -114,7 +114,7 @@ namespace tempest::sema::graph {
           Location location,
           Expr* function,
           llvm::ArrayRef<Expr*> args,
-          Type* type = nullptr)
+          const Type* type = nullptr)
       : Expr(kind, location, type)
       , function(function)
       , args(args)

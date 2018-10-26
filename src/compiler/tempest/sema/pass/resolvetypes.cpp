@@ -367,7 +367,7 @@ namespace tempest::sema::pass {
   void ResolveTypesPass::visitFunctionDefn(FunctionDefn* fd) {
     auto prevSubject = setSubject(fd);
     auto prevReturnType = _functionReturnType;
-    std::vector<Type*> prevReturnTypes;
+    std::vector<const Type*> prevReturnTypes;
     prevReturnTypes.swap(_returnTypes);
 //     savedTempVars = self.tempVarTypes
 //     self.tempVarTypes = {}
@@ -404,20 +404,20 @@ namespace tempest::sema::pass {
       // If there were return statements in the function body, and the function return type
       // is not known, compute the minimal return type.
       if (!_returnTypes.empty() && !fd->type()) {
-        _returnTypes.push_back(const_cast<Type*>(_functionReturnType));
+        _returnTypes.push_back(_functionReturnType);
         _functionReturnType = combineTypes(_returnTypes);
       }
 
       if (diag.errorCount() == 0) {
         // Add in all implicit type casts.
-        body = coerceExpr(body, const_cast<Type*>(_functionReturnType));
+        body = coerceExpr(body, _functionReturnType);
       }
 
       fd->setBody(body);
 
       // Compute function type signature from inferred return type.
       if (_functionReturnType && !fd->type()) {
-        SmallVector<Type*, 8> paramTypes;
+        SmallVector<const Type*, 8> paramTypes;
         for (auto param : fd->params()) {
           paramTypes.push_back(param->type());
         }
@@ -462,7 +462,7 @@ namespace tempest::sema::pass {
 
   // Type Inference
 
-  Type* ResolveTypesPass::assignTypes(Expr* e, const Type* dstType, bool downCast) {
+  const Type* ResolveTypesPass::assignTypes(Expr* e, const Type* dstType, bool downCast) {
     Location location = e->location;
     ConstraintSolver cs(location);
     // cs = constraintsolver.ConstraintSolver(
@@ -502,7 +502,7 @@ namespace tempest::sema::pass {
 
   // Expressions
 
-  Type* ResolveTypesPass::visitExpr(Expr* e, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitExpr(Expr* e, ConstraintSolver& cs) {
     switch (e->kind) {
       case Expr::Kind::INVALID:
       case Expr::Kind::VOID:
@@ -598,7 +598,7 @@ namespace tempest::sema::pass {
   }
 
   void ResolveTypesPass::visitExprArray(
-      llvm::SmallVectorImpl<Type*>& types,
+      llvm::SmallVectorImpl<const Type*>& types,
       const llvm::ArrayRef<Expr*>& exprs,
       ConstraintSolver& cs) {
     for (auto expr : exprs) {
@@ -606,7 +606,7 @@ namespace tempest::sema::pass {
     }
   }
 
-  Type* ResolveTypesPass::visitBlock(BlockStmt* blk, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitBlock(BlockStmt* blk, ConstraintSolver& cs) {
     auto prevScope = _scope;
     LocalScope lScope(_scope);
     _scope = &lScope;
@@ -644,7 +644,7 @@ namespace tempest::sema::pass {
     return earlyExit ? &Type::NO_RETURN : &VoidType::VOID;
   }
 
-  Type* ResolveTypesPass::visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs) {
     auto vd = expr->defn;
     if (vd->init()) {
       auto initType = assignTypes(vd->init(), vd->type());
@@ -662,7 +662,7 @@ namespace tempest::sema::pass {
     return &Type::NOT_EXPR;
   }
 
-  Type* ResolveTypesPass::visitIf(IfStmt* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitIf(IfStmt* expr, ConstraintSolver& cs) {
     // Coerce test to bool later.
     expr->test = booleanTest(expr->test);
     auto thenType = visitExpr(expr->thenBlock, cs);
@@ -689,21 +689,21 @@ namespace tempest::sema::pass {
     }
   }
 
-  Type* ResolveTypesPass::visitWhile(WhileStmt* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitWhile(WhileStmt* expr, ConstraintSolver& cs) {
     // Coerce to bool later.
     expr->test = booleanTest(expr->test);
     assignTypes(expr->body, nullptr);
     return &VoidType::VOID;
   }
 
-  Type* ResolveTypesPass::visitAssign(BinaryOp* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitAssign(BinaryOp* expr, ConstraintSolver& cs) {
     auto lType = visitExpr(expr->args[0], cs);
     auto rType = visitExpr(expr->args[1], cs);
     cs.addAssignment(expr->location, lType, rType);
     return &Type::NOT_EXPR;
   }
 
-  Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitCall(ApplyFnOp* expr, ConstraintSolver& cs) {
     if (expr->function->kind == Expr::Kind::MEMBER_NAME_REF) {
       // If it's a member name reference (expression.name), then replace the function with
       // the list of possible members.
@@ -740,7 +740,7 @@ namespace tempest::sema::pass {
           return &Type::ERROR;
         }
 
-        SmallVector<Type*, 8> argTypes;
+        SmallVector<const Type*, 8> argTypes;
         visitExprArray(argTypes, expr->args, cs);
         for (auto t : argTypes) {
           if (Type::isError(t)) {
@@ -788,11 +788,11 @@ namespace tempest::sema::pass {
 //       assert False, debug.format(funcExpr, type(funcExpr), resultType)
 //     assert False
 
-  Type* ResolveTypesPass::visitCallName(
+  const Type* ResolveTypesPass::visitCallName(
       ApplyFnOp* callExpr, Expr* fn, const ArrayRef<Expr*>& args, ConstraintSolver& cs) {
 
     // Gather the types of all arguments.
-    SmallVector<Type*, 8> argTypes;
+    SmallVector<const Type*, 8> argTypes;
     visitExprArray(argTypes, args, cs);
     for (auto t : argTypes) {
       if (Type::isError(t)) {
@@ -849,12 +849,12 @@ namespace tempest::sema::pass {
     lookup.lookup("new", members, ctors);
   }
 
-  Type* ResolveTypesPass::addCallSite(
+  const Type* ResolveTypesPass::addCallSite(
       ApplyFnOp* callExpr,
       Expr* fn,
       const ArrayRef<MemberAndStem>& methodList,
       const ArrayRef<Expr*>& args,
-      const ArrayRef<Type*>& argTypes,
+      const ArrayRef<const Type*>& argTypes,
       ConstraintSolver& cs) {
     auto site = new CallSite(callExpr->location, callExpr, args, argTypes);
     cs.addSite(site);
@@ -1095,7 +1095,7 @@ namespace tempest::sema::pass {
     }
 
     if (commonReturnType) {
-      return const_cast<Type *>(commonReturnType); // Ugh
+      return commonReturnType;
     }
 
     // Return ambiguous result.
@@ -1270,7 +1270,7 @@ namespace tempest::sema::pass {
 
 //     return cc.returnType
 
-  Type* ResolveTypesPass::visitVarName(DefnRef* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitVarName(DefnRef* expr, ConstraintSolver& cs) {
     auto vd = cast<ValueDefn>(expr->defn);
     if (!vd->type()) {
       assert(false && "Do eager type resolution");
@@ -1278,17 +1278,18 @@ namespace tempest::sema::pass {
     return vd->type();
   }
 
-  Type* ResolveTypesPass::visitFunctionName(DefnRef* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitFunctionName(DefnRef* expr, ConstraintSolver& cs) {
     assert(false && "Implement");
   }
 
-  Type* ResolveTypesPass::visitTypeName(DefnRef* expr, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::visitTypeName(DefnRef* expr, ConstraintSolver& cs) {
     assert(false && "Implement");
   }
 
   // Type Inference
 
-  Type* ResolveTypesPass::doTypeInference(Expr* expr, Type* exprType, ConstraintSolver& cs) {
+  const Type* ResolveTypesPass::doTypeInference(
+      Expr* expr, const Type* exprType, ConstraintSolver& cs) {
 //   def doTypeInference(self, expr, exprType, cs):
 //     try:
 //       solutionEnv = None
@@ -1309,7 +1310,7 @@ namespace tempest::sema::pass {
 //           finalExprType = callsite.CollapseAmbiguousTypes(
 //               self.typeStore).traverseType(finalExprType)
 //           return finalExprType
-    return const_cast<Type*>(transform.transform(exprType));
+    return transform.transform(exprType);
   }
 
   void ResolveTypesPass::applySolution(ConstraintSolver& cs, SolutionTransform& st) {
@@ -1367,9 +1368,9 @@ namespace tempest::sema::pass {
     auto candidate = static_cast<CallCandidate*>(site->singularCandidate());
     auto callExpr = static_cast<ApplyFnOp*>(site->callExpr);
     FunctionDefn* fn = cast<FunctionDefn>(unwrapSpecialization(candidate->method));
-    Type* fnType = fn->type();
-    Type* returnType = const_cast<Type*>(fn->type()->returnType);
-    Type* fnSelfType = fn->selfType();
+    const Type* fnType = fn->type();
+    const Type* returnType = fn->type()->returnType;
+    const Type* fnSelfType = fn->selfType();
     Member* method = fn;
     if (candidate->typeArgs.size() > 0) {
       llvm::SmallVector<const Type*, 8> typeArgs;
@@ -1392,7 +1393,7 @@ namespace tempest::sema::pass {
       auto stem = fnRef->stem ? fnRef->stem : candidate->stem;
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, stem, fnType);
-      callExpr->type = const_cast<Type *>(returnType);
+      callExpr->type = returnType;
       callExpr->flavor = ApplyFnOp::STATIC;
       if (stem) {
         callExpr->flavor = ApplyFnOp::METHOD;
@@ -1415,7 +1416,7 @@ namespace tempest::sema::pass {
       auto selfArg = new (*_alloc) SelfExpr(callExpr->location, _selfType);
       callExpr->function = new (*_alloc) DefnRef(
           Expr::Kind::FUNCTION_REF, site->location, method, selfArg, fnType);
-      callExpr->type = const_cast<Type *>(returnType);
+      callExpr->type = returnType;
       callExpr->flavor = ApplyFnOp::SUPER;
     } else {
       assert(false && "Implement other callable types");
@@ -1469,7 +1470,7 @@ namespace tempest::sema::pass {
     // Assign explicit arguments
     for (auto arg : site->argList) {
       size_t paramIndex = cc->paramAssignments[argIndex++];
-      auto paramType = const_cast<Type*>(st.transform(cc->paramTypes[paramIndex]));
+      auto paramType = st.transform(cc->paramTypes[paramIndex]);
       if (cc->isVariadic && paramIndex == cc->paramTypes.size() - 1) {
         arg = coerceExpr(arg, paramType);
         varArgList.push_back(arg);
@@ -1484,7 +1485,7 @@ namespace tempest::sema::pass {
       // TODO: This needs to be an array or slice type
       MultiOp* restArgs = new (*_alloc) MultiOp(
           Expr::Kind::REST_ARGS, callExpr->location, _alloc->copyOf(varArgList),
-          const_cast<Type*>(cc->paramTypes.back()));
+          cc->paramTypes.back());
       argList[cc->paramTypes.size() - 1] = restArgs;
     }
 
@@ -1504,7 +1505,7 @@ namespace tempest::sema::pass {
 
   // Coerce types
 
-  Expr* ResolveTypesPass::coerceExpr(Expr* e, Type* dstType) {
+  Expr* ResolveTypesPass::coerceExpr(Expr* e, const Type* dstType) {
     if (e == nullptr) {
       return e;
     }
@@ -1598,7 +1599,7 @@ namespace tempest::sema::pass {
 
         if (auto fd = dyn_cast<FunctionDefn>(method)) {
           ApplySpecialization transform(typeArgs);
-          dref->type = const_cast<Type*>(transform.transform(fd->type()));
+          dref->type = transform.transform(fd->type());
         } else {
           assert(false && "Invalid function ref");
         }
@@ -1663,7 +1664,7 @@ namespace tempest::sema::pass {
       case Expr::Kind::RETURN: {
         auto ret = static_cast<UnaryOp*>(e);
         if (ret->arg && _subject) {
-          ret->arg = coerceExpr(ret->arg, const_cast<Type*>(_functionReturnType));
+          ret->arg = coerceExpr(ret->arg, _functionReturnType);
         }
         ret->type = &Type::NO_RETURN; // Flow of control does not continue.
         return ret;
@@ -1729,62 +1730,52 @@ namespace tempest::sema::pass {
 
       case IntrinsicFn::ADD: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::ADD, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::ADD, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::SUBTRACT: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::SUBTRACT, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::SUBTRACT, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::MULTIPLY: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::MULTIPLY, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::MULTIPLY, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::DIVIDE: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::DIVIDE, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::DIVIDE, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::REMAINDER: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::REMAINDER, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::REMAINDER, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::LSHIFT: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::LSHIFT, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::LSHIFT, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::RSHIFT: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::RSHIFT, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::RSHIFT, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::BIT_AND: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::BIT_AND, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::BIT_AND, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::BIT_OR: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::BIT_OR, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::BIT_OR, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       case IntrinsicFn::BIT_XOR: {
         return new (*_alloc) BinaryOp(
-            Expr::Kind::BIT_XOR, call->location, call->args[0], call->args[1],
-            const_cast<Type*>(typeArgs[0]));
+            Expr::Kind::BIT_XOR, call->location, call->args[0], call->args[1], typeArgs[0]);
       }
 
       default:
@@ -1840,7 +1831,7 @@ namespace tempest::sema::pass {
     return mref->refs;
   }
 
-  Expr* ResolveTypesPass::addCastIfNeeded(Expr* expr, Type* ty) {
+  Expr* ResolveTypesPass::addCastIfNeeded(Expr* expr, const Type* ty) {
     if (expr == nullptr || ty == nullptr || Expr::isError(expr) || Type::isError(ty)) {
       return expr;
     }
@@ -1851,11 +1842,11 @@ namespace tempest::sema::pass {
   /** Given a set of alternative types, determine the smallest set of types that is assigable
       from all the input types. If it's a single type, return it, otherwise return a union of
       the results. */
-  Type* ResolveTypesPass::combineTypes(ArrayRef<Type*> types) {
-    SmallVector<Type*, 8> results;
+  const Type* ResolveTypesPass::combineTypes(ArrayRef<const Type*> types) {
+    SmallVector<const Type*, 8> results;
 
-    std::function<void(Type*)> addtype;
-    addtype = [&results, &addtype](Type* t) {
+    std::function<void(const Type*)> addtype;
+    addtype = [&results, &addtype](const Type* t) {
       // Don't include error types or types that don't yield a value.
       if (Type::isError(t) || t->kind == Type::Kind::NEVER) {
         return;
@@ -1863,10 +1854,10 @@ namespace tempest::sema::pass {
 
       if (auto ut = dyn_cast<UnionType>(t)) {
         for (auto el : ut->members) {
-          addtype(const_cast<Type*>(el));
+          addtype(el);
         }
       } else {
-        SmallVector<Type*, 8> preserved;
+        SmallVector<const Type*, 8> preserved;
         auto addNew = true;
         for (auto ot : results) {
           if (isAssignable(ot, t).rank > ConversionRank::INEXACT) {
@@ -1899,7 +1890,7 @@ namespace tempest::sema::pass {
     }
   }
 
-  Type* ResolveTypesPass::chooseIntegerType(Type* ty) {
+  const Type* ResolveTypesPass::chooseIntegerType(const Type* ty) {
     assert(ty);
     // if isinstance(expr, graph.Pack):
     //   assert isinstance(ty, graph.TupleType)
@@ -1911,7 +1902,7 @@ namespace tempest::sema::pass {
     if (ty->kind != Type::Kind::INTEGER) {
       return ty;
     }
-    auto intTy = static_cast<IntegerType*>(ty);
+    auto intTy = static_cast<const IntegerType*>(ty);
     if (intTy->isImplicitlySized()) {
       auto bits = intTy->isUnsigned() ? intTy->bits() - 1 : intTy->bits();
       if (intTy->isUnsigned()) {

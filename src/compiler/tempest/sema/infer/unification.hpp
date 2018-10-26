@@ -36,7 +36,7 @@ namespace tempest::sema::infer {
     }
 
     /** The type parameter that we are binding a result to. */
-    InferredType* param;
+    const InferredType* param;
 
     /** The value being bound to the type. */
     const Type* value;

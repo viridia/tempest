@@ -394,6 +394,8 @@ namespace tempest::sema::pass {
         diag.error(fd) << "Constructor functions cannot be declared as 'static'.";
       } else if (fd->isFinal()) {
         diag.error(fd) << "Static functions cannot be declared as 'final'.";
+      } else if (fd->isMutableSelf()) {
+        diag.error(fd) << "Static functions cannot be declared as mutable self.";
       }
     } else if (fd->isAbstract()) {
       if (fd->ast()->body) {
@@ -431,16 +433,23 @@ namespace tempest::sema::pass {
     }
 
     if (fd->isConstructor()) {
-      if (!enclosingType) {
+      if (fd->isMutableSelf()) {
+        diag.error(fd) << "Constructors are always mutable-self methods.";
+      } else if (!enclosingType) {
         diag.error(fd) << "Constructor function must be a member of a type.";
       } else if (fd->isSetter() || fd->isGetter()) {
         diag.error(fd) << "Constructor function can not also be a getter / setter.";
       } else if (enclosingKind == Type::Kind::EXTENSION) {
         diag.error(fd) << "A constructor may not be declared within a type extension.";
       }
+      fd->setMutableSelf(true);
     } else if (fd->isGetter() && !fd->ast()->returnType) {
       diag.error(fd) << "Getter method must declare a return type.";
     } else if (fd->isSetter()) {
+      if (fd->isMutableSelf()) {
+        diag.error(fd) << "Setters are always mutable-self methods.";
+      }
+      fd->setMutableSelf(true);
       if (fd->ast()->returnType) {
         diag.error(fd) << "Setter method may not declare a return type.";
       } else if (fd->params().empty()) {
@@ -469,18 +478,17 @@ namespace tempest::sema::pass {
     //     self.errorAt(func,
     //         "Static function '(0)' cannot declare a 'self' parameter.", func.getName())
     //     funcType.clearSelfType()
-    // else:
-    //   if not func.hasSelfType():
-    //     enc = defns.getEnclosingTypeDefn(func)
-    //     assert enc, debug.format(func)
-    //     func.setSelfType(enc.getType())
 
     // if func.getName() == 'new' and not func.isStatic():
     //   assert func.hasSelfType()
 
     if (!fd->selfType() && enclosingType) {
       assert(enclosingType->type());
-      fd->setSelfType(enclosingType->type());
+      const Type* selfType = enclosingType->type();
+      if (!fd->isMutableSelf()) {
+        selfType = _cu.types().createModifiedType(selfType, ModifiedType::IMMUTABLE);
+      }
+      fd->setSelfType(selfType);
     }
 
     SmallVector<const Type*, 8> paramTypes;

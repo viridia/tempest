@@ -588,8 +588,8 @@ namespace tempest::sema::graph {
     SymbolTable* paramScope() const { return _paramScope.get(); }
 
     /** The function body. nullptr if no body has been declared. */
-    Type* selfType() const { return _selfType; }
-    void setSelfType(Type* t) { _selfType = t; }
+    const Type* selfType() const { return _selfType; }
+    void setSelfType(const Type* t) { _selfType = t; }
 
     /** The type of the 'self' parameter. */
     Expr* body() const { return _body; }
@@ -615,6 +615,10 @@ namespace tempest::sema::graph {
     bool isVariadic() const { return _variadic; }
     void setVariadic(bool variadic) { _variadic = variadic; }
 
+    /** True if the self parameter is mutable. */
+    bool isMutableSelf() const { return _mutableSelf; }
+    void setMutableSelf(bool value) { _mutableSelf = value; }
+
     /** True if this is a default constructor synthesized by the compiler. */
     bool isDefault() const { return _default; }
     void setDefault(bool def) { _default = def; }
@@ -638,12 +642,13 @@ namespace tempest::sema::graph {
     std::unique_ptr<SymbolTable> _paramScope;
     DefnList _localDefns;
     IntrinsicFn _intrinsic;
-    Type* _selfType;
+    const Type* _selfType;
     Expr* _body;
     bool _constructor;
     bool _requirement;
     bool _native;
     bool _variadic;
+    bool _mutableSelf;
     bool _default;
     size_t _methodIndex;
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.

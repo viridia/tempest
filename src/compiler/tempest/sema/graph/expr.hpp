@@ -246,6 +246,9 @@ namespace tempest::sema::graph {
     /** Stem expression */
     Expr* stem = nullptr;
 
+    /** Type arguments for the member definition. */
+    ArrayRef<const Type*> typeArgs;
+
     DefnRef(Expr::Kind kind, Location location): Expr(kind, location) {}
     DefnRef(Expr::Kind kind, Location location, Member* defn, Expr* stem = nullptr,
         const Type* type = nullptr)

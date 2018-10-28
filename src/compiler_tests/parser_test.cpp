@@ -136,11 +136,13 @@ TEST_CASE("Parser", "[parse]") {
       parseMemberDeclaration(alloc,
         "class X {\n"
         "  a() {}\n"
+        "  b!() {}\n"
         "}\n"
       ),
       ASTEQ(
         "(#CLASS_DEFN X\n"
-        "  (#FUNCTION a (#BLOCK)))\n"
+        "  (#FUNCTION a (#BLOCK))\n"
+        "  (#FUNCTION b (#BLOCK)))\n"
       ));
 
     // Member functions vs getters and setters

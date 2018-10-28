@@ -155,6 +155,7 @@ namespace tempest::ast {
     bool native = false;
     bool getter = false;
     bool setter = false;
+    bool mutableSelf = false;
     bool variadic = false;
     const Node* selfType = nullptr;
 

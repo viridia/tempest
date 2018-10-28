@@ -87,7 +87,7 @@ namespace tempest::sema::transform {
         auto returnType = transform(ft->returnType);
         if (transformArray(paramTypes, ft->paramTypes) || returnType != ft->returnType) {
           return new (_alloc) FunctionType(
-            returnType, _alloc.copyOf(paramTypes), ft->constSelf, ft->isVariadic);
+            returnType, _alloc.copyOf(paramTypes), ft->isMutableSelf, ft->isVariadic);
         }
         return ft;
       }

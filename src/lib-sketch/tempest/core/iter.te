@@ -1,0 +1,7 @@
+// fn find[T](iter: Iterable[T], pred: T -> bool) -> Optional[T] {
+//   for (const el in iter) {
+//     if (pred(el)) {
+//       return el;
+//     }
+//   }
+// }

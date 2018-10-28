@@ -52,10 +52,10 @@ namespace tempest::intrinsic {
     std::unique_ptr<TypeDefn> objectClass;
     std::unique_ptr<TypeDefn> throwableClass;
     std::unique_ptr<TypeDefn> flexAllocClass;
-    // std::unique_ptr<TypeDefn*> classDescriptorStruct;
-    // std::unique_ptr<TypeDefn*> interfaceDescriptorStruct;
-    // std::unique_ptr<TypeDefn*> iterableTrait;
-    // std::unique_ptr<TypeDefn*> iteratorTrait;
+    // std::unique_ptr<TypeDefn> classDescriptorStruct;
+    // std::unique_ptr<TypeDefn> interfaceDescriptorStruct;
+    std::unique_ptr<TypeDefn> iterableInterface;
+    std::unique_ptr<TypeDefn> iteratorInterface;
 
     PrimitiveOperators intOps;
     PrimitiveOperators uintOps;

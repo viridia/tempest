@@ -17,18 +17,18 @@ struct Slice[T] implements Iterable[T] {
       This is marked as unsafe because `offset` and `size` need to be within the bounds of the
       memory allocated for `base`.
   */
-  unsafe fn new(base:Object, offset: uint; size: int) {
+  unsafe fn new(base: Object, offset: uint; size: int) {
     self = { base, offset, size };
   }
 
   /** Return the value of the element whose position corresponds to `index`. */
-  __intrinsic__ get (index: int): T;
+  get (index: int): T => __slice_get(self, index);
 
   /** Set the value of the element whose position corresponds to `index`. */
-  __intrinsic__ set (index: int, value: T);
+  set (index: int, value): T { __slice_set(self, index, value); };
 
   /** True if this is an empty slice. */
-  get empty: bool => .size == 0;
+  get empty: bool => size == 0;
 
   /** Return a subslice.
       @param start Defaults to zero, will be clamped between 0 and the size of this slice.
@@ -53,7 +53,7 @@ struct SliceIterator[T] implements Iterator[T] {
 
   fn! next(): Optional[T] {
     if index < slice.count {
-      slice[index++];
+      slice(index++);
     }
   }
 }

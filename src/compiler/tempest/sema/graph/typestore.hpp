@@ -96,10 +96,11 @@ namespace tempest::sema::graph {
     FunctionType* createFunctionType(
         const Type* returnType,
         const TypeArray& paramTypes,
+        bool isMutableSelf = false,
         bool isVariadic = false);
 
     /** Create a const type. */
-    ModifiedType* createModifiedType(const Type* base, uint32_t modifiers);
+    const ModifiedType* createModifiedType(const Type* base, uint32_t modifiers);
 
   private:
     typedef std::pair<const Type*, uint32_t> ModifiedKey;
@@ -137,7 +138,7 @@ namespace tempest::sema::graph {
     std::unordered_map<IntKey, IntegerType*, IntKeyHash, IntKeyEqual> _intTypes;
     std::unordered_map<TypeKey, UnionType*, TypeKeyHash> _unionTypes;
     std::unordered_map<TypeKey, TupleType*, TypeKeyHash> _tupleTypes;
-    std::unordered_map<TypeKey, FunctionType*, TypeKeyHash> _functionTypes;
+    std::unordered_map<FunctionTypeKey, FunctionType*, FunctionTypeKeyHash> _functionTypes;
     std::unordered_map<ModifiedKey, ModifiedType*, ModifiedKeyHash> _modifiedTypes;
     std::unordered_map<SingletonKey, SingletonType*, SingletonKeyHash> _singletonTypes;
     std::unordered_map<SpecializedDefn*, SpecializedType*> _specializdTypes;

@@ -131,6 +131,7 @@ namespace tempest::sema::pass {
     Expr* addCastIfNeeded(Expr* expr, const Type* ty);
     const Type* combineTypes(llvm::ArrayRef<const Type*> types);
     const Type* chooseIntegerType(const Type* ty);
+    void ensureMutableLValue(Expr* expr);
     Expr* replaceIntrinsic(ApplyFnOp* expr);
 
     GenericDefn* setSubject(GenericDefn* subject) {

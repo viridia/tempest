@@ -600,9 +600,7 @@ namespace tempest::parse {
           readCh();
           return TOKEN_NE;
         }
-        _tokenValue.push_back(_ch);
-        _errorCode = ILLEGAL_CHAR;
-        return TOKEN_ERROR;
+        return TOKEN_EXCLAM;
 
       case '{':
         readCh();

@@ -289,7 +289,7 @@ namespace tempest::sema::convert {
         auto lFunc = static_cast<const FunctionType*>(l);
         auto rFunc = static_cast<const FunctionType*>(r);
         // A function with const self is narrower.
-        if (!lFunc->constSelf && rFunc->constSelf) {
+        if (lFunc->isMutableSelf && !rFunc->isMutableSelf) {
           return false;
         }
         assert(lFunc->returnType);

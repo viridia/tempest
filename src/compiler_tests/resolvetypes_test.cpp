@@ -868,4 +868,17 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(vd->type(), TypeEQ("i32"));
     REQUIRE_THAT(vd->init(), ExprEQ("x.f()"));
   }
+
+  SECTION("Immutable self") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "class X {\n"
+          "  x: int;\n"
+          "  f() {\n"
+          "    x = 0;\n"
+          "  }\n"
+          "}\n"
+      ),
+      Catch::Contains("Mutation of enclosing type not allowed here"));
+  }
 }

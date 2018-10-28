@@ -151,17 +151,19 @@ namespace tempest::sema::graph {
     const llvm::ArrayRef<const Type*> paramTypes;
 
     /** True if this function cannot modify its context. */
-    const bool constSelf;
+    const bool isMutableSelf;
 
     /** True if the last parameter of this function is variadic. */
     const bool isVariadic;
 
     FunctionType(
-        const Type* returnType, const TypeArray& paramTypes, bool isConstSelf, bool isVariadic)
+        const Type* returnType,
+        const TypeArray& paramTypes,
+        bool isMutableSelf, bool isVariadic)
       : Type(Kind::FUNCTION)
       , returnType(returnType)
       , paramTypes(paramTypes.begin(), paramTypes.end())
-      , constSelf(isConstSelf)
+      , isMutableSelf(isMutableSelf)
       , isVariadic(isVariadic)
     {}
 

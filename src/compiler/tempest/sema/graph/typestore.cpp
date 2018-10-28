@@ -113,7 +113,14 @@ namespace tempest::sema::graph {
     return tt;
   }
 
-  ModifiedType* TypeStore::createModifiedType(const Type* base, uint32_t modifiers) {
+  const ModifiedType* TypeStore::createModifiedType(const Type* base, uint32_t modifiers) {
+    if (auto mt = dyn_cast<ModifiedType>(base)) {
+      if (mt->modifiers == modifiers) {
+        return mt;
+      }
+      base = mt->base;
+    }
+
     auto key = std::pair<const Type*, uint32_t>(base, modifiers);
     auto it = _modifiedTypes.find(key);
     if (it != _modifiedTypes.end()) {
@@ -140,20 +147,22 @@ namespace tempest::sema::graph {
   FunctionType* TypeStore::createFunctionType(
       const Type* returnType,
       const TypeArray& paramTypes,
-      bool isVariadic) {
+      bool isVariadic,
+      bool isMutableSelf) {
     llvm::SmallVector<const Type*, 8> signature;
     signature.reserve(paramTypes.size() + 1);
     signature.push_back(returnType);
     signature.insert(signature.end(), paramTypes.begin(), paramTypes.end());
-    TypeKey key = TypeKey(signature);
+    auto key = FunctionTypeKey(signature, isMutableSelf, isVariadic);
     auto it = _functionTypes.find(key);
     if (it != _functionTypes.end()) {
       return it->second;
     }
     auto paramTypesCopy = _alloc.copyOf(paramTypes);
     auto signatureCopy = _alloc.copyOf(signature);
-    auto ft = new (_alloc) FunctionType(returnType, paramTypesCopy, false, isVariadic);
-    _functionTypes[TypeKey(signatureCopy)] = ft;
+    auto ft = new (_alloc) FunctionType(
+        returnType, paramTypesCopy, isMutableSelf, isVariadic);
+    _functionTypes[FunctionTypeKey(signatureCopy, isMutableSelf, isVariadic)] = ft;
     return ft;
   }
 

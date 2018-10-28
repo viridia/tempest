@@ -69,6 +69,60 @@ namespace tempest::sema::graph {
       return seed;
     }
   };
+
+  struct FunctionTypeKey {
+    TypeKey params;
+    bool isMutableSelf;
+    bool isVariadic;
+
+    FunctionTypeKey() {}
+    FunctionTypeKey(const TypeArray& members, bool isMutableSelf, bool isVariadic)
+      : params(members), isMutableSelf(isMutableSelf), isVariadic(isVariadic) {}
+    FunctionTypeKey(const FunctionTypeKey& key)
+      : params(key.params), isMutableSelf(key.isMutableSelf), isVariadic(key.isVariadic) {}
+
+    /** Assignment operator. */
+    FunctionTypeKey& operator=(const FunctionTypeKey& key) {
+      params = key.params;
+      isMutableSelf = key.isMutableSelf;
+      isVariadic = key.isVariadic;
+      return *this;
+    }
+
+    FunctionTypeKey& operator=(FunctionTypeKey&& key) {
+      params = std::move(key.params);
+      isMutableSelf = key.isMutableSelf;
+      isVariadic = key.isVariadic;
+      return *this;
+    }
+
+    /** Equality comparison. */
+    friend bool operator==(const FunctionTypeKey& lhs, const FunctionTypeKey& rhs) {
+      return lhs.params == rhs.params
+          && lhs.isMutableSelf == rhs.isMutableSelf
+          && lhs.isVariadic == rhs.isVariadic;
+    }
+
+    /** Inequality comparison. */
+    friend bool operator!=(const FunctionTypeKey& lhs, const FunctionTypeKey& rhs) {
+      return lhs.params != rhs.params
+          || lhs.isMutableSelf != rhs.isMutableSelf
+          || lhs.isVariadic != rhs.isVariadic;
+    }
+  };
+
+  struct FunctionTypeKeyHash {
+    inline std::size_t operator()(const FunctionTypeKey& value) const {
+      std::size_t seed = 0;
+      for (auto member : value.params) {
+        hash_combine(seed, std::hash<const Type*>()(member));
+      }
+      hash_combine(seed, std::hash<bool>()(value.isMutableSelf));
+      hash_combine(seed, std::hash<bool>()(value.isVariadic));
+      return seed;
+    }
+  };
+
 }
 
 #endif

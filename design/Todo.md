@@ -1,7 +1,6 @@
 # TODOs
 
 * Experiment: We don't actually need Env.
-* Experiment: What would happen if we made Expr.type const?
 * Break out visitors into separate files.
 * Implement const members
 * Implement Slice and Iterable

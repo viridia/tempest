@@ -674,41 +674,14 @@ namespace tempest::parse {
       // actually a variable declaration, not a method.
       if (isMember && (_token == TOKEN_COLON || _token == TOKEN_ASSIGN) && !isGetter && !isSetter) {
         return fieldDef(Node::Kind::MEMBER_VAR, name);
-        // ast::ValueDefn* val = new (_alloc) ast::ValueDefn(, loc, name);
-        // // TODO: Consolidate this with varDecl.
-        // if (match(TOKEN_COLON)) {
-        //   if (match(TOKEN_ELLIPSIS)) {
-        //     assert(false && "Implement pre-ellipsis");
-        //   }
-        //   auto valType = typeExpression();
-        //   if (valType == nullptr) {
-        //     skipUntil({TOKEN_SEMI});
-        //   } else {
-        //     val->type = valType;
-        //   }
-        // }
-
-        // // Initializer
-        // if (match(TOKEN_ASSIGN)) {
-        //   auto init = exprList();
-        //   if (init != nullptr) {
-        //     val->init = init;
-        //   }
-        // }
-
-        // if (!match(TOKEN_SEMI)) {
-        //   diag.error(location()) << "Semicolon expected.";
-        //   skipUntil({TOKEN_SEMI});
-        //   next();
-        // }
-
-        // return val;
       }
     } else {
       if (isGetter || isSetter) {
         diag.error(location()) << "Missing name for getter / setter.";
       }
     }
+
+    bool isMutableSelf = match(TOKEN_EXCLAM);
 
     // Template parameters
     NodeListBuilder templateParams(_alloc);
@@ -765,6 +738,7 @@ namespace tempest::parse {
       fn->setter = isSetter;
       fn->returnType = returnType;
       fn->constructor = name == "new";
+      fn->mutableSelf = isMutableSelf;
       for (auto p : fn->params) {
         if (static_cast<const ast::Parameter*>(p)->variadic) {
           fn->variadic = true;
@@ -980,6 +954,11 @@ namespace tempest::parse {
         if (param) {
           // Parameter type
           param->keywordOnly = keywordOnly;
+
+          // if (match(TOKEN_EXCLAM)) {
+          //   param->isMutable = true;
+          // }
+
           if (match(TOKEN_COLON)) {
             if (match(TOKEN_REF)) {
               diag.debug(location()) << "here";

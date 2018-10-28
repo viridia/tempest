@@ -452,7 +452,7 @@ namespace tempest::sema::convert {
       if (src->kind == Type::Kind::FUNCTION) {
         auto dstFunc = static_cast<const FunctionType*>(dst);
         auto srcFunc = static_cast<const FunctionType*>(src);
-        if (dstFunc->constSelf && !srcFunc->constSelf) {
+        if (!dstFunc->isMutableSelf && srcFunc->isMutableSelf) {
           return ConversionResult(ConversionRank::ERROR, ConversionError::QUALIFIER_LOSS);
         }
         if (dstFunc->isVariadic != srcFunc->isVariadic) {

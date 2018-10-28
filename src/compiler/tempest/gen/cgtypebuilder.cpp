@@ -32,6 +32,11 @@ namespace tempest::gen {
             : llvm::Type::getDoubleTy(_context);
       }
 
+      case Type::Kind::MODIFIED: {
+        auto modTy = static_cast<const ModifiedType*>(ty);
+        return get(modTy->base, typeArgs);
+      }
+
       case Type::Kind::TUPLE: {
         auto tupleTy = static_cast<const TupleType*>(ty);
         llvm::SmallVector<llvm::Type*, 16> elts;

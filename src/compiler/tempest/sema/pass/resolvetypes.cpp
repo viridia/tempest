@@ -387,6 +387,9 @@ namespace tempest::sema::pass {
       _scope = &fdScope;
 
       _selfType = fd->isStatic() ? nullptr : fd->selfType();
+      if (_selfType && !fd->isMutableSelf()) {
+        _selfType = _cu.types().createModifiedType(_selfType, ModifiedType::IMMUTABLE);
+      }
       _functionReturnType = fd->type() ? fd->type()->returnType : nullptr;
       if (fd->isConstructor() && !fd->isStatic()) {
         _functionReturnType = &VoidType::VOID;
@@ -730,7 +733,11 @@ namespace tempest::sema::pass {
           diag.error(expr) << "Can't call 'super' from a static method.";
           return &Type::ERROR;
         }
-        auto baseClsDef = cast<UserDefinedType>(_selfType)->defn();
+        auto selfType = _selfType;
+        if (auto mt = dyn_cast<ModifiedType>(selfType)) {
+          selfType = mt->base;
+        }
+        auto baseClsDef = cast<UserDefinedType>(selfType)->defn();
         MemberNameLookup lookup(_cu.spec());
         MemberLookupResult lookupResult;
         lookup.lookup(subjectFn->name(), baseClsDef, lookupResult,
@@ -1520,6 +1527,9 @@ namespace tempest::sema::pass {
         return e;
 
       case Expr::Kind::SELF:
+        e->type = _selfType;
+        return addCastIfNeeded(e, dstType);
+
       case Expr::Kind::SUPER:
       case Expr::Kind::ALLOC_OBJ:
         assert(e->type);
@@ -1697,6 +1707,7 @@ namespace tempest::sema::pass {
       case Expr::Kind::ASSIGN: {
         auto op = static_cast<BinaryOp*>(e);
         coerceExpr(op->args[0], nullptr);
+        ensureMutableLValue(op->args[0]);
         op->args[1] = coerceExpr(op->args[1], op->args[0]->type);
         op->type = &Type::NOT_EXPR;
         return op;
@@ -1887,6 +1898,29 @@ namespace tempest::sema::pass {
       return results.front();
     } else {
       return _cu.types().createUnionType(results);
+    }
+  }
+
+  void ResolveTypesPass::ensureMutableLValue(Expr* expr) {
+    if (auto dref = dyn_cast<DefnRef>(expr)) {
+      auto member = unwrapSpecialization(dref->defn);
+      if (auto vd = dyn_cast<ValueDefn>(member)) {
+        if (vd->isConstant()) {
+          diag.error(expr) << "Assignment to constant: " << vd->name();
+        } else if (vd->isMember() && !vd->isStatic()) {
+          if (dref->stem) {
+            if (auto mt = dyn_cast<ModifiedType>(dref->stem->type)) {
+              if (mt->modifiers & ModifiedType::IMMUTABLE) {
+                if (dref->stem->kind == Expr::Kind::SELF) {
+                  diag.error(expr) << "Mutation of enclosing type not allowed here.";
+                } else {
+                  diag.error(expr) << "Assignment to member of immutable type: " << mt->base;
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 

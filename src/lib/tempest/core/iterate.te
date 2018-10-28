@@ -1,0 +1,11 @@
+/** Used to traverse a sequence of elements that can be accessed in order. */
+export interface Iterator[T] {
+  /** Return the next element in the sequence, or 'void' to indicate the end of the sequence. */
+  next! -> T | void;
+}
+
+/** Represents a sequence or collection which can be accessed in order. */
+export interface Iterable[T] {
+  /** Return an iterator object for this collection. */
+  iterate -> Iterator[T];
+}

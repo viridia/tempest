@@ -69,55 +69,53 @@ namespace tempest::sema::pass {
         case Expr::Kind::FUNCTION_REF:
         case Expr::Kind::TYPE_REF: {
           auto dref = static_cast<DefnRef*>(e);
+          auto stem = transform(dref->stem);
+          auto type = transformType(dref->type);
+          ArrayRef<const Type*> typeArgs;
+          Defn* defn;
+
+          // Translate type arguments through _env.
           if (dref->defn->kind == Member::Kind::SPECIALIZED) {
             auto sp = static_cast<SpecializedDefn*>(dref->defn);
-            auto generic = cast<GenericDefn>(sp->generic());
-            auto stem = transform(dref->stem);
-            auto type = transformType(dref->type);
+            defn = cast<GenericDefn>(sp->generic());
             MapEnvTransform transform(_cu.types(), _cu.spec(), _env.params, _env.args);
-            auto typeArgs = transform.transformArray(sp->typeArgs());
+            typeArgs = transform.transformArray(sp->typeArgs());
             for (auto ta : typeArgs) {
               assert(ta->kind != Type::Kind::TYPE_VAR);
               assert(ta->kind != Type::Kind::INFERRED);
             }
-            // Make a new specialization with concrete type arguments, and add it to the list
-            // of reachable specializations in the compilation unit.
-            if (auto fd = dyn_cast<FunctionDefn>(generic)) {
-              if (isDirectlyCallable(fd)) {
-                auto sym = _cu.symbols().addFunction(fd, typeArgs);
-                assert(sym->kind == OutputSym::Kind::FUNCTION);
-                return new (_cu.types().alloc()) SymbolRefExpr(
-                    Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type, stem);
-              } else {
-                // It's a virtual method call or an intrinsic.
-              }
-            } else if (auto td = dyn_cast<TypeDefn>(generic)) {
-              if (td->type()->kind == Type::Kind::CLASS) {
-                _cu.symbols().addClass(td, typeArgs);
-              } else if (td->type()->kind == Type::Kind::INTERFACE) {
-                _cu.symbols().addInterface(td, typeArgs);
-              }
+          } else {
+            defn = cast<Defn>(dref->defn);
+          }
+
+          // If it's a static or global function, turn it into a symbol reference.
+          if (auto fd = dyn_cast<FunctionDefn>(defn)) {
+            if (isDirectlyCallable(fd)) {
+              auto sym = _cu.symbols().addFunction(fd, typeArgs);
+              assert(sym->kind == OutputSym::Kind::FUNCTION);
+              return new (_cu.types().alloc()) SymbolRefExpr(
+                  Expr::Kind::GLOBAL_REF, dref->location, sym, type, stem);
+            } else {
+              // It's a virtual method call or an intrinsic.
             }
-            auto newSp = _cu.spec().specialize(generic, typeArgs);
-            if (newSp != sp || stem != dref->stem || type != dref->type) {
+          } else if (auto td = dyn_cast<TypeDefn>(defn)) {
+            if (td->type()->kind == Type::Kind::CLASS) {
+              _cu.symbols().addClass(td, typeArgs);
+            } else if (td->type()->kind == Type::Kind::INTERFACE) {
+              _cu.symbols().addInterface(td, typeArgs);
+            }
+          }
+
+          // Create a new specialization with the transformed type arguments.
+          if (!typeArgs.empty()) {
+            auto newSp = _cu.spec().specialize(defn, typeArgs);
+            if (newSp != dref->defn || stem != dref->stem || type != dref->type) {
               return new (alloc()) DefnRef(dref->kind, dref->location, newSp, stem, type);
             }
-            return dref;
-          } else if (auto fd = dyn_cast<FunctionDefn>(dref->defn)) {
-            auto stem = transform(dref->stem);
-            auto type = transformType(dref->type);
-            if (isDirectlyCallable(fd)) {
-              assert(fd->allTypeParams().empty());
-              auto sym = _cu.symbols().addFunction(fd, {});
-              return new (_cu.types().alloc()) SymbolRefExpr(
-                  Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type, stem);
-            }
-            if (stem != dref->stem || type != dref->type) {
-              return new (alloc()) DefnRef(dref->kind, dref->location, fd, stem, type);
-            }
-            return dref;
           }
-          return transform::ExprTransform::transform(e);
+
+          // Return the expression unchanged.
+          return dref;
         }
 
         case Expr::Kind::VAR_REF: {

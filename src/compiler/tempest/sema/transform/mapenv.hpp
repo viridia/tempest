@@ -23,18 +23,22 @@ namespace tempest::sema::transform {
     MapEnvTransform(
         tempest::sema::graph::TypeStore& types,
         tempest::sema::graph::SpecializationStore& specs,
-        Env& env)
+        llvm::ArrayRef<TypeParameter*> params,
+        ArrayRef<const Type*> typeArgs)
       : UniqueTypeTransform(types, specs)
-      , _env(env)
+      , _params(params)
+      , _typeArgs(typeArgs)
     {}
 
     const Type* transformTypeVar(const TypeVar* in) {
-      assert(_env.has(in));
-      return _env.get(in);
+      assert(std::find(_params.begin(), _params.end(), in->param) != _params.end());
+      auto index = in->param->index();
+      return _typeArgs[index];
     }
 
   private:
-    Env& _env;
+    llvm::ArrayRef<TypeParameter*> _params;
+    ArrayRef<const Type*> _typeArgs;
   };
 }
 

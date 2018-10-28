@@ -48,6 +48,7 @@ namespace tempest::sema::transform {
     virtual const Type* transformInferredType(const infer::InferredType* in) { return in; }
 
     bool transformArray(llvm::SmallVectorImpl<const Type*>& out, const TypeArray& in);
+    const TypeArray transformArray(const TypeArray& in);
 
   private:
     tempest::support::BumpPtrAllocator& _alloc;
@@ -69,6 +70,7 @@ namespace tempest::sema::transform {
     virtual const Type* transformTypeVar(const TypeVar* in) { return in; }
 
     bool transformArray(llvm::SmallVectorImpl<const Type*>& out, const TypeArray& in);
+    const TypeArray transformArray(const TypeArray& in);
 
   private:
     tempest::sema::graph::TypeStore& _types;

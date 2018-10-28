@@ -74,11 +74,9 @@ namespace tempest::sema::pass {
             auto generic = cast<GenericDefn>(sp->generic());
             auto stem = transform(dref->stem);
             auto type = transformType(dref->type);
-            Env newEnv;
-            newEnv.params = generic->allTypeParams();
-            MapEnvTransform transform(_cu.types(), _cu.spec(), _env);
-            transform.transformArray(newEnv.args, sp->typeArgs());
-            for (auto ta : newEnv.args) {
+            MapEnvTransform transform(_cu.types(), _cu.spec(), _env.params, _env.args);
+            auto typeArgs = transform.transformArray(sp->typeArgs());
+            for (auto ta : typeArgs) {
               assert(ta->kind != Type::Kind::TYPE_VAR);
               assert(ta->kind != Type::Kind::INFERRED);
             }
@@ -86,7 +84,7 @@ namespace tempest::sema::pass {
             // of reachable specializations in the compilation unit.
             if (auto fd = dyn_cast<FunctionDefn>(generic)) {
               if (isDirectlyCallable(fd)) {
-                auto sym = _cu.symbols().addFunction(fd, newEnv.args);
+                auto sym = _cu.symbols().addFunction(fd, typeArgs);
                 assert(sym->kind == OutputSym::Kind::FUNCTION);
                 return new (_cu.types().alloc()) SymbolRefExpr(
                     Expr::Kind::GLOBAL_REF, dref->location, sym, dref->type, stem);
@@ -95,12 +93,12 @@ namespace tempest::sema::pass {
               }
             } else if (auto td = dyn_cast<TypeDefn>(generic)) {
               if (td->type()->kind == Type::Kind::CLASS) {
-                _cu.symbols().addClass(td, newEnv.args);
+                _cu.symbols().addClass(td, typeArgs);
               } else if (td->type()->kind == Type::Kind::INTERFACE) {
-                _cu.symbols().addInterface(td, newEnv.args);
+                _cu.symbols().addInterface(td, typeArgs);
               }
             }
-            auto newSp = _cu.spec().specialize(generic, newEnv.args);
+            auto newSp = _cu.spec().specialize(generic, typeArgs);
             if (newSp != sp || stem != dref->stem || type != dref->type) {
               return new (alloc()) DefnRef(dref->kind, dref->location, newSp, stem, type);
             }

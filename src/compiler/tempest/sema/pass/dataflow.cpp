@@ -148,8 +148,8 @@ namespace tempest::sema::pass {
 
         if (!findSuper.superCall) {
           assert(td->extends().size() == 1);
-          Env baseEnv;
-          auto baseCls = baseEnv.unwrap(td->extends()[0]);
+          ArrayRef<const Type*> typeArgs;
+          auto baseCls = unwrapSpecialization(td->extends()[0], typeArgs);
           MemberLookupResult ctors;
           cast<TypeDefn>(baseCls)->memberScope()->lookup("new", ctors, nullptr);
           FunctionDefn* defaultCtor = nullptr;
@@ -172,8 +172,8 @@ namespace tempest::sema::pass {
             } else {
               // Inset automatically-generated superclass contructor call.
               Member* ctor = defaultCtor;
-              if (baseEnv.args.size() > 0) {
-                ctor = _cu.spec().specialize(defaultCtor, baseEnv.args);
+              if (typeArgs.size() > 0) {
+                ctor = _cu.spec().specialize(defaultCtor, typeArgs);
               }
               // TODO: Probably need to upcast self.
               auto dref = new (*_alloc) DefnRef(

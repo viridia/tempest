@@ -65,7 +65,7 @@ namespace tempest::sema::names {
         } else if (vars.size() > 1) {
           diag.error(loc) << "Reference to '" << m->name() << "' is ambiguous.";
         } else {
-          return new (alloc) DefnRef(Expr::Kind::VAR_REF, loc, result[0].member,
+          return new (alloc) DefnRef(Expr::Kind::VAR_REF, loc, m,
             stem ? stem : result[0].stem);
         }
       } else if (types.size() > 0) {

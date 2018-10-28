@@ -278,7 +278,7 @@ namespace tempest::sema::pass {
           Env baseEnv;
           auto baseCtor = baseEnv.unwrap(ctorResult.member);
 
-          MapEnvTransform transform(_cu.types(), _cu.spec(), baseEnv);
+          MapEnvTransform transform(_cu.types(), _cu.spec(), baseEnv.params, baseEnv.args);
           auto baseFn = cast<FunctionDefn>(baseCtor);
           llvm::SmallVector<const Type*, 8> paramTypes;
           llvm::SmallVector<Expr*, 8> superParams;
@@ -290,7 +290,7 @@ namespace tempest::sema::pass {
             defaultCtor->paramScope()->addMember(np);
             paramTypes.push_back(paramType);
             superParams.push_back(
-              new (_alloc) DefnRef(Expr::Kind::VAR_REF, td->location(), np, nullptr));
+                new (_alloc) DefnRef(Expr::Kind::VAR_REF, td->location(), np, nullptr));
           }
           defaultCtor->setType(_cu.types().createFunctionType(&VoidType::VOID, paramTypes, false));
           td->members().insert(td->members().begin(), defaultCtor);

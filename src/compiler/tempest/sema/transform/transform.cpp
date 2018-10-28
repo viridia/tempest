@@ -140,6 +140,19 @@ namespace tempest::sema::transform {
     return changed;
   }
 
+  const TypeArray TypeTransform::transformArray(const TypeArray& in) {
+    SmallVector<const Type*, 4> result;
+    bool changed = false;
+    for (auto ty : in) {
+      auto tty = transform(ty);
+      result.push_back(tty);
+      if (tty != ty) {
+        changed = true;
+      }
+    }
+    return changed ? _alloc.copyOf(result) : in;
+  }
+
   const Type* UniqueTypeTransform::transform(const Type* ty) {
     if (ty == nullptr) {
       return nullptr;
@@ -238,6 +251,19 @@ namespace tempest::sema::transform {
       }
     }
     return changed;
+  }
+
+  const TypeArray UniqueTypeTransform::transformArray(const TypeArray& in) {
+    SmallVector<const Type*, 4> result;
+    bool changed = false;
+    for (auto ty : in) {
+      auto tty = transform(ty);
+      result.push_back(tty);
+      if (tty != ty) {
+        changed = true;
+      }
+    }
+    return changed ? _specs.alloc().copyOf(result) : in;
   }
 
   Expr* ExprTransform::transform(Expr* expr) {

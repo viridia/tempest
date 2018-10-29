@@ -23,7 +23,7 @@ namespace tempest::sema::pass {
   void LoadImportsPass::process(Module* mod) {
     // diag.info() << "Resolving imports: " << mod->name();
     auto modAst = static_cast<const ast::Module*>(mod->ast());
-    // TODO: Make sure we don't load a given module twice.
+    // TODO: Make sure we don't load a given module twice from the same module.
     // TODO: Check for circular imports.
     if (!modAst) {
       return;
@@ -41,7 +41,13 @@ namespace tempest::sema::pass {
       }
       if (importMod) {
         if (importMod->group() == sema::graph::ModuleGroup::IMPORT_SOURCE) {
-          _cu.importSourceModules().push_back(importMod);
+          auto it = std::find(
+              _cu.importSourceModules().begin(),
+              _cu.importSourceModules().end(),
+              importMod);
+          if (it == _cu.importSourceModules().end()) {
+            _cu.importSourceModules().push_back(importMod);
+          }
         }
       } else {
         diag.error(imp) << "Imported module not found: " << imp->path;

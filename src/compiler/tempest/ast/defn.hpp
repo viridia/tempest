@@ -68,6 +68,10 @@ namespace tempest::ast {
     bool isAbstract() const { return _abstract; }
     void setAbstract(bool value) { _abstract = value; }
 
+    /** Whether this definition has the 'export' modifier. */
+    bool isExport() const { return _export; }
+    void setExport(bool value) { _export = value; }
+
   private:
 
     bool _private;
@@ -77,6 +81,7 @@ namespace tempest::ast {
     bool _undef;
     bool _final;
     bool _abstract;
+    bool _export;
   };
 
   class TypeDefn : public Defn {

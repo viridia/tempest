@@ -91,6 +91,7 @@ namespace tempest::parse {
         } else {
           Defn* d = moduleLevelDeclaration();
           if (d) {
+            d->setExport(true);
             members.append(d);
             declDefined = true;
           }

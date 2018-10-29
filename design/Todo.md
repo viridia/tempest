@@ -1,6 +1,10 @@
 # TODOs
 
-* Experiment: We don't actually need Env.
+* Array and String
+  * Needs Slice
+    * Needs Iterator
+      * Needs Interfaces
+      * Needs unions
 * Break out visitors into separate files.
 * Implement const members
 * Implement Slice and Iterable

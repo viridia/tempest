@@ -1,3 +1,4 @@
 export { Array } from .array;
-export { String } from .string;
 export { Iterable, Iterator } from .iterate;
+export { Slice } from .slice;
+export { String } from .string;

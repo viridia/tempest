@@ -118,7 +118,7 @@ namespace tempest::import {
   }
 
 
-  void ImportMgr::addModule(Module * mod) {
+  void ImportMgr::addModule(Module* mod) {
     assert(_modules.find(mod->name()) == _modules.end());
     _modules[mod->name()] = mod;
   }

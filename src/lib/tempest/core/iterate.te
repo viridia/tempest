@@ -5,7 +5,7 @@ export interface Iterator[T] {
 }
 
 /** Represents a sequence or collection which can be accessed in order. */
-export interface Iterable[T] {
+export trait Iterable[T] {
   /** Return an iterator object for this collection. */
   iterate -> Iterator[T];
 }

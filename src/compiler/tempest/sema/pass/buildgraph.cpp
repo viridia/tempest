@@ -57,6 +57,10 @@ namespace tempest::sema::pass {
       memberList.push_back(d);
       memberScope->addMember(d);
 
+      if (ast->isExport() && parent->kind == Member::Kind::MODULE) {
+        static_cast<Module*>(parent)->exportScope()->addMember(d);
+      }
+
       if (node->kind == ast::Node::Kind::OBJECT_DEFN) {
         ValueDefn* singleton = new ValueDefn(
             Member::Kind::VAR_DEF, ast->location, ast->name, parent);

@@ -86,11 +86,10 @@ namespace tempest::sema::pass {
             asName = importName;
           }
 
-          ModuleScope impScope(nullptr, importMod);
           MemberLookupResult lookupResult;
-          impScope.lookup(importName, lookupResult);
+          importMod->exportScope()->lookup(importName, lookupResult, nullptr);
           if (lookupResult.empty()) {
-            diag.error(imp) << "Imported symbol '" << asName << "' not found in module.";
+            diag.error(imp) << "No exported symbol '" << asName << "' found in module.";
           } else if (imp->kind == ast::Node::Kind::EXPORT) {
             Location existing;
             if (mod->exportScope()->exists(asName, existing)) {
@@ -1136,6 +1135,12 @@ namespace tempest::sema::pass {
           return types[0];
         }
         diag.error() << "Type is ambigous, " << types.size() << " possible matches:";
+        for (auto& m : lookupResult) {
+          diag.info() << m.member;
+        }
+        // for (auto t : types) {
+        //   diag.info() << t;
+        // }
         assert(false && "Implement ambiguous types");
         break;
       }

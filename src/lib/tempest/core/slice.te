@@ -1,0 +1,9 @@
+import { Iterable } from .iterate;
+
+/** Standard built-in linear slice type.
+
+    Slice objects can be taken from arrays, strings, or other data structures which have
+    a contiguous, linear memory layout.
+*/
+export struct Slice[T] implements Iterable[T] {
+}

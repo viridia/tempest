@@ -1904,14 +1904,19 @@ namespace tempest::sema::pass {
   void ResolveTypesPass::ensureMutableLValue(Expr* expr) {
     if (auto dref = dyn_cast<DefnRef>(expr)) {
       auto member = unwrapSpecialization(dref->defn);
+      auto subjectFn = dyn_cast_or_null<FunctionDefn>(_subject);
+      auto isSelfMember = dref->stem && dref->stem->kind == Expr::Kind::SELF;
       if (auto vd = dyn_cast<ValueDefn>(member)) {
         if (vd->isConstant()) {
-          diag.error(expr) << "Assignment to constant: " << vd->name();
+          // Constructors are allowed to set constants within the class being constructed
+          if (!(subjectFn && subjectFn->isConstructor() && isSelfMember)) {
+            diag.error(expr) << "Assignment to constant: " << vd->name();
+          }
         } else if (vd->isMember() && !vd->isStatic()) {
           if (dref->stem) {
             if (auto mt = dyn_cast<ModifiedType>(dref->stem->type)) {
               if (mt->modifiers & ModifiedType::IMMUTABLE) {
-                if (dref->stem->kind == Expr::Kind::SELF) {
+                if (isSelfMember) {
                   diag.error(expr) << "Mutation of enclosing type not allowed here.";
                 } else {
                   diag.error(expr) << "Assignment to member of immutable type: " << mt->base;

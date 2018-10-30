@@ -15,20 +15,59 @@
 
 #include <unordered_map>
 
+namespace llvm {
+  class Constant;
+  class DataLayout;
+  class IntegerType;
+  class StructType;
+}
+
 namespace tempest::gen {
   using tempest::sema::graph::Type;
   using tempest::sema::graph::TypeDefn;
+  using tempest::sema::graph::UnionType;
   using tempest::sema::graph::UserDefinedType;
   using tempest::sema::graph::SpecializationKey;
   using tempest::sema::graph::SpecializationKeyHash;
 
+  /** Description of a union type. */
+  class CGUnionType {
+  public:
+    // Common tag values. Tags for value types start at 3. */
+    enum Tag {
+      VOID = 0,
+      REF = 1,
+      IFACE = 2,
+      VALUE_START = 3,
+    };
+
+    llvm::Type* type;
+    llvm::Type* ssaType;
+    llvm::IntegerType* tagType = nullptr;
+    llvm::Type* valueType = nullptr;
+    bool hasRefType = false;
+    bool hasInterfaceType = false;
+    bool hasVoidType = false;
+
+    SmallVector<const Type*, 4> valueTypes;
+    size_t valueStructIndex = 0;
+  };
+
   /** Maps Tempest type expressions to LLVM types. */
   class CGTypeBuilder {
   public:
-    CGTypeBuilder(llvm::LLVMContext& context) : _context(context) {}
+    CGTypeBuilder(llvm::LLVMContext& context, const llvm::DataLayout* dataLayout)
+      : _context(context)
+      , _dataLayout(dataLayout)
+    {}
 
     llvm::Type* get(const Type*, ArrayRef<const Type*> typeArgs);
     llvm::Type* getMemberType(const Type*, ArrayRef<const Type*> typeArgs);
+    CGUnionType* createUnion(const UnionType* ut);
+
+    /** References to built-in types. */
+    llvm::Type* getObjectType();
+    llvm::StructType* getClassDescType();
 
   private:
     llvm::Type* createClass(const UserDefinedType*, ArrayRef<const Type*> typeArgs);
@@ -37,10 +76,17 @@ namespace tempest::gen {
         SpecializationKey<Type>, llvm::Type*, SpecializationKeyHash<Type>> TypeMap;
     typedef std::unordered_map<
         SpecializationKey<TypeDefn>, llvm::Type*, SpecializationKeyHash<TypeDefn>> TypeDefnMap;
+    typedef std::unordered_map<const UnionType*, std::unique_ptr<CGUnionType>> UnionMap;
 
     llvm::LLVMContext& _context;
+    const llvm::DataLayout* _dataLayout;
+
     TypeMap _types;
     TypeDefnMap _typeDefns;
+    UnionMap _unions;
+
+    llvm::Type* _objectType = nullptr;
+    llvm::StructType* _classDescType = nullptr;
   };
 }
 

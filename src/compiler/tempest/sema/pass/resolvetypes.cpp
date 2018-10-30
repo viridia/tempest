@@ -1709,6 +1709,8 @@ namespace tempest::sema::pass {
         coerceExpr(op->args[0], nullptr);
         ensureMutableLValue(op->args[0]);
         op->args[1] = coerceExpr(op->args[1], op->args[0]->type);
+        assert(op->args[0]->type);
+        assert(op->args[1]->type);
         op->type = &Type::NOT_EXPR;
         return op;
       }

@@ -1,7 +1,9 @@
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/gen/cgtypebuilder.hpp"
 #include "tempest/gen/linkagename.hpp"
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <assert.h>
 
@@ -9,6 +11,7 @@ namespace tempest::gen {
   using namespace tempest::sema::graph;
   using tempest::gen::getLinkageName;
   using tempest::intrinsic::IntrinsicDefns;
+  using tempest::error::diag;
 
   llvm::Type* CGTypeBuilder::get(const Type* ty, ArrayRef<const Type*> typeArgs) {
     switch (ty->kind) {
@@ -44,6 +47,11 @@ namespace tempest::gen {
           elts.push_back(getMemberType(member, typeArgs));
         }
         return llvm::StructType::create(elts);
+      }
+
+      case Type::Kind::UNION: {
+        auto cgu = createUnion(static_cast<const UnionType*>(ty));
+        return cgu->type;
       }
 
       case Type::Kind::CLASS: {
@@ -166,5 +174,123 @@ namespace tempest::gen {
     }
 
     return llvm::StructType::create(elts, linkageName);
+  }
+
+  CGUnionType* CGTypeBuilder::createUnion(const UnionType* ut) {
+    auto it = _unions.find(ut);
+    if (it != _unions.end()) {
+      return it->second.get();
+    }
+
+    auto cgu = std::make_unique<CGUnionType>();
+    for (auto m : ut->members) {
+      if (m->kind == Type::Kind::VOID) {
+        cgu->hasVoidType = true;
+      } else if (m->kind == Type::Kind::CLASS) {
+        cgu->hasRefType = true;
+      } else if (m->kind == Type::Kind::INTERFACE) {
+        cgu->hasInterfaceType = true;
+      } else {
+        cgu->valueTypes.push_back(m);
+      }
+    }
+
+    uint64_t largestSize = 0;
+    unsigned int largestAlign = 0;
+
+    if (!cgu->valueTypes.empty()) {
+      for (auto mt : cgu->valueTypes) {
+        auto ty = getMemberType(mt, {});
+        auto size = _dataLayout->getTypeStoreSize(ty);
+        if (size > largestSize) {
+          largestSize = size;
+          cgu->valueType = ty;
+        }
+        largestAlign = std::max(largestAlign, _dataLayout->getABITypeAlignment(ty));
+      }
+      if (cgu->hasRefType) {
+        auto objectPtr = getMemberType(IntrinsicDefns::get()->objectClass->type(), {});
+        auto size = _dataLayout->getTypeStoreSize(objectPtr);
+        if (size > largestSize) {
+          largestSize = size;
+          cgu->valueType = objectPtr;
+        }
+        largestAlign = std::max(largestAlign, _dataLayout->getABITypeAlignment(objectPtr));
+      }
+      if (cgu->hasInterfaceType) {
+        assert(false && "Implement");
+      }
+
+      uint64_t tagSize;
+      if (cgu->valueTypes.size() < 0x100 - 3) {
+        tagSize = 1;
+      } else {
+        tagSize = 2;
+        if (cgu->valueTypes.size() >= 0x10000 - 3) {
+          diag.error() << "Union type with over 64K members!";
+        }
+      }
+
+      // First field is the tag
+      llvm::SmallVector<llvm::Type*, 16> elts;
+      llvm::SmallVector<llvm::Type*, 16> ssaElts;
+
+      cgu->tagType = llvm::IntegerType::get(_context, tagSize * 8);
+      elts.push_back(cgu->tagType);
+      ssaElts.push_back(cgu->tagType);
+
+      // Optional padding
+      cgu->valueStructIndex = 1;
+      if (largestAlign > tagSize) {
+        cgu->valueStructIndex = 2;
+        elts.push_back(
+            llvm::ArrayType::get(llvm::IntegerType::get(_context, 8), largestAlign - tagSize));
+      }
+
+      // Next comes an int whose alignment is size is equal to the largest alignment
+      elts.push_back(cgu->valueType);
+      ssaElts.push_back(cgu->valueType);
+
+      // Packed struct
+      cgu->type = llvm::StructType::create(elts, "union", true);
+
+      // SSA value contains tag and pointer to data.
+      cgu->ssaType = llvm::StructType::create(ssaElts, "unionSSA");
+    } else if (cgu->hasInterfaceType) {
+      assert(false && "Implement");
+    } else if (cgu->hasRefType) {
+      cgu->type = cgu->valueType = getMemberType(IntrinsicDefns::get()->objectClass->type(), {});
+    } else {
+      assert(false && "Empty union?");
+    }
+
+    auto result = cgu.get();
+    _unions[ut] = std::move(cgu);
+    return result;
+  }
+
+  llvm::Type* CGTypeBuilder::getObjectType() {
+    if (!_objectType) {
+      _objectType = get(intrinsic::IntrinsicDefns::get()->objectClass->type(), {});
+    }
+    return _objectType;
+  }
+
+  llvm::StructType* CGTypeBuilder::getClassDescType() {
+    if (!_classDescType) {
+      // Class descriptor fields:
+      // - base class
+      // - interface table
+      // - method table
+      auto cdType = llvm::StructType::create(_context, "ClassDescriptor");
+      llvm::Type* descFieldTypes[3] = {
+        cdType->getPointerTo(),
+        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+      };
+      cdType->setBody(descFieldTypes);
+      _classDescType = cdType;
+    }
+    return _classDescType;
   }
 }

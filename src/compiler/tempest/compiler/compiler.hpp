@@ -24,7 +24,6 @@ namespace tempest::compiler {
     int addPackageSearchPaths();
     int addSourceFiles();
     void runPasses();
-    void selectTarget(tempest::gen::CGModule* mod);
     void outputModule(tempest::gen::CGModule* mod);
   };
 }

@@ -10,7 +10,7 @@ using namespace tempest::gen;
 
 TEST_CASE("CGTypeBuilder", "[gen]") {
   llvm::LLVMContext context;
-  CGTypeBuilder types(context);
+  CGTypeBuilder types(context, nullptr);
 
   SECTION("Void") {
     llvm::Type* t = types.get(&VoidType::VOID, {});

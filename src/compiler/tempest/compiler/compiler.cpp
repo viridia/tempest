@@ -1,7 +1,9 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/compiler/compiler.hpp"
 #include "tempest/gen/cgmodule.hpp"
+#include "tempest/gen/cgtarget.hpp"
 #include "tempest/gen/codegen.hpp"
+#include "tempest/opt/basicopts.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/dataflow.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
@@ -16,10 +18,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetOptions.h"
 
 #include <vector>
 #include <cstdlib>
@@ -56,12 +55,17 @@ namespace tempest::compiler {
     assert(!_cu.outputModName().empty());
     if (diag.errorCount() == 0) {
       llvm::LLVMContext context;
-      gen::CodeGen gen(context);
+      gen::CGTarget target;
+      target.select();
+      gen::CodeGen gen(context, target);
       auto mod = gen.createModule(_cu.outputModName());
       gen.genSymbols(_cu.symbols());
-      selectTarget(mod);
       if (diag.errorCount() == 0) {
         llvm::verifyModule(*mod->irModule(), &(llvm::errs()));
+        opt::BasicOpts opts(mod);
+        for (auto& fn : mod->irModule()->functions()) {
+          opts.run(&fn);
+        }
         // mod->irModule()->print(llvm::errs(), nullptr);
         outputModule(mod);
       }
@@ -96,26 +100,6 @@ namespace tempest::compiler {
       ExpandSpecializationPass pass(_cu);
       pass.run();
     }
-  }
-
-  void Compiler::selectTarget(tempest::gen::CGModule* mod) {
-    std::string error;
-    auto targetTriple = sys::getDefaultTargetTriple();
-    auto target = TargetRegistry::lookupTarget(targetTriple, error);
-    if (!target) {
-      diag.error() << error;
-      return;
-    }
-
-    auto cpu = "generic";
-    auto features = "";
-
-    TargetOptions opt;
-    auto rm = Optional<Reloc::Model>();
-    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, rm);
-
-    mod->irModule()->setDataLayout(targetMachine->createDataLayout());
-    mod->irModule()->setTargetTriple(targetTriple);
   }
 
   void Compiler::outputModule(tempest::gen::CGModule* mod) {

@@ -315,17 +315,6 @@ namespace tempest::gen {
         }
 
         _implicitSelf = nullptr;
-
-        // if (!atTerminator()) {
-        //   // if (func->type()->returnType->isVoidType()) {
-        //   //   _builder.CreateRetVoid();
-        //   // } else {
-        //     // TODO: Use the location from the last statement of the function.
-        //     diag.error(func) << "Missing return statement at end of non-void function.";
-        //   // }
-        // }
-
-        // gcAllocContext_ = nullptr;
   #if 0
       }
   #endif
@@ -403,6 +392,10 @@ namespace tempest::gen {
           // Zero-size structs
           // Structs in general
           // Post-assignment
+          if (iop->args[0]->type->kind == Type::Kind::UNION) {
+            return genStoreUnionValue(
+                lval, rval, static_cast<const UnionType*>(iop->args[0]->type));
+          }
           return _builder.CreateStore(rval, lval);
         }
         return nullptr;
@@ -596,6 +589,13 @@ namespace tempest::gen {
         return _builder.CreateFPTrunc(visitExpr(op->arg), ty);
       }
 
+      case Expr::Kind::CAST_CREATE_UNION: {
+        // auto op = static_cast<const UnaryOp*>(expr);
+        // auto ty = _module->types().get(op->type, _typeArgs);
+        // return _builder.CreateFPTrunc(visitExpr(op->arg), ty);
+        return visitCastCreateUnion(static_cast<UnaryOp*>(expr));
+      }
+
       case Expr::Kind::ALLOC_OBJ:
         return visitAllocObj(static_cast<SymbolRefExpr*>(expr));
 
@@ -604,6 +604,9 @@ namespace tempest::gen {
 
       case Expr::Kind::SELF:
         return _implicitSelf;
+
+      case Expr::Kind::VOID:
+        return visitVoidValue(expr);
 
       default:
         diag.error() << "Invalid expression type: " << expr->kind;
@@ -969,13 +972,58 @@ namespace tempest::gen {
       }
 
       case IntrinsicFn::FLEX_ALLOC: {
-        diag.debug() << typeArgs[0];
         assert(false && "Implement flex allox");
       }
 
       default:
         assert(false && "Bad intrinsic");
         return nullptr;
+    }
+  }
+
+  llvm::Value* CGFunctionBuilder::visitCastCreateUnion(UnaryOp* op) {
+    auto arg = visitExpr(op->arg);
+    auto argType = op->arg->type;
+    auto ut = cast<UnionType>(op->type);
+    auto cgu = _module->types().createUnion(ut);
+    if (!cgu->valueTypes.empty()) {
+      if (argType->kind == Type::Kind::VOID) {
+        assert(false && "Implement void to union");
+      } else if (argType->kind == Type::Kind::CLASS) {
+        assert(false && "Implement class to union");
+      } else if (argType->kind == Type::Kind::INTERFACE) {
+        assert(false && "Implement interface to union");
+      } else {
+        size_t index = CGUnionType::VALUE_START;
+        for (auto mt : cgu->valueTypes) {
+          if (mt == argType) {
+            break;
+          }
+          index += 1;
+        }
+        assert(index < cgu->valueTypes.size() + CGUnionType::VALUE_START);
+        // Allocate sufficient memory for the largest type
+        auto allocPtr = _builder.CreateAlloca(cgu->valueType);
+        // Cast it to the actual value type and store the value
+        auto argPtrTy = PointerType::get(_module->types().getMemberType(argType, {}), 0);
+        _builder.CreateStore(arg, _builder.CreatePointerCast(allocPtr, argPtrTy));
+
+        auto pair = llvm::ConstantStruct::get(cast<llvm::StructType>(cgu->ssaType), {
+            llvm::ConstantInt::get(cgu->tagType, index),
+            llvm::UndefValue::get(allocPtr->getType()),
+        });
+
+        return _builder.CreateInsertValue(pair, _builder.CreateLoad(allocPtr), { 1 });
+
+        // auto tagAddr = _builder.CreateStructGEP(cgu->type, allocPtr, 0);
+        // auto valueAddr = _builder.CreateStructGEP(cgu->type, allocPtr, 1);
+        // // Store the tag
+        // _builder.CreateStore(llvm::ConstantInt::get(cgu->tagType, index), tagAddr);
+        // // Store the value
+        // return _builder.CreateLoad(allocPtr);
+      }
+    } else {
+      assert(false && "Implement");
     }
   }
 
@@ -1043,25 +1091,22 @@ namespace tempest::gen {
     return _builder.CreatePointerCast(alloc, clsType->getPointerTo(1));
   }
 
-  // llvm::Function * CodeGenerator::getGlobalAlloc() {
-  //   using namespace llvm;
-  //   using llvm::Type;
-  //   using llvm::FunctionType;
-
-  //   if (globalAlloc_ == NULL) {
-  //     std::vector<Type *> parameterTypes;
-  //     parameterTypes.push_back(builder_.getInt64Ty());
-  //     FunctionType * ftype = FunctionType::get(
-  //         builder_.getInt8Ty()->getPointerTo(),
-  //         parameterTypes,
-  //         false);
-
-  //     globalAlloc_ = cast<Function>(irModule_->getOrInsertFunction("malloc", ftype));
-  //     globalAlloc_->addFnAttr(Attribute::NoUnwind);
-  //   }
-
-  //   return globalAlloc_;
-  // }
+  llvm::Value* CGFunctionBuilder::visitVoidValue(Expr* e) {
+    if (auto ut = dyn_cast<UnionType>(e->type)) {
+      auto cgu = _module->types().createUnion(ut);
+      assert(cgu->hasVoidType);
+      if (cgu->tagType) {
+        return llvm::ConstantStruct::get(cast<llvm::StructType>(cgu->ssaType), {
+            llvm::ConstantInt::get(cgu->tagType, 0),
+            llvm::UndefValue::get(cgu->valueType),
+        });
+      } else {
+        assert(false && "Implement");
+      }
+    } else {
+      assert(false && "Invalid type for void value");
+    }
+  }
 
   Value* CGFunctionBuilder::genLValueAddress(Expr* in) {
     // if (in->exprType() == Expr::PtrDeref) {
@@ -1342,6 +1387,29 @@ namespace tempest::gen {
 
     assert(isa<PointerType>(baseAddr->getType()));
     return baseAddr;
+  }
+
+  llvm::Value* CGFunctionBuilder::genStoreUnionValue(
+      llvm::Value* lval,
+      llvm::Value* rval,
+      const UnionType* ut) {
+    auto cgu = _module->types().createUnion(ut);
+    if (!cgu->valueTypes.empty()) {
+      // Extract the tag from the pair and store it.
+      auto tag = _builder.CreateExtractValue(rval, 0, "tag");
+      _builder.CreateStore(
+          tag,
+          _builder.CreateStructGEP(cast<llvm::StructType>(cgu->type), lval, 0));
+
+      // Load the value from the pair and store it in the value slot.
+      auto value = _builder.CreateExtractValue(rval, 1);
+      return _builder.CreateStore(
+          value,
+          _builder.CreateStructGEP(
+              cast<llvm::StructType>(cgu->type), lval, cgu->valueStructIndex));
+    } else {
+      assert(false && "Implement");
+    }
   }
 
   bool CGFunctionBuilder::genTestExpr(Expr* test, BasicBlock* blkTrue, BasicBlock* blkFalse) {

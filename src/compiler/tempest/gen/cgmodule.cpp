@@ -27,7 +27,7 @@ namespace tempest::gen {
     , _irModule(std::make_unique<llvm::Module>(name, context))
     , _diBuilder(*_irModule)
     , _diCompileUnit(nullptr)
-    , _types(context)
+    , _types(context, &_irModule->getDataLayout())
     , _diTypeBuilder(_diBuilder, nullptr, _types)
     , _debug(false)
   {
@@ -181,10 +181,10 @@ namespace tempest::gen {
       // Signature is gc_alloc(i32, void*) -> void*.
       llvm::Type* paramTypes[2] = {
         llvm::IntegerType::get(_context, 64),
-        getClassDescType()->getPointerTo(0),
+        _types.getClassDescType()->getPointerTo(0),
       };
       llvm::Type* funcType = llvm::FunctionType::get(
-        getObjectType()->getPointerTo(1), paramTypes, false);
+        _types.getObjectType()->getPointerTo(1), paramTypes, false);
       _gcAlloc = llvm::Function::Create(
           cast<llvm::FunctionType>(funcType),
           llvm::Function::ExternalLinkage,
@@ -204,14 +204,14 @@ namespace tempest::gen {
     getLinkageName(linkageName, sym->typeDefn, sym->typeArgs);
     linkageName.append("::cldesc");
     sym->desc = new llvm::GlobalVariable(
-        *_irModule, getClassDescType(), true,
+        *_irModule, _types.getClassDescType(), true,
         llvm::GlobalValue::LinkageTypes::ExternalLinkage, nullptr, linkageName);
     return sym->desc;
   }
 
   GlobalVariable* CGModule::genClassDesc(ClassDescriptorSym* sym) {
     auto clsDesc = genClassDescValue(sym);
-    auto clsDescType = getClassDescType();
+    auto clsDescType = _types.getClassDescType();
     llvm::Constant* clsDescProps[3] = {
       llvm::ConstantPointerNull::get(clsDescType->getPointerTo()),
       llvm::ConstantPointerNull::get(
@@ -221,31 +221,6 @@ namespace tempest::gen {
     };
     clsDesc->setInitializer(llvm::ConstantStruct::get(clsDescType, clsDescProps));
     return clsDesc;
-  }
-
-  llvm::Type* CGModule::getObjectType() {
-    if (!_objectType) {
-      _objectType = _types.get(intrinsic::IntrinsicDefns::get()->objectClass->type(), {});
-    }
-    return _objectType;
-  }
-
-  llvm::StructType* CGModule::getClassDescType() {
-    if (!_classDescType) {
-      // Class descriptor fields:
-      // - base class
-      // - interface table
-      // - method table
-      auto cdType = llvm::StructType::create(_context, "ClassDescriptor");
-      llvm::Type* descFieldTypes[3] = {
-        cdType->getPointerTo(),
-        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
-        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
-      };
-      cdType->setBody(descFieldTypes);
-      _classDescType = cdType;
-    }
-    return _classDescType;
   }
 
   llvm::DIFile* CGModule::getDIFile(ProgramSource* src) {

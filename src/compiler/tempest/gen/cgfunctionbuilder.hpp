@@ -28,6 +28,7 @@ namespace tempest::sema::graph {
   class LocalVarStmt;
   class ReturnStmt;
   class SymbolRefExpr;
+  class UnaryOp;
 }
 
 namespace tempest::gen {
@@ -86,8 +87,10 @@ namespace tempest::gen {
     llvm::Value* visitCall(ApplyFnOp* in);
     llvm::Value* visitCallIntrinsic(ApplyFnOp* in);
     llvm::Value* visitIntegerLiteral(IntegerLiteral* ret);
+    llvm::Value* visitCastCreateUnion(UnaryOp* ret);
     llvm::Value* visitAllocObj(SymbolRefExpr* in);
     llvm::Value* visitAllocFlexObj(FlexAllocExpr* fa);
+    llvm::Value* visitVoidValue(Expr* e);
 
     llvm::Value* genCallInstr(
         llvm::Value* func,
@@ -105,6 +108,7 @@ namespace tempest::gen {
         Expr* expr, SmallVectorImpl<llvm::Value*>& indices, std::stringstream& label);
     llvm::Value* genBaseAddress(
         Expr* in, SmallVectorImpl<llvm::Value*>& indices, std::stringstream& label);
+    llvm::Value* genStoreUnionValue(llvm::Value* lval, llvm::Value* rval, const UnionType* ut);
 
     /** Create a new basic block and append it to the current function. */
     llvm::BasicBlock* createBlock(const llvm::Twine& blkName);

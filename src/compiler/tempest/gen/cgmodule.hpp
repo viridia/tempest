@@ -104,10 +104,6 @@ namespace tempest::gen {
     /** Return a reference to the allocator function for garbage-collected memory. */
     llvm::Function* getGCAlloc();
 
-    /** References to built-in types. */
-    llvm::Type* getObjectType();
-    llvm::StructType* getClassDescType();
-
   private:
     llvm::LLVMContext& _context;
     std::unique_ptr<llvm::Module> _irModule;
@@ -120,8 +116,6 @@ namespace tempest::gen {
     CGTypeBuilder _types;
     CGDebugTypeBuilder _diTypeBuilder;
     llvm::Function* _gcAlloc = nullptr;
-    llvm::Type* _objectType = nullptr;
-    llvm::StructType* _classDescType = nullptr;
     bool _debug;
   };
 }

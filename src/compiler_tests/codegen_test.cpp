@@ -3,6 +3,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/gen/codegen.hpp"
 #include "tempest/gen/cgmodule.hpp"
+#include "tempest/gen/cgtarget.hpp"
 #include "tempest/parse/lexer.hpp"
 #include "tempest/parse/parser.hpp"
 #include "tempest/sema/graph/defn.hpp"
@@ -75,6 +76,9 @@ TEST_CASE("CodeGen", "[gen]") {
 
   llvm::InitializeNativeTarget();
 
+  CGTarget target;
+  target.select();
+
   auto makeIntegerLiteral = [&ts](int64_t val) -> IntegerLiteral* {
     llvm::APInt intVal(32, val, true);
     return new (ts.alloc()) IntegerLiteral(ts.alloc().copyOf(intVal), &IntegerType::I32);
@@ -86,7 +90,7 @@ TEST_CASE("CodeGen", "[gen]") {
     FunctionDefn fdef(Location(), "test");
     fdef.setBody(&blk);
     fdef.setType(ts.createFunctionType(&VoidType::VOID, { &FloatType::F32 }));
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto mod = gen.createModule("TestMod");
     auto fn = gen.genFunction(&fdef, {});
     REQUIRE(fn != nullptr);
@@ -100,7 +104,7 @@ TEST_CASE("CodeGen", "[gen]") {
     FunctionDefn fdef(loc, "testReturn");
     fdef.setBody(&block);
     fdef.setType(ts.createFunctionType(&IntegerType::I32, {}));
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto mod = gen.createModule("TestMod");
     mod->diInit("testmod.te", "");
     auto fn = gen.genFunction(&fdef, {});
@@ -126,7 +130,7 @@ TEST_CASE("CodeGen", "[gen]") {
     FunctionDefn fdef(loc, "testReturn");
     fdef.setBody(&block);
     fdef.setType(ts.createFunctionType(&IntegerType::I32, {}));
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto mod = gen.createModule("TestMod");
     mod->diInit("testmod.te", "");
     auto fn = gen.genFunction(&fdef, {});
@@ -157,7 +161,7 @@ TEST_CASE("CodeGen", "[gen]") {
       "}\n"
     );
 
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto cgMod = gen.createModule("TestMod");
     cgMod->diInit("testmod.te", "");
     gen.genSymbols(cu.symbols());
@@ -185,7 +189,7 @@ TEST_CASE("CodeGen", "[gen]") {
       "}\n"
     );
 
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto cgMod = gen.createModule("TestMod");
     cgMod->diInit("testmod.te", "");
     gen.genSymbols(cu.symbols());
@@ -202,7 +206,7 @@ TEST_CASE("CodeGen", "[gen]") {
       "}\n"
     );
 
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto cgMod = gen.createModule("TestMod");
     cgMod->diInit("testmod.te", "");
     gen.genSymbols(cu.symbols());
@@ -226,7 +230,7 @@ TEST_CASE("CodeGen", "[gen]") {
       "}\n"
     );
 
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto cgMod = gen.createModule("TestMod");
     cgMod->diInit("testmod.te", "");
     gen.genSymbols(cu.symbols());
@@ -248,11 +252,37 @@ TEST_CASE("CodeGen", "[gen]") {
       "}"
     );
 
-    CodeGen gen(context);
+    CodeGen gen(context, target);
     auto cgMod = gen.createModule("TestMod");
     cgMod->diInit("testmod.te", "");
     gen.genSymbols(cu.symbols());
     cgMod->diFinalize();
+    // cgMod->irModule()->print(llvm::errs(), nullptr);
+    REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
+  }
+
+  SECTION("union member field") {
+    CompilationUnit cu;
+    auto mod = compile(cu,
+      "class A {\n"
+      "  x: i32 | void;\n"
+      "  a!() {\n"
+      "    x = 0;\n"
+      "  }\n"
+      "}\n"
+    );
+
+    CodeGen gen(context, target);
+    auto cgMod = gen.createModule("TestMod");
+    cgMod->diInit("testmod.te", "");
+    gen.genSymbols(cu.symbols());
+    cgMod->diFinalize();
+
+    BasicOpts opts(cgMod);
+    for (auto& fn : cgMod->irModule()->functions()) {
+      opts.run(&fn);
+    }
+
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }

@@ -25,8 +25,6 @@
   #include <llvm/IR/Function.h>
 #endif
 
-// #include <vector>
-
 namespace tempest::gen {
   using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Module;
@@ -34,6 +32,7 @@ namespace tempest::gen {
   class CGFunction;
   class CGModule;
   class CGStringLiteral;
+  class CGTarget;
   class SymbolStore;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
@@ -41,8 +40,9 @@ namespace tempest::gen {
   public:
     llvm::LLVMContext& context;
 
-    CodeGen(llvm::LLVMContext& context)
+    CodeGen(llvm::LLVMContext& context, CGTarget& target)
       : context(context)
+      , _target(target)
       , _module(nullptr)
     {}
 
@@ -62,6 +62,7 @@ namespace tempest::gen {
     llvm::Function* genFunction(FunctionDefn* func, ArrayRef<const Type*> typeArgs);
 
   private:
+    CGTarget& _target;
     CGModule* _module;
   };
 }

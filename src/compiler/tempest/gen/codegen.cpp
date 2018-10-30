@@ -1,10 +1,17 @@
+#include "tempest/error/diagnostics.hpp"
 #include "tempest/gen/codegen.hpp"
 #include "tempest/gen/cgfunctionbuilder.hpp"
+#include "tempest/gen/cgtarget.hpp"
 #include "tempest/gen/symbolstore.hpp"
 
 namespace tempest::gen {
+  using tempest::error::diag;
+  using namespace llvm;
+  using namespace llvm::sys;
+
   CGModule* CodeGen::createModule(llvm::StringRef name) {
     _module = new CGModule(name, context);
+    _target.setModuleTarget(_module);
     return _module;
   }
 

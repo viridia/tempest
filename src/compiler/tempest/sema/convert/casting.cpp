@@ -4,6 +4,7 @@
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/convert/casting.hpp"
+#include "tempest/sema/convert/predicate.hpp"
 #include "llvm/Support/Casting.h"
 
 namespace tempest::sema::convert {
@@ -62,6 +63,20 @@ namespace tempest::sema::convert {
         if (srcType->kind == Type::Kind::UNION) {
           assert(false && "Implement");
         } else {
+          auto ut = static_cast<const UnionType*>(dst);
+          // First cast src to the type of the union member.
+          ConversionResult bestResult;
+          const Type* bestDst = nullptr;
+          for (auto mt : ut->members) {
+            auto result = isAssignable(mt, src->type);
+            if (result.rank > bestResult.rank) {
+              bestResult = result;
+              bestDst = mt;
+            }
+          }
+          assert(bestDst);
+          assert(bestResult.rank >= ConversionRank::INEXACT);
+          src = cast(bestDst, src);
           return makeCast(Expr::Kind::CAST_CREATE_UNION, src, dst);
         }
       }

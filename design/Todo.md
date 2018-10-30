@@ -5,6 +5,11 @@
     * Needs Iterator
       * Needs Interfaces
       * Needs unions
+        * Needs ref unions
+        * Needs value unions
+    * Needs Iterable
+      * Needs Trait method calling
+      * Needs ensure requirements satisfied
 * Break out visitors into separate files.
 * Implement const members
 * Implement Slice and Iterable

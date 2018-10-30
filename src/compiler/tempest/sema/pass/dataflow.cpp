@@ -13,6 +13,19 @@ namespace tempest::sema::pass {
   using namespace tempest::sema::graph;
   using namespace tempest::sema::names;
 
+  bool canInitFromVoid(const Type* t) {
+    if (t->kind == Type::Kind::VOID) {
+      return true;
+    } else if (auto ut = dyn_cast<UnionType>(t)) {
+      for (auto m : ut->members) {
+        if (canInitFromVoid(m)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   class FindSuperCtorCall : public ExprVisitor {
   public:
     Expr* superCall = nullptr;
@@ -193,9 +206,17 @@ namespace tempest::sema::pass {
                   if (!(vd->isConstant() && vd->isConstantInit())) {
                     auto dref = new (*_alloc) DefnRef(
                         Expr::Kind::VAR_REF, fd->location(), vd, td->implicitSelf());
+                    dref->type = vd->type();
                     initStmts.push_back(
                         new (*_alloc) BinaryOp(Expr::Kind::ASSIGN, dref, vd->init()));
                   }
+                } else if (canInitFromVoid(vd->type())) {
+                  auto dref = new (*_alloc) DefnRef(
+                      Expr::Kind::VAR_REF, fd->location(), vd, td->implicitSelf());
+                  dref->type = vd->type();
+                  auto voidValue = new (*_alloc) Expr(Expr::Kind::VOID, vd->location(), vd->type());
+                  initStmts.push_back(
+                      new (*_alloc) BinaryOp(Expr::Kind::ASSIGN, dref, voidValue));
                 } else {
                   diag.error(fd) << "Field not initialized: '" << vd->name() << "'.";
                 }
@@ -363,7 +384,13 @@ namespace tempest::sema::pass {
       }
 
       case Expr::Kind::NEGATE:
-      case Expr::Kind::COMPLEMENT: {
+      case Expr::Kind::COMPLEMENT:
+      case Expr::Kind::CAST_SIGN_EXTEND:
+      case Expr::Kind::CAST_ZERO_EXTEND:
+      case Expr::Kind::CAST_INT_TRUNCATE:
+      case Expr::Kind::CAST_FP_EXTEND:
+      case Expr::Kind::CAST_FP_TRUNC:
+      case Expr::Kind::CAST_CREATE_UNION: {
         auto op = static_cast<UnaryOp*>(e);
         visitExpr(op->arg, flow);
         break;

@@ -4,9 +4,6 @@
   * Needs Slice
     * Needs Iterator
       * Needs Interfaces
-      * Needs unions
-        * Needs ref unions
-        * Needs value unions
     * Needs Iterable
       * Needs Trait method calling
       * Needs ensure requirements satisfied
@@ -62,6 +59,7 @@
 * Closures
 * Array literals
 * Set literals
+* Local variables containing unions of ref and non-ref types, needs smart GC.
 
 ## TODOs from code:
 

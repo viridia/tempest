@@ -44,7 +44,7 @@ public:
 
 namespace {
   /** Parse a module definition and apply buildgraph & nameresolution pass. */
-  std::unique_ptr<Module> compile(CompilationUnit &cu, const char* srcText) {
+  CGModule* compile(CompilationUnit &cu, CodeGen& gen, const char* srcText) {
     auto prevErrorCount = diag.errorCount();
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
@@ -64,7 +64,13 @@ namespace {
     esPass.run();
     CompilationUnit::theCU = nullptr;
     REQUIRE(diag.errorCount() == prevErrorCount);
-    return mod;
+
+    auto cgMod = gen.createModule("TestMod");
+    cgMod->diInit("testmod.te", "");
+    gen.genSymbols(cu.symbols());
+    cgMod->diFinalize();
+
+    return cgMod;
   }
 }
 
@@ -152,7 +158,8 @@ TEST_CASE("CodeGen", "[gen]") {
 
   SECTION("compile constructor call") {
     CompilationUnit cu;
-    auto mod = compile(cu,
+    CodeGen gen(context, target);
+    auto cgMod = compile(cu, gen,
       "class A {\n"
       "  new() {}\n"
       "}\n"
@@ -161,11 +168,6 @@ TEST_CASE("CodeGen", "[gen]") {
       "}\n"
     );
 
-    CodeGen gen(context, target);
-    auto cgMod = gen.createModule("TestMod");
-    cgMod->diInit("testmod.te", "");
-    gen.genSymbols(cu.symbols());
-    cgMod->diFinalize();
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
 
@@ -183,41 +185,34 @@ TEST_CASE("CodeGen", "[gen]") {
 
   SECTION("field initialization") {
     CompilationUnit cu;
-    auto mod = compile(cu,
+    CodeGen gen(context, target);
+    auto cgMod = compile(cu, gen,
       "class A {\n"
       "  size: int = 0;\n"
       "}\n"
     );
 
-    CodeGen gen(context, target);
-    auto cgMod = gen.createModule("TestMod");
-    cgMod->diInit("testmod.te", "");
-    gen.genSymbols(cu.symbols());
-    cgMod->diFinalize();
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }
 
   SECTION("const field initialization") {
     CompilationUnit cu;
-    auto mod = compile(cu,
+    CodeGen gen(context, target);
+    auto cgMod = compile(cu, gen,
       "class A {\n"
       "  const size: int = 0;\n"
       "}\n"
     );
 
-    CodeGen gen(context, target);
-    auto cgMod = gen.createModule("TestMod");
-    cgMod->diInit("testmod.te", "");
-    gen.genSymbols(cu.symbols());
-    cgMod->diFinalize();
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }
 
   SECTION("method call") {
     CompilationUnit cu;
-    auto mod = compile(cu,
+    CodeGen gen(context, target);
+    auto cgMod = compile(cu, gen,
       "class A {\n"
       "  final a() => 0;\n"
       "}\n"
@@ -230,18 +225,14 @@ TEST_CASE("CodeGen", "[gen]") {
       "}\n"
     );
 
-    CodeGen gen(context, target);
-    auto cgMod = gen.createModule("TestMod");
-    cgMod->diInit("testmod.te", "");
-    gen.genSymbols(cu.symbols());
-    cgMod->diFinalize();
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }
 
   SECTION("flexalloc base") {
     CompilationUnit cu;
-    auto mod = compile(cu,
+    CodeGen gen(context, target);
+    auto cgMod = compile(cu, gen,
       "final class A extends FlexAlloc[u8] {\n"
       "  size: i32 = 0;\n"
       "  new() { self = __alloc(5); size = 5; }\n"
@@ -252,18 +243,14 @@ TEST_CASE("CodeGen", "[gen]") {
       "}"
     );
 
-    CodeGen gen(context, target);
-    auto cgMod = gen.createModule("TestMod");
-    cgMod->diInit("testmod.te", "");
-    gen.genSymbols(cu.symbols());
-    cgMod->diFinalize();
     // cgMod->irModule()->print(llvm::errs(), nullptr);
     REQUIRE_FALSE(verifyModule(*cgMod->irModule(), &(llvm::errs())));
   }
 
   SECTION("union member field") {
     CompilationUnit cu;
-    auto mod = compile(cu,
+    CodeGen gen(context, target);
+    auto cgMod = compile(cu, gen,
       "class A {\n"
       "  x: i32 | void;\n"
       "  a!() {\n"
@@ -271,12 +258,6 @@ TEST_CASE("CodeGen", "[gen]") {
       "  }\n"
       "}\n"
     );
-
-    CodeGen gen(context, target);
-    auto cgMod = gen.createModule("TestMod");
-    cgMod->diInit("testmod.te", "");
-    gen.genSymbols(cu.symbols());
-    cgMod->diFinalize();
 
     BasicOpts opts(cgMod);
     for (auto& fn : cgMod->irModule()->functions()) {

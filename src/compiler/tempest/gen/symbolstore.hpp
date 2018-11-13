@@ -6,6 +6,15 @@
 #endif
 
 namespace tempest::gen {
+  template<class A, class B>
+  struct PairHash {
+    inline std::size_t operator()(const std::pair<A, B>& value) const {
+      std::size_t hash = std::hash<A>()(value.first);
+      tempest::support::hash_combine(hash, std::hash<B>()(value.second));
+      return hash;
+    }
+  };
+
   /** Contains all of the output symbols. */
   class SymbolStore {
   public:
@@ -37,6 +46,10 @@ namespace tempest::gen {
         SpecializationKey<TypeDefn>,
         InterfaceDescriptorSym*,
         SpecializationKeyHash<TypeDefn>> _interfaces;
+    std::unordered_map<
+        std::pair<ClassDescriptorSym*, InterfaceDescriptorSym*>,
+        ClassInterfaceTranslationSym*,
+        PairHash<ClassDescriptorSym*, InterfaceDescriptorSym*>> _clsIfTrans;
     std::unordered_map<
         SpecializationKey<ValueDefn>,
         GlobalVarSym*,

@@ -7,8 +7,9 @@
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/dataflow.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
-#include "tempest/sema/pass/nameresolution.hpp"
+#include "tempest/sema/pass/findoverrides.hpp"
 #include "tempest/sema/pass/loadimports.hpp"
+#include "tempest/sema/pass/nameresolution.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "llvm/ADT/SmallVector.h"
@@ -90,6 +91,10 @@ namespace tempest::compiler {
     }
     if (diag.errorCount() == 0) {
       ResolveTypesPass pass(_cu);
+      pass.run();
+    }
+    if (diag.errorCount() == 0) {
+      FindOverridesPass pass(_cu);
       pass.run();
     }
     if (diag.errorCount() == 0) {

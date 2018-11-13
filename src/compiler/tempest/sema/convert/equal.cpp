@@ -28,12 +28,7 @@ namespace tempest::sema::convert {
         return true;
       } else {
         if (dstEnv.args.size() == srcEnv.args.size()) {
-          for (size_t i = 0; i < dstEnv.args.size(); i++) {
-            if (!isEqual(dstEnv.args[i], srcEnv.args[i])) {
-              return false;
-            }
-          }
-          return true;
+          return isEqual(dstEnv.args, srcEnv.args);
         }
       }
     }
@@ -52,14 +47,26 @@ namespace tempest::sema::convert {
 
     if (src->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(src);
-      ApplySpecialization apply(srcEnv.args);
-      Env newEnv;
-      newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
+      if (srcEnv.args.size() > 0) {
+        ApplySpecialization apply(srcEnv.args);
+        Env newEnv;
+        newEnv.params = sp->spec->typeParams();
+        newEnv.args.assign(sp->spec->typeArgs().begin(), sp->spec->typeArgs().end());
+        for (auto param : newEnv.params) {
+          auto typeArg = sp->spec->typeArgs()[param->index()];
+          newEnv.args.push_back(apply.transform(typeArg));
+        }
+        return isEqual(
+            cast<TypeDefn>(sp->spec->generic())->type(), srcMods, newEnv,
+            dst, dstMods, dstEnv);
+      } else {
+        Env newEnv;
+        newEnv.params = sp->spec->typeParams();
+        newEnv.args.assign(sp->spec->typeArgs().begin(), sp->spec->typeArgs().end());
+        return isEqual(
+            cast<TypeDefn>(sp->spec->generic())->type(), srcMods, newEnv,
+            dst, dstMods, dstEnv);
       }
-      return isEqual(src, srcMods, newEnv, dst, dstMods, dstEnv);
     }
 
     if (dst->kind == Type::Kind::SPECIALIZED) {
@@ -71,7 +78,33 @@ namespace tempest::sema::convert {
         auto typeArg = sp->spec->typeArgs()[param->index()];
         newEnv.args.push_back(apply.transform(typeArg));
       }
-      return isEqual(src, srcMods, srcEnv, dst, dstMods, newEnv);
+      return isEqual(
+          src, srcMods, srcEnv,
+          cast<TypeDefn>(sp->spec->generic())->type(), dstMods, newEnv);
+    }
+
+    if (dst->kind == Type::Kind::TYPE_VAR) {
+      auto dstTypeVar = static_cast<const TypeVar*>(dst);
+      if (size_t(dstTypeVar->index()) < dstEnv.args.size()) {
+        Env newEnv;
+        assert(dstEnv.has(dstTypeVar));
+        return isEqual(
+            dstEnv.args[dstTypeVar->index()], dstMods, newEnv,
+            src, srcMods, srcEnv);
+      }
+      return false;
+    }
+
+    if (src->kind == Type::Kind::TYPE_VAR) {
+      auto srcTypeVar = static_cast<const TypeVar*>(src);
+      if (size_t(srcTypeVar->index()) < srcEnv.args.size()) {
+        Env newEnv;
+        assert(srcEnv.has(srcTypeVar));
+        return isEqual(
+            dst, dstMods, dstEnv,
+            srcEnv.args[srcTypeVar->index()], srcMods, newEnv);
+      }
+      return false;
     }
 
 //   if isinstance(lt, graph.ModifiedType):
@@ -271,6 +304,18 @@ namespace tempest::sema::convert {
 
 //   debug.write('isEqual not handled:', lt, lEnv, '==', rt, rEnv)
 
+    return false;
+  }
+
+  bool isEqual(const ArrayRef<const Type*>& lt, const ArrayRef<const Type*>& rt) {
+    if (lt.size() == rt.size()) {
+      for (size_t i = 0; i < lt.size(); i++) {
+        if (!isEqual(lt[i], rt[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
     return false;
   }
 }

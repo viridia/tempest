@@ -102,7 +102,6 @@ namespace tempest::parse {
       { "u64", TOKEN_U64 },
       { "u8", TOKEN_U8 },
       { "uint", TOKEN_UINT },
-      { "undef", TOKEN_UNDEF },
       // { "var", TOKEN_VAR },
       { "void", TOKEN_VOID },
       { "where", TOKEN_WHERE },

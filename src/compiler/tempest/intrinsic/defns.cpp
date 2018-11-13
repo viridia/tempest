@@ -28,6 +28,7 @@ namespace tempest::intrinsic {
     flexAllocClass->setIntrinsic(IntrinsicType::FLEXALLOC_CLASS);
     flexAllocClass->extends().push_back(objectClass.get());
     flexAllocClass->typeParams().push_back(new (_types.alloc()) TypeParameter(Location(), "T"));
+    flexAllocClass->allTypeParams().push_back(flexAllocClass->typeParams().front());
 
     // FlexAlloc constructor
     auto flexAllocCtor = new FunctionDefn(Location(), "new", flexAllocClass.get());

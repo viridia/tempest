@@ -48,6 +48,8 @@ namespace tempest::gen {
   class CGFunction;
   class CGStringLiteral;
   class ClassDescriptorSym;
+  class InterfaceDescriptorSym;
+  class ClassInterfaceTranslationSym;
   class GlobalVarSym;
 
   /** Code gen node for a compilation unit. Might include more than one source module. */
@@ -100,6 +102,14 @@ namespace tempest::gen {
     /** Generate static class descriptor struct. */
     llvm::GlobalVariable* genClassDescValue(ClassDescriptorSym* clsSym);
     llvm::GlobalVariable* genClassDesc(ClassDescriptorSym* clsSym);
+
+    /** Generate static interface descriptor struct. */
+    llvm::GlobalVariable* genInterfaceDescValue(InterfaceDescriptorSym* clsSym);
+    llvm::GlobalVariable* genInterfaceDesc(InterfaceDescriptorSym* clsSym);
+
+    /** Generate class to interface mapping. */
+    llvm::GlobalVariable* genClassInterfaceTransValue(ClassInterfaceTranslationSym* clsSym);
+    llvm::GlobalVariable* genClassInterfaceTrans(ClassInterfaceTranslationSym* clsSym);
 
     /** Return a reference to the allocator function for garbage-collected memory. */
     llvm::Function* getGCAlloc();

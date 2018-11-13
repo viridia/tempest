@@ -233,7 +233,6 @@ namespace tempest::parse {
         result = aliasTypeDef();
         break;
       case TOKEN_FN:
-      case TOKEN_UNDEF:
       case TOKEN_OVERRIDE:
       case TOKEN_GET:
       case TOKEN_SET:
@@ -309,7 +308,6 @@ namespace tempest::parse {
         result = aliasTypeDef();
         break;
       case TOKEN_ID:
-      case TOKEN_UNDEF:
       case TOKEN_OVERRIDE:
       case TOKEN_GET:
       case TOKEN_SET:
@@ -498,7 +496,7 @@ namespace tempest::parse {
 
   // Definitions allowed inside of an enumeration.
   static const std::unordered_set<TokenType> ENUM_MEMBERS = {
-    TOKEN_FN, TOKEN_OVERRIDE, TOKEN_UNDEF, TOKEN_LET,
+    TOKEN_FN, TOKEN_OVERRIDE, TOKEN_LET,
     TOKEN_CLASS, TOKEN_STRUCT, TOKEN_INTERFACE, TOKEN_EXTEND, TOKEN_ENUM
   };
 
@@ -642,13 +640,10 @@ namespace tempest::parse {
   // Method
 
   Defn* Parser::methodDef(bool isMember) {
-    bool isUndef = false;
     bool isOverride = false;
     bool isGetter = false;
     bool isSetter = false;
-    if (match(TOKEN_UNDEF)) {
-      isUndef = true;
-    } else if (match(TOKEN_OVERRIDE)) {
+    if (match(TOKEN_OVERRIDE)) {
       isOverride = true;
     }
 
@@ -658,7 +653,7 @@ namespace tempest::parse {
       isSetter = true;
     }
 
-    if (!isMember && !isUndef && !isOverride && !isGetter && !isSetter) {
+    if (!isMember && !isOverride && !isGetter && !isSetter) {
       if (!match(TOKEN_FN)) {
         assert(false && "Invalid function token.");
       }
@@ -734,7 +729,6 @@ namespace tempest::parse {
       fn->typeParams = templateParams.build();
       fn->params = params.build();
       fn->setOverride(isOverride);
-      fn->setUndef(isUndef);
       fn->getter = isGetter;
       fn->setter = isSetter;
       fn->returnType = returnType;
@@ -2579,7 +2573,7 @@ namespace tempest::parse {
 
   static const std::unordered_set<TokenType> DEFN_TOKENS = {
     TOKEN_CLASS, TOKEN_STRUCT, TOKEN_INTERFACE, TOKEN_ENUM, TOKEN_EXTEND,
-    TOKEN_FN, TOKEN_UNDEF, TOKEN_OVERRIDE,
+    TOKEN_FN, TOKEN_OVERRIDE,
     TOKEN_CONST, TOKEN_LET, TOKEN_IMPORT,
   };
 

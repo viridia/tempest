@@ -36,15 +36,20 @@ namespace tempest::sema::convert {
 
     if (l->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(l);
-      ApplySpecialization apply(lEnv.args);
+      auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
+      if (lEnv.args.size() > 0) {
+        ApplySpecialization apply(lEnv.args);
+        for (auto param : newEnv.params) {
+          auto typeArg = sp->spec->typeArgs()[param->index()];
+          newEnv.args.push_back(apply.transform(typeArg));
+        }
+        return isEqualOrNarrower(genType, newEnv, r, rEnv);
+      } else {
+        newEnv.args.assign(sp->spec->typeArgs().begin(), sp->spec->typeArgs().end());
+        return isEqualOrNarrower(genType, newEnv, r, rEnv);
       }
-      auto genType = cast<TypeDefn>(sp->spec->generic())->type();
-      return isEqualOrNarrower(genType, newEnv, r, rEnv);
     }
 
     if (r->kind == Type::Kind::SPECIALIZED) {
@@ -94,6 +99,28 @@ namespace tempest::sema::convert {
     // if (r->kind == Type::Kind::MODIFIED) {
     //   auto rMod = static_cast<const ModifiedType*>(r);
     // }
+
+    if (l->kind == Type::Kind::TYPE_VAR) {
+      auto lTypeVar = static_cast<const TypeVar*>(l);
+      if (size_t(lTypeVar->index()) < lEnv.args.size()) {
+        Env newEnv;
+        assert(lEnv.has(lTypeVar));
+        return isEqualOrNarrower(
+            lEnv.args[lTypeVar->index()], newEnv,
+            r, rEnv);
+      }
+    }
+
+    if (r->kind == Type::Kind::TYPE_VAR) {
+      auto rTypeVar = static_cast<const TypeVar*>(r);
+      if (size_t(rTypeVar->index()) < rEnv.args.size()) {
+        Env newEnv;
+        assert(rEnv.has(rTypeVar));
+        return isEqualOrNarrower(
+            l, lEnv,
+            rEnv.args[rTypeVar->index()], newEnv);
+      }
+    }
 
 //   if isinstance(lt, graph.ModifiedType):
 //     if isinstance(rt, graph.ModifiedType):
@@ -188,6 +215,10 @@ namespace tempest::sema::convert {
 
     if (l->kind == Type::Kind::VOID) {
       return r->kind == Type::Kind::VOID;
+    }
+
+    if (r->kind == Type::Kind::VOID) {
+      return false;
     }
 
     if (l->kind == Type::Kind::BOOLEAN) {

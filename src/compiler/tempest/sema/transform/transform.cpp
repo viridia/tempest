@@ -27,15 +27,29 @@ namespace tempest::sema::transform {
       case Type::Kind::INTEGER:
       case Type::Kind::FLOAT:
       case Type::Kind::SINGLETON:
-      case Type::Kind::CLASS:
-      case Type::Kind::STRUCT:
-      case Type::Kind::INTERFACE:
-      case Type::Kind::TRAIT:
       case Type::Kind::EXTENSION:
       case Type::Kind::ENUM:
       case Type::Kind::ALIAS:
       case Type::Kind::NOT_EXPR:
         return ty;
+
+      case Type::Kind::CLASS:
+      case Type::Kind::STRUCT:
+      case Type::Kind::INTERFACE:
+      case Type::Kind::TRAIT: {
+        auto udt = static_cast<const UserDefinedType*>(ty);
+        if (udt->defn()->allTypeParams().size() > 0) {
+          SmallVector<const Type*, 4> typeArgs;
+          for (auto tp : udt->defn()->allTypeParams()) {
+            typeArgs.push_back(transform(tp->typeVar()));
+          }
+          auto nsd = new (_alloc) SpecializedDefn(
+              udt->defn(), _alloc.copyOf(typeArgs), udt->defn()->allTypeParams());
+          nsd->setType(new (_alloc) SpecializedType(nsd));
+          return nsd->type();
+        }
+        return ty;
+      }
 
     //   case Type::Kind::ALIAS:
     //     assert(false && "Implement");
@@ -141,6 +155,9 @@ namespace tempest::sema::transform {
   }
 
   const TypeArray TypeTransform::transformArray(const TypeArray& in) {
+    if (in.size() == 0) {
+      return in;
+    }
     SmallVector<const Type*, 4> result;
     bool changed = false;
     for (auto ty : in) {
@@ -168,15 +185,26 @@ namespace tempest::sema::transform {
       case Type::Kind::INTEGER:
       case Type::Kind::FLOAT:
       case Type::Kind::SINGLETON:
-      case Type::Kind::CLASS:
-      case Type::Kind::STRUCT:
-      case Type::Kind::INTERFACE:
-      case Type::Kind::TRAIT:
       case Type::Kind::EXTENSION:
       case Type::Kind::ENUM:
       case Type::Kind::ALIAS:
         return ty;
 
+      case Type::Kind::CLASS:
+      case Type::Kind::STRUCT:
+      case Type::Kind::INTERFACE:
+      case Type::Kind::TRAIT: {
+        auto udt = static_cast<const UserDefinedType*>(ty);
+        if (udt->defn()->allTypeParams().size() > 0) {
+          SmallVector<const Type*, 4> typeArgs;
+          for (auto tp : udt->defn()->allTypeParams()) {
+            typeArgs.push_back(transform(tp->typeVar()));
+          }
+          auto nsd = _specs.specialize(udt->defn(), typeArgs);
+          return nsd->type();
+        }
+        return ty;
+      }
     //   case Type::Kind::ALIAS:
     //     assert(false && "Implement");
     //     break;

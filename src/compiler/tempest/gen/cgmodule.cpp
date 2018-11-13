@@ -212,15 +212,92 @@ namespace tempest::gen {
   GlobalVariable* CGModule::genClassDesc(ClassDescriptorSym* sym) {
     auto clsDesc = genClassDescValue(sym);
     auto clsDescType = _types.getClassDescType();
+
+    // Method table array
+    SmallVector<llvm::Constant*, 16> methodRefs;
+    for (auto m : sym->methodTable) {
+      methodRefs.push_back(m->fnVal);
+    }
+    auto methodTableData = llvm::ConstantArray::get(
+        llvm::ArrayType::get(llvm::Type::getVoidTy(_context)->getPointerTo(), methodRefs.size()),
+        methodRefs);
+
+    // Method table global
+    std::string linkageNameMethods;
+    linkageNameMethods.reserve(64);
+    getLinkageName(linkageNameMethods, sym->typeDefn, sym->typeArgs);
+    linkageNameMethods.append("::methods");
+    auto methodTable = new llvm::GlobalVariable(
+        *_irModule, methodTableData->getType(), true,
+        llvm::GlobalValue::LinkageTypes::ExternalLinkage, methodTableData, linkageNameMethods);
+
+    // Class descriptor properties
     llvm::Constant* clsDescProps[3] = {
       llvm::ConstantPointerNull::get(clsDescType->getPointerTo()),
-      llvm::ConstantPointerNull::get(
-          llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo()),
+      methodTable,
       llvm::ConstantPointerNull::get(
           llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo()),
     };
+    if (sym->baseClsSym) {
+      clsDescProps[0] = genClassDescValue(sym->baseClsSym);
+    }
+
+    // Class descriptor global var
     clsDesc->setInitializer(llvm::ConstantStruct::get(clsDescType, clsDescProps));
     return clsDesc;
+  }
+
+  GlobalVariable* CGModule::genInterfaceDescValue(InterfaceDescriptorSym* sym) {
+    if (sym->desc) {
+      return sym->desc;
+    }
+    std::string linkageName;
+    linkageName.reserve(64);
+    getLinkageName(linkageName, sym->typeDefn, sym->typeArgs);
+    linkageName.append("::ifdesc");
+    sym->desc = new llvm::GlobalVariable(
+        *_irModule, _types.getInterfaceDescType(), true,
+        llvm::GlobalValue::LinkageTypes::ExternalLinkage, nullptr, linkageName);
+    return sym->desc;
+  }
+
+  GlobalVariable* CGModule::genInterfaceDesc(InterfaceDescriptorSym* sym) {
+    auto ifcDesc = genInterfaceDescValue(sym);
+    auto ifcDescType = _types.getInterfaceDescType();
+    llvm::Constant* ifcDescProps[1] = {
+      llvm::ConstantPointerNull::get(
+          llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo()),
+    };
+    ifcDesc->setInitializer(llvm::ConstantStruct::get(ifcDescType, ifcDescProps));
+    return ifcDesc;
+  }
+
+  GlobalVariable* CGModule::genClassInterfaceTransValue(ClassInterfaceTranslationSym* sym) {
+    if (sym->desc) {
+      return sym->desc;
+    }
+    std::string linkageName;
+    linkageName.reserve(64);
+    getLinkageName(linkageName, sym->cls->typeDefn, sym->cls->typeArgs);
+    linkageName.append("::");
+    getLinkageName(linkageName, sym->iface->typeDefn, sym->iface->typeArgs);
+    linkageName.append("::methods");
+    sym->desc = new llvm::GlobalVariable(
+        *_irModule, _types.getClassDescType(), true,
+        llvm::GlobalValue::LinkageTypes::ExternalLinkage, nullptr, linkageName);
+    return sym->desc;
+  }
+
+  GlobalVariable* CGModule::genClassInterfaceTrans(ClassInterfaceTranslationSym* sym) {
+    auto transDesc = genClassInterfaceTransValue(sym);
+    auto transDescType = _types.getClassInterfaceTransType();
+    llvm::Constant* clsDescProps[2] = {
+      genInterfaceDesc(sym->iface),
+      llvm::ConstantPointerNull::get(
+          llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo()),
+    };
+    transDesc->setInitializer(llvm::ConstantStruct::get(transDescType, clsDescProps));
+    return transDesc;
   }
 
   llvm::DIFile* CGModule::getDIFile(ProgramSource* src) {

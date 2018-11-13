@@ -92,9 +92,6 @@ namespace tempest::sema::graph {
   //   if (_abstract) {
   //     out << "abstract ";
   //   }
-  //   if (_undef) {
-  //     out << "undef ";
-  //   }
   // }
 
   GenericDefn::~GenericDefn() {

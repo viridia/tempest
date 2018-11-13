@@ -71,7 +71,7 @@ namespace {
   }
 }
 
-TEST_CASE("ResolveTypes", "[sema]") {
+TEST_CASE("ResolveTypes.Types", "[sema][resolve][types]") {
   const Location L;
   CompilationUnit cu;
 
@@ -525,7 +525,7 @@ TEST_CASE("ResolveTypes", "[sema]") {
     REQUIRE_THAT(letSt->defn->type(), TypeEQ("f64"));
   }
 
-  SECTION("Return statement") {
+  SECTION("Infer type from return statement") {
     auto mod = compile(cu,
         "fn x() -> i32 {\n"
         "  return y();\n"
@@ -586,6 +586,48 @@ TEST_CASE("ResolveTypes", "[sema]") {
       ),
       Catch::Contains("T cannot be bound to type f32, it must be a subtype of i8"));
   }
+
+  SECTION("Immutable self") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "class X {\n"
+          "  x: int;\n"
+          "  f() {\n"
+          "    x = 0;\n"
+          "  }\n"
+          "}\n"
+      ),
+      Catch::Contains("Mutation of enclosing type not allowed here"));
+  }
+
+  SECTION("Trait requirements") {
+    auto mod = compile(cu,
+      "trait X {\n"
+      "  f(a0: f32, a1: bool) -> i32;\n"
+      "}\n"
+      "class A implements X {\n"
+      "  f(a0: f32, a1: bool) -> i32 { return 7; }\n"
+      "}\n"
+      "class B[T: X] {\n"
+      "  b(a: T) -> i32 { return a.f(1f, false); }\n"
+      "}\n"
+      "fn test() {\n"
+      "  const a = A();\n"
+      "  const b = B[A]();\n"
+      "  const c = b.b(a);\n"
+      "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    auto blk = cast<BlockStmt>(fd->body());
+    auto constB = cast<LocalVarStmt>(blk->stmts[1]);
+    REQUIRE_THAT(constB->defn->init()->type, TypeEQ("class B[class A]"));
+    // REQUIRE_THAT(constB->init(), ExprEQ("x.f()"));
+  }
+}
+
+TEST_CASE("ResolveTypes.Operators", "[sema][resolve][operators]") {
+  const Location L;
+  CompilationUnit cu;
 
   SECTION("Resolve addition operator") {
     auto mod = compile(cu, "fn x(arg: i32) => arg + 1;\n");
@@ -750,6 +792,11 @@ TEST_CASE("ResolveTypes", "[sema]") {
       ),
       Catch::Contains("subtype of i64"));
   }
+}
+
+TEST_CASE("ResolveTypes.Statements", "[sema][resolve][stmt]") {
+  const Location L;
+  CompilationUnit cu;
 
   SECTION("If statement - disjoint returns") {
     auto mod = compile(cu,
@@ -867,18 +914,5 @@ TEST_CASE("ResolveTypes", "[sema]") {
     auto vd = cast<ValueDefn>(mod->members().back());
     REQUIRE_THAT(vd->type(), TypeEQ("i32"));
     REQUIRE_THAT(vd->init(), ExprEQ("x.f()"));
-  }
-
-  SECTION("Immutable self") {
-    REQUIRE_THAT(
-      compileError(cu,
-          "class X {\n"
-          "  x: int;\n"
-          "  f() {\n"
-          "    x = 0;\n"
-          "  }\n"
-          "}\n"
-      ),
-      Catch::Contains("Mutation of enclosing type not allowed here"));
   }
 }

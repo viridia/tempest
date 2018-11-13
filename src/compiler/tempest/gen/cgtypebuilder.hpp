@@ -68,6 +68,8 @@ namespace tempest::gen {
     /** References to built-in types. */
     llvm::Type* getObjectType();
     llvm::StructType* getClassDescType();
+    llvm::StructType* getInterfaceDescType();
+    llvm::StructType* getClassInterfaceTransType();
 
   private:
     llvm::Type* createClass(const UserDefinedType*, ArrayRef<const Type*> typeArgs);
@@ -87,6 +89,8 @@ namespace tempest::gen {
 
     llvm::Type* _objectType = nullptr;
     llvm::StructType* _classDescType = nullptr;
+    llvm::StructType* _interfaceDescType = nullptr;
+    llvm::StructType* _classInterfaceTransType = nullptr;
   };
 }
 

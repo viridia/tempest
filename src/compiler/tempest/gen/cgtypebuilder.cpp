@@ -282,15 +282,43 @@ namespace tempest::gen {
       // - base class
       // - interface table
       // - method table
-      auto cdType = llvm::StructType::create(_context, "ClassDescriptor");
+      _classDescType = llvm::StructType::create(_context, "ClassDescriptor");
       llvm::Type* descFieldTypes[3] = {
-        cdType->getPointerTo(),
-        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+        _classDescType->getPointerTo(),
+        getClassInterfaceTransType()->getPointerTo(),
         llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
       };
-      cdType->setBody(descFieldTypes);
-      _classDescType = cdType;
+      _classDescType->setBody(descFieldTypes);
     }
     return _classDescType;
+  }
+
+  llvm::StructType* CGTypeBuilder::getInterfaceDescType() {
+    if (!_interfaceDescType) {
+      // Interface descriptor fields:
+      // - dummy field (for now)
+      _interfaceDescType = llvm::StructType::create(_context, "InterfaceDescriptor");
+      llvm::Type* descFieldTypes[1] = {
+        llvm::Type::getVoidTy(_context)->getPointerTo(),
+      };
+      _interfaceDescType->setBody(descFieldTypes);
+    }
+    return _interfaceDescType;
+  }
+
+  llvm::StructType* CGTypeBuilder::getClassInterfaceTransType() {
+    if (!_classInterfaceTransType) {
+      // Class interface translation table:
+      // - interface descriptor
+      // - method table
+      _classInterfaceTransType = llvm::StructType::create(_context, "ClassInterfaceTrans");
+      llvm::Type* descFieldTypes[2] = {
+        // llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+        getInterfaceDescType()->getPointerTo(),
+        llvm::Type::getVoidTy(_context)->getPointerTo()->getPointerTo(),
+      };
+      _classInterfaceTransType->setBody(descFieldTypes);
+    }
+    return _classInterfaceTransType;
   }
 }

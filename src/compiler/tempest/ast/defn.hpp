@@ -35,7 +35,6 @@ namespace tempest::ast {
       , _protected(false)
       , _static(false)
       , _override(false)
-      , _undef(false)
       , _final(false)
       , _abstract(false)
     {}
@@ -56,10 +55,6 @@ namespace tempest::ast {
     bool isOverride() const { return _override; }
     void setOverride(bool value) { _override = value; }
 
-    /** Whether this definition has the 'undef' modifier. */
-    bool isUndef() const { return _undef; }
-    void setUndef(bool value) { _undef = value; }
-
     /** Whether this definition has the 'final' modifier. */
     bool isFinal() const { return _final; }
     void setFinal(bool value) { _final = value; }
@@ -78,7 +73,6 @@ namespace tempest::ast {
     bool _protected;
     bool _static;
     bool _override;
-    bool _undef;
     bool _final;
     bool _abstract;
     bool _export;

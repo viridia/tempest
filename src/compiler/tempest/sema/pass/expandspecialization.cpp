@@ -151,6 +151,12 @@ namespace tempest::sema::pass {
 
         case Expr::Kind::ALLOC_OBJ: {
           auto sref = static_cast<SymbolRefExpr*>(e);
+          if (auto sp = dyn_cast<SpecializedType>(e->type)) {
+            MapEnvTransform transform(_cu.types(), _cu.spec(), _env.params, _env.args);
+            auto typeArgs = transform.transformArray(sp->spec->typeArgs());
+            sref->sym = _cu.symbols().addClass(cast<TypeDefn>(sp->spec->generic()), typeArgs);
+            return transform::ExprTransform::transform(e);
+          }
           auto udt = cast<UserDefinedType>(e->type);
           sref->sym = _cu.symbols().addClass(udt->defn(), _env.args);
           return transform::ExprTransform::transform(e);
@@ -258,22 +264,67 @@ namespace tempest::sema::pass {
   }
 
   void ExpandSpecializationPass::visitClassDescriptorSym(ClassDescriptorSym* csym) {
-    Env env;
-    env.params = csym->typeDefn->allTypeParams();
-    env.args.assign(csym->typeArgs.begin(), csym->typeArgs.end());
+    auto td = csym->typeDefn;
+    MapEnvTransform transform(_cu.types(), _cu.spec(), td->allTypeParams(), csym->typeArgs);
 
-    for (auto member : csym->typeDefn->members()) {
-      if (auto fd = dyn_cast<FunctionDefn>(member)) {
-        // Static
-        // Final or overloaded
-        // Interface / Class
-        if (!fd->isStatic() &&
-            fd->intrinsic() == IntrinsicFn::NONE &&
-            fd->allTypeParams().size() == csym->typeArgs.size()) {
-          auto fsym = _cu.symbols().addFunction(fd, env.args);
-          (void)fsym;
+    // Base class reference
+    if (td->extends().size() == 1) {
+      ArrayRef<const Type*> typeArgs;
+      auto baseSym = cast<TypeDefn>(unwrapSpecialization(td->extends()[0], typeArgs));
+      csym->baseClsSym = _cu.symbols().addClass(baseSym, typeArgs);
+    }
+
+    // Method table.
+    SmallVector<FunctionSym*, 16> methodTable;
+    if (!td->isAbstract()) {
+      for (auto& method : td->methods()) {
+        assert(method.method);
+        assert(method.method->allTypeParams().size() == method.typeArgs.size());
+        auto fsym = _cu.symbols().addFunction(
+            method.method,
+            transform.transformArray(method.typeArgs));
+        methodTable.push_back(fsym);
+      }
+      csym->methodTable = _cu.spec().alloc().copyOf(methodTable);
+
+      for (auto& member : td->members()) {
+        if (auto fd = dyn_cast<FunctionDefn>(member)) {
+          if (!fd->isAbstract() &&
+              fd->intrinsic() == IntrinsicFn::NONE &&
+              fd->allTypeParams().size() == csym->typeArgs.size()) {
+            _cu.symbols().addFunction(fd, transform.transformArray(csym->typeArgs));
+          }
         }
       }
+
+      // Interface table
+      SmallVector<ClassInterfaceTranslationSym*, 16> interfaceTable;
+      for (size_t i = 0; i < td->implements().size(); i += 1) {
+        auto interfaceType = td->implements()[i];
+        ArrayRef<const Type*> typeArgs;
+        auto idef = cast<TypeDefn>(unwrapSpecialization(interfaceType, typeArgs));
+        if (idef->type()->kind == Type::Kind::INTERFACE) {
+          typeArgs = transform.transformArray(typeArgs);
+          auto isym = _cu.symbols().addInterface(idef, typeArgs);
+          auto tsym = _cu.symbols().addClassInterfaceTranslation(csym, isym);
+          if (tsym->methodTable.empty()) {
+            assert(i < td->interfaceMethods().size());
+            const auto& ifaceMethods = td->interfaceMethods()[i];
+            SmallVector<FunctionSym*, 16> ifaceMethodSyms;
+            for (auto& method : ifaceMethods) {
+              assert(method.method);
+              auto fsym = _cu.symbols().addFunction(
+                  method.method,
+                  transform.transformArray(method.typeArgs));
+              ifaceMethodSyms.push_back(fsym);
+            }
+            tsym->methodTable = _cu.spec().alloc().copyOf(ifaceMethodSyms);
+          }
+          interfaceTable.push_back(tsym);
+        }
+        // TODO: Include inherited interfaces
+      }
+      csym->interfaceTable = _cu.spec().alloc().copyOf(interfaceTable);
     }
   }
 

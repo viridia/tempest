@@ -115,7 +115,7 @@ namespace tempest::gen {
     _irFunction = genFunctionValue(func);
 
     // Don't generate undefined functions.
-    // if (fdef->isUndefined() || fdef->isAbstract() || fdef->isInterfaceMethod()) {
+    // if (fdef->isAbstract() || fdef->isInterfaceMethod()) {
     //   return true;
     // }
 

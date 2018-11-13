@@ -20,6 +20,7 @@
 #include "tempest/sema/names/membernamelookup.hpp"
 #include "tempest/sema/names/unqualnamelookup.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
+#include "tempest/sema/pass/transform/loweroperators.hpp"
 #include "tempest/sema/transform/applyspec.hpp"
 #include "tempest/sema/transform/visitor.hpp"
 #include "llvm/Support/Casting.h"
@@ -44,211 +45,6 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::TypeRelation;
   using tempest::sema::transform::ApplySpecialization;
   using tempest::sema::transform::ApplySpecUnique;
-
-  class LowerOperatorsTransform : public transform::ExprVisitor {
-  public:
-    LowerOperatorsTransform(
-        CompilationUnit& cu, LookupScope* scope, support::BumpPtrAllocator& alloc)
-      : _cu(cu)
-      , _scope(scope)
-      , _alloc(alloc)
-    {}
-
-    Expr* visit(Expr* e) {
-      if (e == nullptr) {
-        return e;
-      }
-
-      switch (e->kind) {
-        case Expr::Kind::ADD:
-        case Expr::Kind::SUBTRACT:
-        case Expr::Kind::MULTIPLY:
-        case Expr::Kind::DIVIDE:
-        case Expr::Kind::REMAINDER:
-        case Expr::Kind::LSHIFT:
-        case Expr::Kind::RSHIFT:
-        case Expr::Kind::BIT_OR:
-        case Expr::Kind::BIT_AND:
-        case Expr::Kind::BIT_XOR:
-        case Expr::Kind::NE:
-        case Expr::Kind::EQ:
-        case Expr::Kind::LE:
-        case Expr::Kind::LT:
-        case Expr::Kind::GE:
-        case Expr::Kind::GT:
-          return visitInfixOperator(static_cast<BinaryOp*>(e));
-
-        case Expr::Kind::NEGATE:
-        case Expr::Kind::COMPLEMENT:
-          return visitUnaryOperator(static_cast<UnaryOp*>(e));
-
-        default:
-          return ExprVisitor::visit(e);
-      }
-    }
-
-    Expr* visitInfixOperator(BinaryOp* op) {
-      if (auto evalResult = evalConstOperator(op)) {
-        return evalResult;
-      }
-
-      StringRef funcName;
-      llvm::ArrayRef<Expr*> args(op->args);
-      bool inverted = false;
-      switch (op->kind) {
-        case Expr::Kind::ADD:
-          funcName = "infixAdd";
-          break;
-        case Expr::Kind::SUBTRACT:
-          funcName = "infixSubtract";
-          break;
-        case Expr::Kind::MULTIPLY:
-          funcName = "infixMultiply";
-          break;
-        case Expr::Kind::DIVIDE:
-          funcName = "infixDivide";
-          break;
-        case Expr::Kind::REMAINDER:
-          funcName = "infixRemainder";
-          break;
-        case Expr::Kind::LSHIFT:
-          funcName = "infixLeftShift";
-          break;
-        case Expr::Kind::RSHIFT:
-          funcName = "infixRightShift";
-          break;
-        case Expr::Kind::BIT_OR:
-          funcName = "infixBitOr";
-          break;
-        case Expr::Kind::BIT_AND:
-          funcName = "infixBitAnd";
-          break;
-        case Expr::Kind::BIT_XOR:
-          funcName = "infixBitXOr";
-          break;
-        case Expr::Kind::EQ:
-          funcName = "isEqualTo";
-          break;
-        case Expr::Kind::NE:
-          funcName = "isEqualTo";
-          inverted = true;
-          break;
-        case Expr::Kind::LT:
-          funcName = "isLessThan";
-          break;
-        case Expr::Kind::LE:
-          funcName = "isLessThanOrEqual";
-          break;
-        case Expr::Kind::GT:
-          funcName = "isLessThan";
-          // Swap arg order
-          args = _alloc.copyOf(llvm::ArrayRef<Expr*>({ args[1], args[0] }));
-          break;
-        case Expr::Kind::GE:
-          funcName = "isLessThanOrEqual";
-          // Swap arg order
-          args = _alloc.copyOf(llvm::ArrayRef<Expr*>({ args[1], args[0] }));
-          break;
-        default:
-          assert(false && "Invalid binary op");
-      }
-
-      auto fnRef = resolveOperatorName(op->location, funcName);
-      auto result = new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, args);
-      if (inverted) {
-        return new (_alloc) UnaryOp(Expr::Kind::NOT, result);
-      }
-      return result;
-    }
-
-    Expr* visitUnaryOperator(UnaryOp* op) {
-      if (auto evalResult = evalConstOperator(op)) {
-        return evalResult;
-      }
-
-      StringRef funcName;
-      switch (op->kind) {
-        case Expr::Kind::NEGATE:
-          funcName = "unaryNegation";
-          break;
-        case Expr::Kind::COMPLEMENT:
-          funcName = "unaryComplement";
-          break;
-        default:
-          assert(false && "Invalid unary op");
-      }
-
-      auto fnRef = resolveOperatorName(op->location, funcName);
-      return new (_alloc) ApplyFnOp(Expr::Kind::CALL, op->location, fnRef, op->arg);
-    }
-
-    Expr* evalConstOperator(Expr* op) {
-      eval::EvalResult result;
-      result.failSilentIfNonConst = true;
-      if (eval::evalConstExpr(op, result)) {
-        return evalResultToExpr(op->location, result);
-      } else if (result.error) {
-        return &Expr::ERROR;
-      }
-
-      return nullptr;
-    }
-
-    Expr* evalResultToExpr(const source::Location& location, eval::EvalResult& result) {
-      switch (result.type) {
-        case eval::EvalResult::INT: {
-          auto intType = _cu.types().createIntegerType(result.intResult, result.isUnsigned);
-          return new (_alloc) IntegerLiteral(
-            location,
-            _alloc.copyOf(result.intResult),
-            intType);
-        }
-        case eval::EvalResult::FLOAT: {
-          FloatType* ftype = &FloatType::F64;
-          if (result.size == eval::EvalResult::F32) {
-            ftype = &FloatType::F32;
-          }
-          return new (_alloc) FloatLiteral(
-            location,
-            result.floatResult,
-            false,
-            ftype);
-        }
-        case eval::EvalResult::BOOL:
-          assert(false && "Implement");
-          break;
-        case eval::EvalResult::STRING:
-          assert(false && "Implement");
-          break;
-      }
-    }
-
-    Expr* resolveOperatorName(const Location& loc, const StringRef& name) {
-      MemberLookupResult result;
-      _scope->lookup(name, result);
-      if (result.size() > 0) {
-        auto nr = createNameRef(_alloc, loc, result,
-            cast_or_null<Defn>(_scope->subject()),
-            nullptr, false, true);
-        if (auto mref = dyn_cast<MemberListExpr>(nr)) {
-          mref->isOperator = true;
-        }
-        return nr;
-      } else {
-        auto mref = new (_alloc) MemberListExpr(
-            Expr::Kind::FUNCTION_REF_OVERLOAD, loc, name,
-            llvm::ArrayRef<MemberAndStem>());
-        mref->useADL = true;
-        mref->isOperator = true;
-        return mref;
-      }
-    }
-
-  private:
-    CompilationUnit& _cu;
-    LookupScope* _scope;
-    support::BumpPtrAllocator& _alloc;
-  };
 
   // Processing
 
@@ -395,8 +191,8 @@ namespace tempest::sema::pass {
         _functionReturnType = &VoidType::VOID;
       }
 
-      LowerOperatorsTransform transform(_cu, _scope, *_alloc);
-      auto body = transform.visit(fd->body());
+      transform::LowerOperatorsTransform transform(_cu, _scope, *_alloc);
+      auto body = transform(fd->body());
       auto exprType = assignTypes(body, _functionReturnType);
 
       // If return type was not explicitly specified, infer it from the expression type.
@@ -441,8 +237,8 @@ namespace tempest::sema::pass {
   void ResolveTypesPass::visitValueDefn(ValueDefn* vd) {
     visitAttributes(vd);
     if (vd->init()) {
-      LowerOperatorsTransform transform(_cu, _scope, *_alloc);
-      vd->setInit(transform.visit(vd->init()));
+      transform::LowerOperatorsTransform transform(_cu, _scope, *_alloc);
+      vd->setInit(transform(vd->init()));
       auto initType = assignTypes(vd->init(), vd->type());
       if (!Type::isError(initType)) {
         if (!vd->type()) {
@@ -544,12 +340,6 @@ namespace tempest::sema::pass {
 
       case Expr::Kind::VAR_REF:
         return visitVarName(static_cast<DefnRef*>(e), cs);
-
-      // case Expr::Kind::FUNCTION_REF:
-      //   return visitFunctionName(static_cast<DefnRef*>(e), cs);
-
-      // case Expr::Kind::TYPE_REF:
-      //   return visitTypeName(static_cast<DefnRef*>(e), cs);
 
       case Expr::Kind::BLOCK:
         return visitBlock(static_cast<BlockStmt*>(e), cs);
@@ -956,51 +746,6 @@ namespace tempest::sema::pass {
 //       # How do we find this out? We need to know that the method is inherited from an instantiated
 //       # supertype.
 
-//       # Relabel all type variables in the parameter types, the return types, and the instantiation
-//       # mapping. These should all have local labels.
-//       ccTypeVars = {}
-//       renamedMappedVars = {}
-//       renamingMap = {}
-//       if inferredParams or outerParams or mappedVars:
-//         ambiguousTypeTransform = callsite.LabelAmbiguousTypes(self.typeStore, cs, cc)
-//         for tparam in inferredParams:
-//           # Translate references from the unlabeled parameter into a locally-labeled one.
-//           tvar = cs.renamer.createTypeVar(tparam, cc)
-//           renamingMap[tparam.getTypeVar()] = tvar
-//           ccTypeVars[tparam.getTypeVar()] = tvar
-//           for st in tparam.getSubtypeConstraints():
-//             cs.addSubtypeConstraint(None, tvar, st, cc)
-//         for tparam in outerParams:
-//           # If the outer param is not explicitly mapped...(TODO: This logic should be moved
-//           # up to where we compute the outer params).
-//           if tparam.getTypeVar() not in mappedVars:
-//             # Outer params are type parameters which are inherited from the enclosing scope
-//             # rather than inferred or explicitly mapped. They can only exist in cases where the
-//             # call expression and the called function share a common ancestor scope. Outer params
-//             # are not locally-labeled (the second parameter below is None) because all call
-//             # candidates share the same value for the parameter.
-//             # (Except that this causes unit tests to fail, so I reverted it...)
-//             tvar = cs.renamer.createTypeVar(tparam, cc)
-//             assert tvar not in mappedVars
-//             if tvar not in mappedVars:
-//               renamingMap[tparam.getTypeVar()] = tvar
-//               ccTypeVars[tparam.getTypeVar()] = tvar
-//               # For outer params, add an equivalence to the original unbound type parameter.
-//               cs.addEquivalence(tparam.getLocation(), tvar, tparam.getTypeVar())
-// #           for st in tparam.getSubtypeConstraints():
-// #             cs.addSubtypeConstraint(None, tvar, st, cc)
-//         for key, value in mappedVars.items():
-//           assert not key.hasIndex()
-//           # Translate references from the unlabeled parameter into a locally-labeled one,
-//           # and also add an explicit equivalence constraint.
-//           loc = key.getParam().getLocation()
-//           tvar = cs.renamer.createTypeVar(key.getParam(), cc)
-//           renamedValue = renamedMappedVars[tvar] = ambiguousTypeTransform.traverseType(
-//               cs.renamer.transformType(value))
-//           renamingMap[key] = tvar
-//           cs.addEquivalence(loc, tvar, renamedValue, cc)
-//           cs.locateAdditionalConstraints(loc, renamedValue, cc)
-
 //         # Handle templated 'self' parameter.
 //         if method.hasSelfType() and isinstance(method.getSelfType(), graph.TypeVar):
 //           assert isinstance(func, graph.MemberList)
@@ -1010,10 +755,6 @@ namespace tempest::sema::pass {
 //           renamedMappedVars[tvar] = cs.renamer.transformType(selfArgType)
 //           renamingMap[method.getSelfType()] = tvar
 //           cs.addEquivalence(None, tvar, selfArgType, cc)
-
-//         # Rename all type variables: If they are an inferred variable, then give them a local
-//         # label, otherwise give them a global label.
-//         renameTransform = renamer.ApplyTypeMapTransform(environ.Env(renamingMap), cs.renamer)
 
 //         # Handle type parameter defaults
 //         for de in defns.ancestorDefs(method):
@@ -1026,22 +767,6 @@ namespace tempest::sema::pass {
 //                 value = ambiguousTypeTransform.traverseType(value)
 //                 cs.addEquivalence(None, tvar, value, cc)
 //                 cs.locateAdditionalConstraints(tparam.getLocation(), value, cc)
-
-//         params = renameTransform.traverseParamList(params)
-//         paramTypes = renameTransform.traverseTypeList(paramTypes)
-//         returnType = renameTransform.traverseType(returnType)
-// #         debug.write('returnType', returnType)
-// #         debug.write('ccTypeVars', ccTypeVars)
-// #         debug.write('renamingMap', renamingMap)
-//         cc.setRenameTransform(renameTransform)
-//       else:
-//         params = cs.renamer.transformParams(params)
-//         paramTypes = cs.renamer.transformTypeList(paramTypes)
-//         returnType = cs.renamer.transformType(returnType)
-
-//       # TODO: Something about this logic is wrong - this shouldn't be necessary.
-//       cs.renamer.renamerChecker.traverseParamList(params)
-//       cs.renamer.renamerChecker.traverseType(returnType)
 
       cc->params = params;
       cc->returnType = returnType;
@@ -1069,21 +794,6 @@ namespace tempest::sema::pass {
         cc->rejection = builder.rejection();
         cc->rejection.argIndex = argIndex;
       }
-
-//       cc.setTypeVars(environ.Env(ccTypeVars))
-//       # TODO: Actually what this should be testing is explicit type params. We don't want to
-//       # add requirements from implicit params, since it's presumed that they are already satisifed.
-//       if listType == graph.MemberListType.TYPE:
-//         for defn in defns.ancestorDefs(method):
-//           if defn not in cs.outerScopes:
-//             cs.addRequirements(defn.getRequirements(), (environ.Env(renamingMap),), cc)
-
-//       if cc.rejection:
-//         continue
-
-//       # Callers need a concrete type to do ADL lookup.
-//       if mappedVars:
-//         returnType = self.canonicalize.traverseType(returnType, environ.Env(renamedMappedVars))
 
       returnTypes.push_back({ cc, returnType });
     }
@@ -1297,13 +1007,6 @@ namespace tempest::sema::pass {
 
   const Type* ResolveTypesPass::doTypeInference(
       Expr* expr, const Type* exprType, ConstraintSolver& cs) {
-//   def doTypeInference(self, expr, exprType, cs):
-//     try:
-//       solutionEnv = None
-//       # TODO: It would be nice to have an optimized run if there are no type vars involved.
-//       if self.nameLookup.getSubject().getName() in TRACE_SUBJECTS:
-//         debug.tracing = True
-//         cs.tracing = True
     cs.run();
     if (cs.failed()) {
       return &Type::ERROR;
@@ -1326,47 +1029,6 @@ namespace tempest::sema::pass {
         CallSite* c = static_cast<CallSite*>(site);
         updateCallSite(cs, c, st);
       }
-//       mlist = site.callExpr.getArgs()[0]
-//       if method:
-//         assert isinstance(method, graph.Member), debug.write(method)
-//         assert isinstance(mlist, graph.MemberList), type(mlist)
-//         mlist.setMembers([method])
-//         mlist.setListType(graph.MemberListType.FUNCTION)
-//         if not mlist.hasBase() and needsBaseExpr:
-//           self.errorAtFmt(site.callExpr.getLocation(),
-//               "Call to instance method '{0}' from static context", method.getName())
-//         if mlist.hasBase():
-//           base = mlist.getBase()
-
-//           # Replace the environment in the method base expression.
-//           if isinstance(base, graph.MemberList) and base.getListType() == graph.MemberListType.TYPE:
-//             if isinstance(method, graph.InstantiatedMember):
-//               definedIn = method.getBase().hasDefinedIn() and method.getBase().getDefinedIn()
-//             else:
-//               definedIn = method.hasDefinedIn() and method.getDefinedIn()
-//             baseMemberList = []
-//             if len(base.getMembers()) > 1:
-//               # TODO: Incorrect. We need to reduce the list of base members to the member that
-//               # defined the chosen method; using 'definedIn' works only when the chosen method
-//               # was not defined in some base class of the original type that was searched.
-//               # The reason we don't do this is because the location of where the method was found
-//               # is not currently preserved.
-//               assert definedIn
-//               baseMemberList.append(cs.applyEnv(definedIn, (methodEnv,)))
-//             else:
-//               for m in base.getMembers():
-//                 if isinstance(m, graph.InstantiatedMember) and m.getEnv() != methodEnv:
-//                   m = cs.applyEnv(m.getBase(), (methodEnv,))
-//                 else:
-//                   m = cs.applyEnv(m, (methodEnv,))
-//                 baseMemberList.append(m)
-//             if baseMemberList != base.getMembers():
-//               base = base.shallowCopy().setMembers(baseMemberList)
-//           elif transform:
-//             base = transform.traverseExpr(base)
-
-//           mlist.setBase(base)
-//           renamer.EnsureAllTypeVarsAreNormalized().traverseExpr(mlist.getBase())
     }
   }
 

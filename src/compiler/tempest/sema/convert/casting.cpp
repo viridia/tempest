@@ -81,6 +81,17 @@ namespace tempest::sema::convert {
         }
       }
 
+      case Type::Kind::SPECIALIZED: {
+        if (isEqual(dst, src->type)) {
+          return src;
+        }
+        // auto dstSp = static_cast<const SpecializedType*>(dst);
+        // if (auto srcSp = dyn_cast<SpecializedType>(src->type)) {
+
+        // }
+        assert(false && "Implement");
+      }
+
       default:
         diag.fatal(src->location) << "Invalid cast: " << src->type << " => " << dst;
         break;

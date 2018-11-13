@@ -252,13 +252,6 @@ namespace tempest::sema::graph {
         return t;
       }
     }
-    // if (!m) {
-    //   return nullptr;
-    // }
-    // while (m->kind == Defn::Kind::SPECIALIZED) {
-    //   m = static_cast<SpecializedDefn*>(m)->generic();
-    // }
-    // return llvm::dyn_cast<Defn>(m);
   }
 
   const Type* unqualifiedAndUnspecialized(const Type* t);

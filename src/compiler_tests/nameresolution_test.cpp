@@ -354,6 +354,20 @@ TEST_CASE("NameResolution.Interface", "[sema]") {
     REQUIRE(vdef->type()->kind == Type::Kind::INTERFACE);
     REQUIRE_THAT(vdef->type(), TypeEQ("interface B"));
   }
+
+  SECTION("Redundant interface") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "interface A[T] {}\n"
+          "class C implements A[i32], A[i32] {}\n"
+      ),
+      Catch::Contains("Type implements the same interface more than once"));
+
+    compile(cu,
+        "interface A[T] {}\n"
+        "class C implements A[i32], A[i8] {}\n"
+    );
+  }
 }
 
 TEST_CASE("NameResolution.Trait", "[sema]") {

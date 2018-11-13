@@ -16,6 +16,8 @@ namespace tempest::sema::transform {
   /** Abstract base class for mutating expression transformations. */
   class ExprVisitor {
   public:
+    Expr* operator()(Expr* in) { return visit(in); }
+
     virtual Expr* visit(Expr* in);
     void visitArray(const ArrayRef<Expr*>& in);
   };

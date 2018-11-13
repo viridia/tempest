@@ -32,14 +32,7 @@ namespace tempest::sema::convert {
         return ConversionResult(ConversionRank::IDENTICAL);
       } else {
         if (dstEnv.args.size() == srcEnv.args.size()) {
-          bool same = true;
-          for (size_t i = 0; i < dstEnv.args.size(); i++) {
-            if (isEqual(dstEnv.args[i], srcEnv.args[i])) {
-              same = false;
-              break;
-            }
-          }
-          if (same) {
+          if (isEqual(dstEnv.args, srcEnv.args)) {
             return ConversionResult(ConversionRank::IDENTICAL);
           }
         }

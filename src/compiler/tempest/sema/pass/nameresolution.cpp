@@ -6,6 +6,7 @@
 #include "tempest/error/diagnostics.hpp"
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/eval/evalconst.hpp"
+#include "tempest/sema/convert/predicate.hpp"
 #include "tempest/sema/graph/expr_literal.hpp"
 #include "tempest/sema/graph/expr_op.hpp"
 #include "tempest/sema/graph/expr_stmt.hpp"
@@ -219,9 +220,7 @@ namespace tempest::sema::pass {
       }
     }
 
-    if (td->isUndef()) {
-      diag.error(td) << "Type definition cannot be undefined.";
-    } else if (td->isOverride()) {
+    if (td->isOverride()) {
       diag.error(td) << "Type definition cannot be declared as override.";
     }
 
@@ -274,6 +273,8 @@ namespace tempest::sema::pass {
           defaultCtor->setConstructor(true);
           defaultCtor->setDefault(true);
           defaultCtor->setSelfType(td->type());
+          defaultCtor->allTypeParams().assign(
+              td->allTypeParams().begin(), td->allTypeParams().end());
           Env baseEnv;
           auto baseCtor = baseEnv.unwrap(ctorResult.member);
 
@@ -315,8 +316,6 @@ namespace tempest::sema::pass {
       diag.error(td) << "Enumeration types cannot be declared as 'static'.";
     } else if (td->isAbstract()) {
       diag.error(td) << "Enumeration types cannot be declared as abstract.";
-    } else if (td->isUndef()) {
-      diag.error(td) << "Enumeration types cannot be undefined.";
     } else if (td->isOverride()) {
       diag.error(td) << "Enumeration types cannot be overridden.";
     } else if (td->isFinal()) {
@@ -375,16 +374,12 @@ namespace tempest::sema::pass {
     if (fd->isNative()) {
       if (fd->isAbstract()) {
         diag.error(fd) << "Native functions cannot be abstract.";
-      } else if (fd->isUndef()) {
-        diag.error(fd) << "Native functions cannot be undefined.";
       } else if (fd->ast()->body) {
         diag.error(fd) << "Native functions cannot have a function body.";
       }
     } else if (fd->isStatic()) {
       if (fd->isAbstract()) {
         diag.error(fd) << "Static functions cannot be abstract.";
-      } else if (fd->isUndef()) {
-        diag.error(fd) << "Static functions cannot be undefined.";
       } else if (!fd->ast()->body) {
         diag.error(fd) << "Static function must have a function body.";
       } else if (enclosingKind == Type::Kind::INTERFACE) {
@@ -399,8 +394,6 @@ namespace tempest::sema::pass {
     } else if (fd->isAbstract()) {
       if (fd->ast()->body) {
         diag.error(fd) << "Abstract function cannot have a function body.";
-      } else if (fd->isUndef()) {
-        diag.error(fd) << "Abstract function cannot be undefined.";
       } else if (fd->isFinal()) {
         diag.error(fd) << "Abstract function cannot be declared as 'final'.";
       } else if (!enclosingType || !enclosingType->isAbstract()) {
@@ -411,9 +404,7 @@ namespace tempest::sema::pass {
         diag.error(fd) << "A function defined within a type extension cannot be abstract.";
       }
     } else if (fd->ast()->body) {
-      if (fd->isUndef()) {
-        diag.error(fd) << "Undefined function cannot have a function body.";
-      } else if (enclosingType && enclosingType->type()->kind == Type::Kind::INTERFACE) {
+      if (enclosingType && enclosingType->type()->kind == Type::Kind::INTERFACE) {
         diag.error(fd) << "A function within an interface definition cannot have a function body.";
       } else if (fd->isFinal()) {
         switch (enclosingKind) {
@@ -1603,6 +1594,19 @@ namespace tempest::sema::pass {
       } else if (td->type()->kind == Type::Kind::ENUM) {
         // Enums inherit from 'u32' if no base class specified.
         td->extends().push_back(IntegerType::U32.defn());
+      }
+    }
+
+    for (size_t i = 0; i < td->implements().size(); i += 1) {
+      for (size_t j = i + 1; j < td->implements().size(); j += 1) {
+        ArrayRef<const Type*> e0;
+        ArrayRef<const Type*> e1;
+        auto b0 = unwrapSpecialization(td->implements()[i], e0);
+        auto b1 = unwrapSpecialization(td->implements()[j], e1);
+        if (b0 == b1 && convert::isEqual(e0, e1)) {
+          diag.error(td->location()) <<
+            "Type implements the same interface more than once.";
+        }
       }
     }
   }

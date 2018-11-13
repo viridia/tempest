@@ -1,4 +1,4 @@
-import { Iterable } from .iterate;
+import { Iterable, Iterator } from .iterate;
 
 /** Standard built-in linear slice type.
 
@@ -6,4 +6,9 @@ import { Iterable } from .iterate;
     a contiguous, linear memory layout.
 */
 export struct Slice[T] implements Iterable[T] {
+  iterate => SliceIterator[T]();
+}
+
+export class SliceIterator[T] implements Iterator[T] {
+  next -> T | void {}
 }

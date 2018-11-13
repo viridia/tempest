@@ -1,8 +1,12 @@
 #ifndef TEMPEST_SEMA_GRAPH_DEFN_HPP
 #define TEMPEST_SEMA_GRAPH_DEFN_HPP 1
 
-#ifndef TEMPEST_GRAPH_SYMBOLTABLE_HPP
+#ifndef TEMPEST_SEMA_GRAPH_SYMBOLTABLE_HPP
   #include "tempest/sema/graph/symboltable.hpp"
+#endif
+
+#ifndef TEMPEST_SEMA_GRAPH_METHODTABLE_HPP
+  #include "tempest/sema/graph/methodtable.hpp"
 #endif
 
 #ifndef TEMPEST_INTRINSIC_INTRINSIC_HPP
@@ -67,13 +71,12 @@ namespace tempest::sema::graph {
       , _final(false)
       , _override(false)
       , _abstract(false)
-      , _undef(false)
       , _static(false)
       , _local(false)
       , _member(false)
       , _resolving(false)
       , _resolved(false)
-      , _overloadIndex(0)
+      // , _overloadIndex(0)
     {}
 
     /** Source location where this was defined. */
@@ -101,10 +104,6 @@ namespace tempest::sema::graph {
     /** Whether this definition has the 'override' modifier. */
     bool isOverride() const { return _override; }
     void setOverride(bool value) { _override = value; }
-
-    /** Whether this definition has the 'undef' modifier. */
-    bool isUndef() const { return _undef; }
-    void setUndef(bool value) { _undef = value; }
 
     /** If true, this definition can't be overridden. */
     bool isFinal() const { return _final; }
@@ -137,10 +136,6 @@ namespace tempest::sema::graph {
     std::vector<Expr*>& attributes() { return _attributes; }
     const std::vector<Expr*>& attributes() const { return _attributes; }
 
-    // If non-zero, means this is the Nth member with the same name.
-    int32_t overloadIndex() const { return _overloadIndex; }
-    void setOverloadIndex(int32_t index) { _overloadIndex = index; }
-
     /** Implemente Locatable. */
     const source::Location& getLocation() const { return location(); }
 
@@ -164,7 +159,6 @@ namespace tempest::sema::graph {
     bool _final;
     bool _override;               // Overridden method
     bool _abstract;
-    bool _undef;                  // Undefined method
     bool _static;                 // Was declared static
     bool _local;                  // Declared in a local scope
     bool _member;                 // Is a member variable
@@ -175,7 +169,7 @@ namespace tempest::sema::graph {
 
     std::vector<Expr*> _attributes;
 
-    int32_t _overloadIndex;
+    // int32_t _overloadIndex;
   //  docComment: DocComment = 7;   # Doc comments
   };
 
@@ -267,6 +261,14 @@ namespace tempest::sema::graph {
     MemberList& implements() { return _implements; }
     const MemberArray implements() const { return _implements; }
 
+    /** Method table. */
+    MethodTable& methods() { return _methods; }
+    const MethodTable& methods() const { return _methods; }
+
+    /** Interface method table. */
+    std::vector<MethodTable>& interfaceMethods() { return _interfaceMethods; }
+    const std::vector<MethodTable>& interfaceMethods() const { return _interfaceMethods; }
+
     /** If this type is an intrinsic type, here is the information for it. */
     IntrinsicType intrinsic() const { return _intrinsic; }
     void setIntrinsic(IntrinsicType i) { _intrinsic = i; }
@@ -274,6 +276,10 @@ namespace tempest::sema::graph {
     /** Flag indicating whether extends/inherits has been resolved yet. */
     bool baseTypesResolved() const { return _baseTypesResolved; }
     void setBaseTypesResolved(bool value) { _baseTypesResolved = value; }
+
+    /** Flag indicating whether overrides have been determined yet. */
+    bool overridesFound() const { return _overridesFound; }
+    void setOverridesFound(bool value) { _overridesFound = value; }
 
     /** Number of instance variables in this class, used in code flow analysis. */
     size_t numInstanceVars() const { return _numInstanceVars; }
@@ -299,13 +305,15 @@ namespace tempest::sema::graph {
     DefnList _members;
     MemberList _extends;
     MemberList _implements;
+    MethodTable _methods;
+    std::vector<MethodTable> _interfaceMethods;
     std::unique_ptr<SymbolTable> _memberScope;
     IntrinsicType _intrinsic = IntrinsicType::NONE;
     bool _baseTypesResolved = false;
+    bool _overridesFound = false;
     bool _flex = false;
     size_t _numInstanceVars = 0;
     Expr* _implicitSelf = nullptr;
-
 
   //   # List of friend declarations for thibs class
   //   friends: list[Member] = 3;
@@ -447,8 +455,6 @@ namespace tempest::sema::graph {
     const ast::ValueDefn* ast() const { return _ast; }
     void setAst(const ast::ValueDefn* ast) { _ast = ast; }
 
-    // void format(std::ostream& out) const;
-
     /** Dynamic casting support. */
     static bool classof(const ValueDefn* m) { return true; }
     static bool classof(const Member* m) {
@@ -481,8 +487,6 @@ namespace tempest::sema::graph {
     /** Index of this enum value within the enumeration type. */
     int32_t ordinal() const { return _ordinal; }
     void setOrdinal(int32_t n) { _ordinal = n; }
-
-    // void format(std::ostream& out) const;
 
     /** Dynamic casting support. */
     static bool classof(const EnumValueDefn* m) { return true; }
@@ -544,10 +548,7 @@ namespace tempest::sema::graph {
     bool _keywordOnly;
     bool _selfParam;
     bool _classParam;
-  //   bool _mutable;
     bool _expansion;
-
-  //  explicit: bool = 3;           # No type conversion - type must be exact
   };
 
   /** A method or global function. */
@@ -627,9 +628,9 @@ namespace tempest::sema::graph {
     IntrinsicFn intrinsic() const { return _intrinsic; }
     void setIntrinsic(IntrinsicFn intrinsic) { _intrinsic = intrinsic; }
 
-    /** Method index for this function in a dispatch table. */
-    size_t methodIndex() const { return _methodIndex; }
-    void setMethodIndex(size_t index) { _methodIndex = index; }
+    /** Method index for this function in a dispatch table. -1 means not assigned yet. */
+    int32_t methodIndex() const { return _methodIndex; }
+    void setMethodIndex(int32_t index) { _methodIndex = index; }
 
     /** Dynamic casting support. */
     static bool classof(const FunctionDefn* m) { return true; }
@@ -650,7 +651,7 @@ namespace tempest::sema::graph {
     bool _variadic;
     bool _mutableSelf;
     bool _default;
-    size_t _methodIndex;
+    int32_t _methodIndex;
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
   };
 

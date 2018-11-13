@@ -51,7 +51,6 @@ namespace tempest::sema::pass {
       d->setAbstract(ast->isAbstract());
       d->setFinal(ast->isFinal());
       d->setOverride(ast->isOverride());
-      d->setUndef(ast->isUndef());
       d->setStatic(ast->isStatic());
       d->setMember(!ast->isStatic() && parent->kind == Member::Kind::TYPE);
       memberList.push_back(d);

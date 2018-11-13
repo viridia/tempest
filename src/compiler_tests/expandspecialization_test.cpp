@@ -11,6 +11,7 @@
 #include "tempest/sema/graph/primitivetype.hpp"
 #include "tempest/sema/pass/buildgraph.hpp"
 #include "tempest/sema/pass/expandspecialization.hpp"
+#include "tempest/sema/pass/findoverrides.hpp"
 #include "tempest/sema/pass/nameresolution.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "llvm/Support/Casting.h"
@@ -19,6 +20,7 @@
 using namespace tempest::compiler;
 using namespace tempest::sema::graph;
 using namespace tempest::sema::pass;
+using namespace tempest::gen;
 using namespace std;
 using namespace llvm;
 using tempest::parse::Parser;
@@ -46,6 +48,8 @@ namespace {
     nrPass.process(mod.get());
     ResolveTypesPass rtPass(cu);
     rtPass.process(mod.get());
+    FindOverridesPass foPass(cu);
+    foPass.process(mod.get());
     ExpandSpecializationPass esPass(cu);
     esPass.process(mod.get());
     esPass.run();
@@ -111,5 +115,151 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
     REQUIRE(cu.symbols().list().size() == 3);
     // REQUIRE_THAT(cu.spec().concreteSpecs()[0], MemberEQ("fn y[f64]\n"));
     // REQUIRE_THAT(cu.spec().concreteSpecs()[1], MemberEQ("fn z[f64]\n"));
+  }
+
+  SECTION("Trait requirements") {
+    auto mod = compile(cu,
+      "trait X {\n"
+      "  f(a0: f32, a1: bool) -> i32;\n"
+      "}\n"
+      "class A implements X {\n"
+      "  f(a0: f32, a1: bool) -> i32 { return 7; }\n"
+      "}\n"
+      "class B[T: X] {\n"
+      "  b(a: T) -> i32 { return a.f(1f, false); }\n"
+      "}\n"
+      "fn test() {\n"
+      "  const a = A();\n"
+      "  const b = B[A]();\n"
+      "  const c = b.b(a);\n"
+      "}\n"
+    );
+    auto fd = cast<FunctionDefn>(mod->members().back());
+    (void) fd;
+    // REQUIRE_THAT(vd->type(), TypeEQ("i32"));
+    // REQUIRE_THAT(vd->init(), ExprEQ("x.f()"));
+  }
+
+  SECTION("Implement interface") {
+    auto mod = compile(cu,
+      "interface X {\n"
+      "  f(a0: f32, a1: bool) -> i32;\n"
+      "}\n"
+      "class A implements X {\n"
+      "  f(a0: f32, a1: bool) -> i32 { return 7; }\n"
+      "}\n"
+    );
+    REQUIRE(cu.symbols().list().size() == 5);
+
+    REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::IFACE_DESC);
+    auto if0 = cast<InterfaceDescriptorSym>(cu.symbols().list()[0]);
+    REQUIRE(if0->typeDefn->name() == "X");
+
+    REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
+    auto cl1 = cast<ClassDescriptorSym>(cu.symbols().list()[1]);
+    REQUIRE(cl1->typeDefn->name() == "A");
+    REQUIRE(cl1->methodTable.size() == 1);
+    REQUIRE(cl1->methodTable[0]->function->name() == "f");
+    REQUIRE(cl1->methodTable[0]->typeArgs.size() == 0);
+    REQUIRE(cl1->interfaceTable.size() == 1);
+    REQUIRE(cl1->interfaceTable[0]->iface->typeDefn->name() == "X");
+    REQUIRE(cl1->interfaceTable[0]->iface->typeArgs.size() == 0);
+
+    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::CLS_DESC);
+    auto cl2 = cast<ClassDescriptorSym>(cu.symbols().list()[2]);
+    REQUIRE(cl2->typeDefn->name() == "Object");
+    REQUIRE(cl2->methodTable.size() == 0);
+
+    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::FUNCTION);
+    auto fd3 = cast<FunctionSym>(cu.symbols().list()[3]);
+    REQUIRE(fd3->function->name() == "f");
+
+    REQUIRE(cu.symbols().list()[4]->kind == OutputSym::Kind::CLS_IFACE_TRANS);
+    auto ci4 = cast<ClassInterfaceTranslationSym>(cu.symbols().list()[4]);
+    REQUIRE(ci4->methodTable.size() == 1);
+    REQUIRE(ci4->methodTable[0]->function->name() == "f");
+    REQUIRE(ci4->methodTable[0]->typeArgs.size() == 0);
+  }
+
+  SECTION("Implement interface with params") {
+    auto mod = compile(cu,
+      "interface X[T] {\n"
+      "  f(a0: T, a1: bool) -> i32;\n"
+      "}\n"
+      "class A implements X[f32] {\n"
+      "  f(a0: f32, a1: bool) -> i32 { return 7; }\n"
+      "}\n"
+    );
+    REQUIRE(cu.symbols().list().size() == 5);
+
+    REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::CLS_DESC);
+    auto cl0 = cast<ClassDescriptorSym>(cu.symbols().list()[0]);
+    REQUIRE(cl0->typeDefn->name() == "A");
+    REQUIRE(cl0->methodTable.size() == 1);
+    REQUIRE(cl0->methodTable[0]->function->name() == "f");
+    REQUIRE(cl0->methodTable[0]->typeArgs.size() == 0);
+    REQUIRE(cl0->interfaceTable.size() == 1);
+    REQUIRE(cl0->interfaceTable[0]->iface->typeDefn->name() == "X");
+    REQUIRE(cl0->interfaceTable[0]->iface->typeArgs.size() == 1);
+    REQUIRE_THAT(cl0->interfaceTable[0]->iface->typeArgs[0], TypeEQ("f32"));
+
+    REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
+    auto cl1 = cast<ClassDescriptorSym>(cu.symbols().list()[1]);
+    REQUIRE(cl1->typeDefn->name() == "Object");
+    REQUIRE(cl1->methodTable.size() == 0);
+
+    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::FUNCTION);
+    auto fd2 = cast<FunctionSym>(cu.symbols().list()[2]);
+    REQUIRE(fd2->function->name() == "f");
+
+    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::IFACE_DESC);
+    auto if3 = cast<InterfaceDescriptorSym>(cu.symbols().list()[3]);
+    REQUIRE(if3->typeDefn->name() == "X");
+    REQUIRE(if3->typeArgs.size() == 1);
+
+    REQUIRE(cu.symbols().list()[4]->kind == OutputSym::Kind::CLS_IFACE_TRANS);
+    auto ci4 = cast<ClassInterfaceTranslationSym>(cu.symbols().list()[4]);
+    REQUIRE(ci4->methodTable.size() == 1);
+    REQUIRE(ci4->methodTable[0]->function->name() == "f");
+    REQUIRE(ci4->methodTable[0]->typeArgs.size() == 0);
+  }
+
+  SECTION("Implement abstract base class") {
+    auto mod = compile(cu,
+      "abstract class X {\n"
+      "  abstract f(a0: f32, a1: bool) -> i32;\n"
+      "}\n"
+      "class A extends X {\n"
+      "  override f(a0: f32, a1: bool) -> i32 { return 7; }\n"
+      "}\n"
+    );
+    REQUIRE(cu.symbols().list().size() == 4);
+    REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::CLS_DESC);
+    REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
+    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::CLS_DESC);
+    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::FUNCTION);
+  }
+
+  SECTION("Implement concrete base class") {
+    auto mod = compile(cu,
+      "class X[T] {\n"
+      "  f(a0: T, a1: bool) -> i32 { 0 }\n"
+      "}\n"
+      "class A extends X[f32] {\n"
+      "  g(a0: f32, a1: bool) -> i32 { return 7; }\n"
+      "}\n"
+    );
+    REQUIRE(cu.symbols().list().size() == 5);
+    REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::CLS_DESC);
+    REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
+    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::FUNCTION);
+    auto fd2 = cast<FunctionSym>(cu.symbols().list()[2]);
+    REQUIRE(fd2->function->name() == "f");
+    REQUIRE(fd2->typeArgs.size() == 1);
+    REQUIRE_THAT(fd2->typeArgs[0], TypeEQ("f32"));
+
+    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::FUNCTION);
+    auto fd3 = cast<FunctionSym>(cu.symbols().list()[3]);
+    REQUIRE(fd3->function->name() == "g");
   }
 }

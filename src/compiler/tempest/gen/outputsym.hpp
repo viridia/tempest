@@ -29,6 +29,8 @@ namespace tempest::gen {
   using tempest::sema::graph::SpecializationKey;
   using tempest::sema::graph::SpecializationKeyHash;
 
+  class ClassInterfaceTranslationSym;
+
   /** Base class for output symbols. */
   class OutputSym {
   public:
@@ -85,6 +87,15 @@ namespace tempest::gen {
     /** Type descriptor constant. */
     llvm::GlobalVariable* desc = nullptr;
 
+    /** Method table for this class. */
+    ArrayRef<FunctionSym*> methodTable;
+
+    /** Reference to base class. */
+    ClassDescriptorSym* baseClsSym = nullptr;
+
+    /** Table of implemented interfaces. */
+    ArrayRef<ClassInterfaceTranslationSym*> interfaceTable;
+
     ClassDescriptorSym(TypeDefn* typeDefn, ArrayRef<const Type*> typeArgs)
       : OutputSym(Kind::CLS_DESC, typeArgs)
       , typeDefn(typeDefn)
@@ -101,6 +112,9 @@ namespace tempest::gen {
     /** The interface definition. */
     TypeDefn* typeDefn;
 
+    /** Type descriptor constant. */
+    llvm::GlobalVariable* desc = nullptr;
+
     InterfaceDescriptorSym(TypeDefn* typeDefn, ArrayRef<const Type*> typeArgs)
       : OutputSym(Kind::IFACE_DESC, typeArgs)
       , typeDefn(typeDefn)
@@ -116,6 +130,12 @@ namespace tempest::gen {
   public:
     ClassDescriptorSym* cls;
     InterfaceDescriptorSym* iface;
+
+    /** Method table for this class. */
+    ArrayRef<FunctionSym*> methodTable;
+
+    /** Type descriptor constant. */
+    llvm::GlobalVariable* desc = nullptr;
 
     ClassInterfaceTranslationSym(ClassDescriptorSym* cls, InterfaceDescriptorSym* iface)
       : OutputSym(Kind::CLS_IFACE_TRANS, llvm::ArrayRef<Type*>())

@@ -39,6 +39,9 @@ namespace tempest::sema::convert {
       const Type* dst, uint32_t dstMods, Env& dstEnv,
       const Type* src, uint32_t srcMods, Env& srcEnv);
 
+  /** Return whether two type arrays are equal. */
+  bool isEqual(const ArrayRef<const Type*>& lt, const ArrayRef<const Type*>& rt);
+
   /** Return whether the subtype (st) type is a subtype of the base type (bt). */
   bool isSubtype(
       const TypeDefn* st, Env& stEnv,

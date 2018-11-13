@@ -15,9 +15,7 @@
 
 
     source::Location _location;
-    bool _undef;                  // Undefined method
     std::vector<TypeVar*> _typeVars;
-    int32_t _overloadIndex;
 
 * OutputSym
   * OutputClassInfoSym

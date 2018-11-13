@@ -12,8 +12,10 @@ namespace tempest::sema::names {
   using tempest::sema::graph::Module;
   using tempest::sema::graph::PrimitiveType;
   using tempest::sema::graph::SpecializedDefn;
+  using tempest::sema::graph::SpecializedType;
   using tempest::sema::graph::TypeDefn;
   using tempest::sema::graph::TypeParameter;
+  using tempest::sema::graph::TypeVar;
   using tempest::sema::graph::UserDefinedType;
   using tempest::sema::graph::MemberLookupResult;
   using tempest::sema::graph::MemberLookupResultRef;
@@ -101,6 +103,13 @@ namespace tempest::sema::names {
       lookup(name, udt->defn(), result, flags);
     } else if (auto pr = dyn_cast<PrimitiveType>(stem)) {
       lookup(name, pr->defn(), result, flags);
+    } else if (auto tv = dyn_cast<TypeVar>(stem)) {
+      auto tp = tv->param;
+      for (auto st : tp->subtypeConstraints()) {
+        lookup(name, st, result, flags);
+      }
+    } else if (auto sp = dyn_cast<SpecializedType>(stem)) {
+      lookup(name, sp->spec, result, flags);
     } else {
       assert(false && "Implement lookup in type");
     }

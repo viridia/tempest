@@ -69,6 +69,14 @@ namespace tempest::gen {
   ClassInterfaceTranslationSym* SymbolStore::addClassInterfaceTranslation(
       ClassDescriptorSym* cls,
       InterfaceDescriptorSym* iface) {
-    assert(false && "Implement");
+    auto key = std::make_pair(cls, iface);
+    auto it = _clsIfTrans.find(key);
+    if (it != _clsIfTrans.end()) {
+      return it->second;
+    }
+    auto cit = new (_alloc) ClassInterfaceTranslationSym(cls, iface);
+    _clsIfTrans[key] = cit;
+    _list.push_back(cit);
+    return cit;
   }
 }

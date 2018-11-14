@@ -991,7 +991,7 @@ namespace tempest::sema::pass {
         auto stmt = static_cast<const ast::Control*>(node);
         auto test = new (*_alloc) BooleanLiteral(node->location, true);
         auto body = visitExpr(scope, stmt->outcomes[0]);
-        return new WhileStmt(node->location, test, body);
+        return new (*_alloc) WhileStmt(node->location, test, body);
       }
 
       // /* Misc statements */

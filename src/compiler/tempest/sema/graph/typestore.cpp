@@ -149,6 +149,7 @@ namespace tempest::sema::graph {
       const TypeArray& paramTypes,
       bool isVariadic,
       bool isMutableSelf) {
+    assert(returnType->kind != Type::Kind::INVALID);
     llvm::SmallVector<const Type*, 8> signature;
     signature.reserve(paramTypes.size() + 1);
     signature.push_back(returnType);

@@ -9,6 +9,10 @@
   #include "tempest/sema/graph/member.hpp"
 #endif
 
+#ifndef TEMPEST_SUPPORT_ALLOCATOR_HPP
+  #include "tempest/support/allocator.hpp"
+#endif
+
 #ifndef LLVM_ADT_APINT_H
   #include <llvm/ADT/APInt.h>
 #endif
@@ -208,6 +212,10 @@ namespace tempest::sema::graph {
     static bool classof(const Expr* t) { return true; }
 
     static Expr ERROR;
+
+    static void* operator new(std::size_t sz, support::BumpPtrAllocator& alloc) {
+      return alloc.Allocate(sz, sizeof(Type*));
+    }
   };
 
   /** Function to print an expression. */

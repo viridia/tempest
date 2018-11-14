@@ -568,6 +568,7 @@ namespace tempest::sema::graph {
       , _requirement(false)
       , _native(false)
       , _variadic(false)
+      , _mutableSelf(false)
       , _methodIndex(0)
     {}
 

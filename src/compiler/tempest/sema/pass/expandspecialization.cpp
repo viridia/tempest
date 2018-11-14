@@ -54,7 +54,7 @@ namespace tempest::sema::pass {
   class SpecializationExprTransform final : public transform::ExprTransform {
   public:
     SpecializationExprTransform(CompilationUnit& cu, Env& env)
-      : transform::ExprTransform(_cu.types().alloc())
+      : transform::ExprTransform(cu.types().alloc())
       , _cu(cu)
       , _env(env)
       , _typeTransform(cu, env)
@@ -252,7 +252,9 @@ namespace tempest::sema::pass {
   void ExpandSpecializationPass::visitFunctionSym(FunctionSym* fsym) {
     Env env;
     env.params = fsym->function->allTypeParams();
-    env.args.assign(fsym->typeArgs.begin(), fsym->typeArgs.end());
+    if (fsym->typeArgs.size()) {
+      env.args.assign(fsym->typeArgs.begin(), fsym->typeArgs.end());
+    }
 
     auto fd = fsym->function;
     if (fd->body()) {

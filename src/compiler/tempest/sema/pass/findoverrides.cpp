@@ -68,7 +68,7 @@ namespace tempest::sema::pass {
       }
     }
 
-    // TODO: return type covariance.
+    // Return type covariance.
     return convert::isEqualOrNarrower(
         m->type()->returnType, mEnv, im->type()->returnType, imEnv);
   }
@@ -115,25 +115,6 @@ namespace tempest::sema::pass {
     for (auto base : td->implements()) {
       visitCompositeDefn(cast<TypeDefn>(unwrapSpecialization(base)));
     }
-
-    // Flatten implements list
-    // std::function<void(TypeDefn*, const ArrayRef<const Type*>&)> findAncestors;
-    // findAncestors =
-    //     [&findAncestors, td, this](TypeDefn* m, const ArrayRef<const Type*>& env) -> void {
-    //   transform::MapEnvTransform mapTypeArgs(
-    //       _cu.types(), _cu.spec(), m->allTypeParams(), env);
-    //   for (auto anc : m->implements()) {
-    //     ArrayRef<const Type*> ancArgs;
-    //     auto ancDefn = cast<TypeDefn>(unwrapSpecialization(anc, ancArgs));
-    //     ancArgs = mapTypeArgs.transformArray(ancArgs);
-    //     for (auto ifc : td->implements()) {
-    //       ArrayRef<const Type*> ifcArgs;
-    //       auto ifcDefn = cast<TypeDefn>(unwrapSpecialization(ifc, ifcArgs));
-    //     }
-    //     findAncestors(ancDefn, ancArgs);
-    //   }
-    // };
-    // findAncestors(td, {});
 
     // Populate the method table with a copy of the methods from the superclass.
     if (td->extends().size() > 0) {
@@ -528,22 +509,14 @@ namespace tempest::sema::pass {
                 im.memberDefn->type()->returnType, imEnv)) {
               diag.info(fd->location()) << "Can't override: mismatched return type: " <<
                   fd->type()->returnType;
-
-    // if (m->isVariadic() != im->isVariadic()) {
-    //   return false;
-    // }
-    // if (m->params().size() != im->params().size()) {
-    //   return false;
-    // }
-    // if (m->isMutableSelf() && !im->isMutableSelf()) {
-    //   return false;
-    // }
-
             } else {
-              diag.error(def->location()) << "Unsuitable";
+              // if (m->params().size() != im->params().size()) {
+              //   return false;
+              // }
+              // TODO: Finish
+              diag.error(def->location()) << "Unsuitable/implement param type report";
             }
           }
-          //
         }
       }
     }

@@ -85,6 +85,8 @@ namespace tempest::sema::transform {
       case Type::Kind::SPECIALIZED: {
         auto st = static_cast<const SpecializedType*>(ty);
         auto sd = st->spec;
+        // TODO: Compose specializations.
+        // assert(isa<GenericDefn>(sd));
         llvm::SmallVector<const Type*, 8> typeArgs;
         if (transformArray(typeArgs, sd->typeArgs())) {
           auto nsd = new (_alloc) SpecializedDefn(

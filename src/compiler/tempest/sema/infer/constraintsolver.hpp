@@ -53,10 +53,8 @@ namespace tempest::sema::infer {
 
     ConstraintSolver(
         const source::Location& location
-        // GenericDefn* enclosingGeneric
         )
       : location(location)
-      // , _enclosingGeneric(enclosingGeneric)
     {}
 
     ~ConstraintSolver() {

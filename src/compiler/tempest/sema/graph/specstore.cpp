@@ -15,6 +15,7 @@ namespace tempest::sema::graph {
 
   SpecializedDefn* SpecializationStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
     assert(!typeArgs.empty());
+    assert(isa<GenericDefn>(base));
     SpecializationKey<Defn> key(base, typeArgs);
     auto it = _specs.find(key);
     if (it != _specs.end()) {

@@ -9,7 +9,7 @@
 #include <llvm/Support/Allocator.h>
 
 namespace tempest::support {
-  class BumpPtrAllocator : public llvm::MallocAllocator {
+  class BumpPtrAllocator : public llvm::BumpPtrAllocator {
   public:
     /** Make a copy of this array within the allocator. */
     template<class T> llvm::ArrayRef<T> copyOf(llvm::ArrayRef<T> array) {

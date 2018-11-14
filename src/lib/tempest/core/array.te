@@ -1,3 +1,3 @@
 /** Standard built-in array class. */
-export class Array[T] extends FlexAlloc[u8] {
+export final class Array[T] extends FlexAlloc[u8] {
 }

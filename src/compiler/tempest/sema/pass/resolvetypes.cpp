@@ -215,7 +215,7 @@ namespace tempest::sema::pass {
       fd->setBody(body);
 
       // Compute function type signature from inferred return type.
-      if (_functionReturnType && !fd->type()) {
+      if (!Type::isError(_functionReturnType) && !fd->type()) {
         SmallVector<const Type*, 8> paramTypes;
         for (auto param : fd->params()) {
           paramTypes.push_back(param->type());
@@ -722,7 +722,7 @@ namespace tempest::sema::pass {
         env.params = function->allTypeParams();
         env.args = cc->typeArgs;
         llvm::SmallVector<const Type*, 8> mappedParamTypes;
-        ApplySpecialization transform(env.args);
+        ApplySpecUnique transform(_cu.types(), _cu.spec(), env.args);
         transform.transformArray(mappedParamTypes, function->type()->paramTypes);
         cc->paramTypes = cs.alloc().copyOf(mappedParamTypes);
         returnType = transform.transform(returnType);
@@ -1467,7 +1467,7 @@ namespace tempest::sema::pass {
     } else if (type->kind == Type::Kind::INTEGER) {
       auto intTy = cast<IntegerType>(type);
       llvm::APInt(intTy->bits(), 0, false);
-      return new BinaryOp(Expr::Kind::NE, expr, new IntegerLiteral(0, intTy));
+      return new (*_alloc) BinaryOp(Expr::Kind::NE, expr, new (*_alloc) IntegerLiteral(0, intTy));
     } else {
       // TODO: Check for collections
       diag.error(expr) << "Cannot coerce value to boolean type.";

@@ -125,7 +125,7 @@ namespace tempest::intrinsic {
 
   std::unique_ptr<TypeDefn> IntrinsicDefns::makeTypeDefn(Type::Kind kind, llvm::StringRef name) {
     auto td = std::make_unique<TypeDefn>(Location(), name);
-    auto ty = new UserDefinedType(kind, td.get());
+    auto ty = new (_types.alloc()) UserDefinedType(kind, td.get());
     td->setType(ty);
     builtinScope->addMember(td.get());
     return td;

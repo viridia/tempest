@@ -44,7 +44,8 @@ namespace tempest::support {
     /** Make a copy of this APInt within the allocator. */
     llvm::ArrayRef<llvm::APInt::WordType> copyOf(const llvm::APInt &intVal) {
       auto data = static_cast<llvm::APInt::WordType*>(
-          Allocate(intVal.getNumWords(), sizeof(llvm::APInt::WordType)));
+          Allocate(intVal.getNumWords() * sizeof(llvm::APInt::WordType),
+              sizeof(llvm::APInt::WordType)));
       std::copy(intVal.getRawData(), intVal.getRawData() + intVal.getNumWords(), data);
       return llvm::ArrayRef((llvm::APInt::WordType*) data, intVal.getNumWords());
     }

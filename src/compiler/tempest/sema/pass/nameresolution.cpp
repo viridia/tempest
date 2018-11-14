@@ -290,7 +290,7 @@ namespace tempest::sema::pass {
             defaultCtor->paramScope()->addMember(np);
             paramTypes.push_back(paramType);
             superParams.push_back(
-                new (_alloc) DefnRef(Expr::Kind::VAR_REF, td->location(), np, nullptr));
+                new (*_alloc) DefnRef(Expr::Kind::VAR_REF, td->location(), np, nullptr));
           }
           defaultCtor->setType(_cu.types().createFunctionType(&VoidType::VOID, paramTypes, false));
           td->members().insert(td->members().begin(), defaultCtor);

@@ -103,13 +103,14 @@ namespace tempest::source {
 
   private:
     void readLines(std::vector<std::string>& lines) {
+      assert(_fullPath.size() > 0);
       std::ifstream strm(_fullPath);
       std::string line;
       while (std::getline(strm, line)) {
         _lines.push_back(line);
       }
     }
-    StringRef _fullPath;
+    std::string _fullPath;
     std::ifstream _strm;
   };
 }

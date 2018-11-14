@@ -37,6 +37,7 @@ namespace tempest::ast {
       , _override(false)
       , _final(false)
       , _abstract(false)
+      , _export(false)
     {}
 
     /** Whether this definition has the 'private' modifier. */

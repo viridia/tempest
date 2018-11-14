@@ -20,6 +20,7 @@ namespace tempest::gen {
   public:
     tempest::support::BumpPtrAllocator& alloc() { return _alloc; }
 
+    /** Methods to add a symbol if it doesn't already exist. */
     FunctionSym* addFunction(FunctionDefn* function, const ArrayRef<const Type*>& typeArgs);
     ClassDescriptorSym* addClass(TypeDefn* clsDefn, const ArrayRef<const Type*>& typeArgs);
     InterfaceDescriptorSym* addInterface(TypeDefn* clsDefn, const ArrayRef<const Type*>& typeArgs);
@@ -30,6 +31,14 @@ namespace tempest::gen {
 
     /** List of all output symbols in the order in which they were added. */
     std::vector<OutputSym*>& list() { return _list; }
+
+    /** Convenience functions for unit tests. */
+    FunctionSym* findFunction(StringRef name);
+    ClassDescriptorSym* findClass(StringRef name);
+    InterfaceDescriptorSym* findInterface(StringRef name);
+    GlobalVarSym* findGlobalVar(StringRef name);
+    ClassInterfaceTranslationSym* findTranslation(
+        ClassDescriptorSym* cls, InterfaceDescriptorSym* ifc);
 
   private:
     tempest::support::BumpPtrAllocator _alloc;

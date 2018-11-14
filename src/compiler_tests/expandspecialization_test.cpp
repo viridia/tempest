@@ -149,14 +149,12 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
       "  f(a0: f32, a1: bool) -> i32 { return 7; }\n"
       "}\n"
     );
-    REQUIRE(cu.symbols().list().size() == 5);
+    REQUIRE(cu.symbols().list().size() == 6);
 
-    REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::IFACE_DESC);
-    auto if0 = cast<InterfaceDescriptorSym>(cu.symbols().list()[0]);
+    auto if0 = cu.symbols().findInterface("X");
     REQUIRE(if0->typeDefn->name() == "X");
 
-    REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
-    auto cl1 = cast<ClassDescriptorSym>(cu.symbols().list()[1]);
+    auto cl1 = cu.symbols().findClass("A");
     REQUIRE(cl1->typeDefn->name() == "A");
     REQUIRE(cl1->methodTable.size() == 1);
     REQUIRE(cl1->methodTable[0]->function->name() == "f");
@@ -165,17 +163,14 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
     REQUIRE(cl1->interfaceTable[0]->iface->typeDefn->name() == "X");
     REQUIRE(cl1->interfaceTable[0]->iface->typeArgs.size() == 0);
 
-    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::CLS_DESC);
-    auto cl2 = cast<ClassDescriptorSym>(cu.symbols().list()[2]);
+    auto cl2 = cu.symbols().findClass("Object");
     REQUIRE(cl2->typeDefn->name() == "Object");
     REQUIRE(cl2->methodTable.size() == 0);
 
-    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::FUNCTION);
-    auto fd3 = cast<FunctionSym>(cu.symbols().list()[3]);
+    auto fd3 = cu.symbols().findFunction("f");
     REQUIRE(fd3->function->name() == "f");
 
-    REQUIRE(cu.symbols().list()[4]->kind == OutputSym::Kind::CLS_IFACE_TRANS);
-    auto ci4 = cast<ClassInterfaceTranslationSym>(cu.symbols().list()[4]);
+    auto ci4 = cu.symbols().findTranslation(cl1, if0);
     REQUIRE(ci4->methodTable.size() == 1);
     REQUIRE(ci4->methodTable[0]->function->name() == "f");
     REQUIRE(ci4->methodTable[0]->typeArgs.size() == 0);
@@ -190,10 +185,9 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
       "  f(a0: f32, a1: bool) -> i32 { return 7; }\n"
       "}\n"
     );
-    REQUIRE(cu.symbols().list().size() == 5);
+    REQUIRE(cu.symbols().list().size() == 6);
 
-    REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::CLS_DESC);
-    auto cl0 = cast<ClassDescriptorSym>(cu.symbols().list()[0]);
+    auto cl0 = cu.symbols().findClass("A");
     REQUIRE(cl0->typeDefn->name() == "A");
     REQUIRE(cl0->methodTable.size() == 1);
     REQUIRE(cl0->methodTable[0]->function->name() == "f");
@@ -203,22 +197,18 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
     REQUIRE(cl0->interfaceTable[0]->iface->typeArgs.size() == 1);
     REQUIRE_THAT(cl0->interfaceTable[0]->iface->typeArgs[0], TypeEQ("f32"));
 
-    REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
-    auto cl1 = cast<ClassDescriptorSym>(cu.symbols().list()[1]);
+    auto cl1 = cu.symbols().findClass("Object");
     REQUIRE(cl1->typeDefn->name() == "Object");
     REQUIRE(cl1->methodTable.size() == 0);
 
-    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::FUNCTION);
-    auto fd2 = cast<FunctionSym>(cu.symbols().list()[2]);
+    auto fd2 = cu.symbols().findFunction("f");
     REQUIRE(fd2->function->name() == "f");
 
-    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::IFACE_DESC);
-    auto if3 = cast<InterfaceDescriptorSym>(cu.symbols().list()[3]);
+    auto if3 = cu.symbols().findInterface("X");
     REQUIRE(if3->typeDefn->name() == "X");
     REQUIRE(if3->typeArgs.size() == 1);
 
-    REQUIRE(cu.symbols().list()[4]->kind == OutputSym::Kind::CLS_IFACE_TRANS);
-    auto ci4 = cast<ClassInterfaceTranslationSym>(cu.symbols().list()[4]);
+    auto ci4 = cu.symbols().findTranslation(cl0, if3);
     REQUIRE(ci4->methodTable.size() == 1);
     REQUIRE(ci4->methodTable[0]->function->name() == "f");
     REQUIRE(ci4->methodTable[0]->typeArgs.size() == 0);
@@ -233,7 +223,7 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
       "  override f(a0: f32, a1: bool) -> i32 { return 7; }\n"
       "}\n"
     );
-    REQUIRE(cu.symbols().list().size() == 4);
+    REQUIRE(cu.symbols().list().size() == 6);
     REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::CLS_DESC);
     REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
     REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::CLS_DESC);
@@ -249,17 +239,16 @@ TEST_CASE("ExpandSpecialization", "[sema]") {
       "  g(a0: f32, a1: bool) -> i32 { return 7; }\n"
       "}\n"
     );
-    REQUIRE(cu.symbols().list().size() == 5);
+    REQUIRE(cu.symbols().list().size() == 7);
     REQUIRE(cu.symbols().list()[0]->kind == OutputSym::Kind::CLS_DESC);
     REQUIRE(cu.symbols().list()[1]->kind == OutputSym::Kind::CLS_DESC);
-    REQUIRE(cu.symbols().list()[2]->kind == OutputSym::Kind::FUNCTION);
-    auto fd2 = cast<FunctionSym>(cu.symbols().list()[2]);
+
+    auto fd2 = cu.symbols().findFunction("f");
     REQUIRE(fd2->function->name() == "f");
     REQUIRE(fd2->typeArgs.size() == 1);
     REQUIRE_THAT(fd2->typeArgs[0], TypeEQ("f32"));
 
-    REQUIRE(cu.symbols().list()[3]->kind == OutputSym::Kind::FUNCTION);
-    auto fd3 = cast<FunctionSym>(cu.symbols().list()[3]);
+    auto fd3 = cu.symbols().findFunction("g");
     REQUIRE(fd3->function->name() == "g");
   }
 }

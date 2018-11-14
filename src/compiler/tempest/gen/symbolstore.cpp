@@ -79,4 +79,45 @@ namespace tempest::gen {
     _list.push_back(cit);
     return cit;
   }
+
+  FunctionSym* SymbolStore::findFunction(StringRef name) {
+    auto it = std::find_if(_functions.begin(), _functions.end(), [name](auto& sym) {
+      return sym.second->function->name() == name;
+    });
+    assert(it != _functions.end());
+    return it->second;
+  }
+
+  ClassDescriptorSym* SymbolStore::findClass(StringRef name) {
+    auto it = std::find_if(_classes.begin(), _classes.end(), [name](auto sym) {
+      return sym.second->typeDefn->name() == name;
+    });
+    assert(it != _classes.end());
+    return it->second;
+  }
+
+  InterfaceDescriptorSym* SymbolStore::findInterface(StringRef name) {
+    auto it = std::find_if(_interfaces.begin(), _interfaces.end(), [name](auto sym) {
+      return sym.second->typeDefn->name() == name;
+    });
+    assert(it != _interfaces.end());
+    return it->second;
+  }
+
+  GlobalVarSym* SymbolStore::findGlobalVar(StringRef name) {
+    auto it = std::find_if(_globals.begin(), _globals.end(), [name](auto sym) {
+      return sym.second->varDefn->name() == name;
+    });
+    assert(it != _globals.end());
+    return it->second;
+  }
+
+  ClassInterfaceTranslationSym* SymbolStore::findTranslation(
+      ClassDescriptorSym* cls, InterfaceDescriptorSym* ifc) {
+    auto it = std::find_if(_clsIfTrans.begin(), _clsIfTrans.end(), [cls, ifc](auto sym) {
+      return sym.second->cls == cls && sym.second->iface == ifc;
+    });
+    assert(it != _clsIfTrans.end());
+    return it->second;
+  }
 }

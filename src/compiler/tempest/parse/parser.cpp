@@ -233,6 +233,7 @@ namespace tempest::parse {
         result = aliasTypeDef();
         break;
       case TOKEN_FN:
+      case TOKEN_UNSAFE:
       case TOKEN_OVERRIDE:
       case TOKEN_GET:
       case TOKEN_SET:
@@ -312,6 +313,7 @@ namespace tempest::parse {
         result = aliasTypeDef();
         break;
       case TOKEN_ID:
+      case TOKEN_UNSAFE:
       case TOKEN_OVERRIDE:
       case TOKEN_GET:
       case TOKEN_SET:
@@ -647,6 +649,11 @@ namespace tempest::parse {
     bool isOverride = false;
     bool isGetter = false;
     bool isSetter = false;
+    bool isUnsafe = false;
+    if (match(TOKEN_UNSAFE)) {
+      isUnsafe = true;
+    }
+
     if (match(TOKEN_OVERRIDE)) {
       isOverride = true;
     }
@@ -738,6 +745,7 @@ namespace tempest::parse {
       fn->returnType = returnType;
       fn->constructor = name == "new";
       fn->mutableSelf = isMutableSelf;
+      fn->unsafe = isUnsafe;
       for (auto p : fn->params) {
         if (static_cast<const ast::Parameter*>(p)->variadic) {
           fn->variadic = true;
@@ -1102,7 +1110,7 @@ namespace tempest::parse {
         diag.error(location()) << "Attribute name expected.";
         skipUntil({
           TOKEN_ATSIGN, TOKEN_CLASS, TOKEN_STRUCT, TOKEN_INTERFACE, TOKEN_ENUM,
-          TOKEN_FN, TOKEN_OVERRIDE, TOKEN_CONST, TOKEN_LET});
+          TOKEN_FN, TOKEN_OVERRIDE, TOKEN_UNSAFE, TOKEN_CONST, TOKEN_LET});
         return nullptr;
       }
       auto attr = dottedIdent();
@@ -1122,8 +1130,6 @@ namespace tempest::parse {
       return new (_alloc) ast::BuiltinAttribute(loc, ast::BuiltinAttribute::INTRINSIC);
     } else if (match(TOKEN_TRACEMETHOD)) {
       return new (_alloc) ast::BuiltinAttribute(loc, ast::BuiltinAttribute::TRACEMETHOD);
-    } else if (match(TOKEN_UNSAFE)) {
-      return new (_alloc) ast::BuiltinAttribute(loc, ast::BuiltinAttribute::UNSAFE);
     } else {
       return nullptr;
     }
@@ -1532,6 +1538,8 @@ namespace tempest::parse {
       case TOKEN_CONST:
         return localDefn();
 
+      case TOKEN_UNSAFE:  return unsafeStmt();
+
       case TOKEN_FN:
       case TOKEN_CLASS:
       case TOKEN_STRUCT:
@@ -1913,6 +1921,13 @@ namespace tempest::parse {
     next();
     auto ex = expression();
     return new (_alloc) ast::UnaryOp(Node::Kind::THROW, loc, ex);
+  }
+
+  Node* Parser::unsafeStmt() {
+    Location loc = location();
+    next();
+    auto ex = requiredBlock();
+    return new (_alloc) ast::UnaryOp(Node::Kind::UNSAFE, loc, ex);
   }
 
   #if 0
@@ -2577,7 +2592,7 @@ namespace tempest::parse {
 
   static const std::unordered_set<TokenType> DEFN_TOKENS = {
     TOKEN_CLASS, TOKEN_STRUCT, TOKEN_INTERFACE, TOKEN_ENUM, TOKEN_EXTEND,
-    TOKEN_FN, TOKEN_OVERRIDE,
+    TOKEN_FN, TOKEN_UNSAFE, TOKEN_OVERRIDE,
     TOKEN_CONST, TOKEN_LET, TOKEN_IMPORT,
   };
 

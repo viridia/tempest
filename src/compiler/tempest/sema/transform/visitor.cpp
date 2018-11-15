@@ -116,7 +116,8 @@ namespace tempest::sema::transform {
       case Expr::Kind::CAST_ZERO_EXTEND:
       case Expr::Kind::CAST_INT_TRUNCATE:
       case Expr::Kind::CAST_FP_EXTEND:
-      case Expr::Kind::CAST_FP_TRUNC: {
+      case Expr::Kind::CAST_FP_TRUNC:
+      case Expr::Kind::UNSAFE: {
         auto op = static_cast<UnaryOp*>(expr);
         op->arg = visit(op->arg);
         return op;

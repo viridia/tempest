@@ -891,6 +891,12 @@ namespace tempest::sema::pass {
         return new (*_alloc) UnaryOp(Expr::Kind::RETURN, node->location, returnVal);
       }
 
+      case ast::Node::Kind::UNSAFE: {
+        auto op = static_cast<const ast::UnaryOp*>(node);
+        auto arg = visitExpr(scope, op->arg);
+        return new (*_alloc) UnaryOp(Expr::Kind::UNSAFE, node->location, arg);
+      }
+
       case ast::Node::Kind::THROW: {
         auto op = static_cast<const ast::UnaryOp*>(node);
         auto returnVal = op->arg ? visitExpr(scope, op->arg) : nullptr;

@@ -834,6 +834,22 @@ TEST_CASE("NameResolution.Method", "[sema]") {
     REQUIRE(fnC->isSetter());
   }
 
+  SECTION("Unsafe") {
+    auto mod = compile(cu,
+      "class A {\n"
+      "  unsafe a() {}\n"
+      "  b() {}\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().back());
+    auto fnA = cast<FunctionDefn>(td->members()[1]);
+    REQUIRE(fnA->kind == Defn::Kind::FUNCTION);
+    REQUIRE(fnA->isUnsafe());
+    auto fnB = cast<FunctionDefn>(td->members()[2]);
+    REQUIRE(fnB->kind == Defn::Kind::FUNCTION);
+    REQUIRE(!fnB->isUnsafe());
+  }
+
   SECTION("Invalid getter") {
     REQUIRE_THAT(
       compileError(cu,

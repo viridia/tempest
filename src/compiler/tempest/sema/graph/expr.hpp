@@ -117,9 +117,9 @@ namespace tempest::sema::graph {
       BREAK,
       CONTINUE,
       LOCAL_VAR,
-    //   IMPORT,
       SWITCH, SWITCH_CASE,
       MATCH, MATCH_PATTERN,
+      UNSAFE,                       // Encloses an unsafe context
       UNREACHABLE,                  // Indicates control cannot reach this point
 
     //   # Other syntax

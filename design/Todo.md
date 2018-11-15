@@ -7,6 +7,8 @@
     * Needs Iterable
       * Needs Trait method calling
       * Needs ensure requirements satisfied
+* 'unsafe' keyword.
+  * Needed for memory copy / move functions.
 * Break out visitors into separate files.
 * Implement const members
 * Implement Slice and Iterable
@@ -39,7 +41,6 @@
 * Unify structural typing
 * Unify function types
 * Expression callables
-* Private / Protected visibility tests
 * Class method overload tests
 * Finish Support for 'self' and 'super'
 * Type parameter defaults
@@ -59,6 +60,7 @@
 * Closures
 * Array literals
 * Set literals
+* String literals
 * Local variables containing unions of ref and non-ref types, needs smart GC.
 
 ## TODOs from code:

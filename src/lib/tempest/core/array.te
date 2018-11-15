@@ -1,4 +1,5 @@
 import { Slice } from .slice;
+import { Iterator } from .iterate;
 
 /** Standard built-in array class. */
 export final class Array[T] extends FlexAlloc[u8] {
@@ -27,4 +28,25 @@ export final class Array[T] extends FlexAlloc[u8] {
 
   /** True if the array is empty. */
   get empty: bool => size == 0;
+
+  /** Array Iterator. */
+  final class ArrayIterator implements Iterator[T] {
+    private {
+      // array: const Array;
+      index: int = 0;
+      // end: int;
+    }
+
+  //   def new(array: const Array) {
+  //     .array = array;
+  //     .index = 0;
+  //     .end = array.size;
+  //   }
+
+  //   next() -> Element | void {
+  //     if index < end {
+  //       array.data(index++)
+  //     }
+  //   }
+  }
 }

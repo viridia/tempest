@@ -36,6 +36,11 @@ namespace tempest::intrinsic {
           parent->allTypeParams().begin(), parent->allTypeParams().end());
     }
 
+    BuiltinMethodBuilder& visibility(Visibility vis) {
+      _method->setVisibility(vis);
+      return *this;
+    }
+
     BuiltinMethodBuilder& setStatic() {
       _method->setStatic(true);
       return *this;
@@ -43,6 +48,11 @@ namespace tempest::intrinsic {
 
     BuiltinMethodBuilder& constructor() {
       _method->setConstructor(true);
+      return *this;
+    }
+
+    BuiltinMethodBuilder& unsafe() {
+      _method->setUnsafe(true);
       return *this;
     }
 

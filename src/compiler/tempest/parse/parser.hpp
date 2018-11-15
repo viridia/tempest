@@ -173,6 +173,7 @@ namespace tempest::parse {
     ast::Node* returnStmt();
     ast::Node* throwStmt();
     ast::Node* localDefn();
+    ast::Node* unsafeStmt();
 
     ast::Node* dottedIdent();
     llvm::StringRef dottedIdentStr();

@@ -156,6 +156,7 @@ namespace tempest::ast {
     bool getter = false;
     bool setter = false;
     bool mutableSelf = false;
+    bool unsafe = false;
     bool variadic = false;
     const Node* selfType = nullptr;
 

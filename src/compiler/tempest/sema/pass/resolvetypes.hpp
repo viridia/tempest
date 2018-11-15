@@ -98,6 +98,7 @@ namespace tempest::sema::pass {
     std::vector<const Type*> _returnTypes;
     const Type* _functionReturnType;
     names::LookupScope* _scope = nullptr;
+    bool _unsafeContext = false;
 
     const Type* visitBlock(BlockStmt* expr, ConstraintSolver& cs);
     const Type* visitLocalVar(LocalVarStmt* expr, ConstraintSolver& cs);

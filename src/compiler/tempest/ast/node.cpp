@@ -114,6 +114,7 @@ namespace tempest::ast {
       case Kind::FUNCTION_TYPE: return "FUNCTION_TYPE";
       case Kind::BREAK: return "BREAK";
       case Kind::CONTINUE: return "CONTINUE";
+      case Kind::UNSAFE: return "UNSAFE";
       case Kind::VISIBILITY: return "VISIBILITY";
       case Kind::DEFN: return "DEFN";
       case Kind::TYPE_DEFN: return "TYPE_DEFN";

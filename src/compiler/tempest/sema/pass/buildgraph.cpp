@@ -174,6 +174,7 @@ namespace tempest::sema::pass {
         f->setSetter(ast->setter);
         f->setVariadic(ast->variadic);
         f->setMutableSelf(ast->mutableSelf);
+        f->setUnsafe(ast->unsafe);
         return f;
       }
 

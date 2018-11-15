@@ -569,6 +569,7 @@ namespace tempest::sema::graph {
       , _native(false)
       , _variadic(false)
       , _mutableSelf(false)
+      , _unsafe(false)
       , _methodIndex(0)
     {}
 
@@ -621,6 +622,10 @@ namespace tempest::sema::graph {
     bool isMutableSelf() const { return _mutableSelf; }
     void setMutableSelf(bool value) { _mutableSelf = value; }
 
+    /** True if this is an unsafe function. */
+    bool isUnsafe() const { return _unsafe; }
+    void setUnsafe(bool value) { _unsafe = value; }
+
     /** True if this is a default constructor synthesized by the compiler. */
     bool isDefault() const { return _default; }
     void setDefault(bool def) { _default = def; }
@@ -652,6 +657,7 @@ namespace tempest::sema::graph {
     bool _variadic;
     bool _mutableSelf;
     bool _default;
+    bool _unsafe;
     int32_t _methodIndex;
     //evaluable : bool = 12;        # If true, function can be evaluated at compile time.
   };

@@ -941,4 +941,19 @@ TEST_CASE("ResolveTypes.Statements", "[sema][resolve][stmt]") {
     REQUIRE_THAT(vd->type(), TypeEQ("i32"));
     REQUIRE_THAT(vd->init(), ExprEQ("x.f()"));
   }
+
+  SECTION("Unsafe context") {
+    REQUIRE_THAT(
+      compileError(cu,
+          "unsafe fn x(a: i32) {}\n"
+          "fn y(a: i32) { x(a) }\n"
+      ),
+      Catch::Contains("Unsafe methods may only be called in unsafe contexts"));
+
+    auto mod = compile(cu,
+          "unsafe fn x(a: i32) {}\n"
+          "fn y(a: i32) { unsafe { x(a) } }\n"
+    );
+    (void)mod;
+  }
 }

@@ -192,7 +192,10 @@ namespace tempest::sema::pass {
 
       transform::LowerOperatorsTransform transform(_cu, _scope, *_alloc);
       auto body = transform(fd->body());
+      auto prevUnsafeContext = _unsafeContext;
+      _unsafeContext = fd->isUnsafe();
       auto exprType = assignTypes(body, _functionReturnType);
+      _unsafeContext = prevUnsafeContext;
 
       // If return type was not explicitly specified, infer it from the expression type.
       if (!_functionReturnType) {
@@ -370,6 +373,15 @@ namespace tempest::sema::pass {
         auto notOp = static_cast<UnaryOp*>(e);
         assignTypes(notOp->arg, nullptr);
         return &BooleanType::BOOL;
+      }
+
+      case Expr::Kind::UNSAFE: {
+        auto op = static_cast<UnaryOp*>(e);
+        auto prevUnsafeContext = _unsafeContext;
+        _unsafeContext = true;
+        auto result = visitExpr(op->arg, cs);
+        _unsafeContext = prevUnsafeContext;
+        return result;
       }
 
   // def visitThrow(self, expr, cs):
@@ -1048,6 +1060,10 @@ namespace tempest::sema::pass {
       method = _cu.spec().specialize(cast<GenericDefn>(method), typeArgs);
     }
 
+    if (fn->isUnsafe() && !_unsafeContext) {
+      diag.error(callExpr) << "Unsafe methods may only be called in unsafe contexts.";
+    }
+
     // diag.debug() << "fn: " << fnType << " rt: " << returnType << " " << method;
 
     // Patch the call expression with a new callable
@@ -1373,6 +1389,12 @@ namespace tempest::sema::pass {
         assert(op->args[1]->type);
         op->type = &Type::NOT_EXPR;
         return op;
+      }
+
+      case Expr::Kind::UNSAFE: {
+        // Snip, snip.
+        auto op = static_cast<UnaryOp*>(e);
+        return coerceExpr(op->arg, dstType);
       }
 
       default:

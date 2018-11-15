@@ -140,6 +140,7 @@ namespace tempest::ast {
       /* Other statements */
       BREAK,
       CONTINUE,
+      UNSAFE,
 
       /* Definitions */
       /* TODO: Move this outside */

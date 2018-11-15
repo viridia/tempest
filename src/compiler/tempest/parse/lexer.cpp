@@ -102,13 +102,13 @@ namespace tempest::parse {
       { "u64", TOKEN_U64 },
       { "u8", TOKEN_U8 },
       { "uint", TOKEN_UINT },
+      { "unsafe", TOKEN_UNSAFE },
       // { "var", TOKEN_VAR },
       { "void", TOKEN_VOID },
       { "where", TOKEN_WHERE },
       { "while", TOKEN_WHILE },
       { "__intrinsic__", TOKEN_INTRINSIC },
       { "__tracemethod__", TOKEN_TRACEMETHOD },
-      { "__unsafe__", TOKEN_UNSAFE },
     };
 
     typedef llvm::StringMap<TokenType> KeywordMap;

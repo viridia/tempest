@@ -12,7 +12,7 @@ namespace tempest::sema::convert {
   using namespace tempest::sema::pass;
   using namespace llvm;
   using tempest::error::diag;
-  using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::TempMapTypeVars;
 
   bool implementsMembers(
       const TypeDefn* src, Env& srcEnv,
@@ -22,7 +22,7 @@ namespace tempest::sema::convert {
     for (auto base : dst->extends()) {
       if (base->kind == Defn::Kind::SPECIALIZED) {
         auto sp = static_cast<const SpecializedDefn*>(base);
-        ApplySpecialization apply(dstEnv.args);
+        TempMapTypeVars apply(dstEnv.args);
         Env newEnv;
         newEnv.params = sp->typeParams();
         newEnv.args = apply.transformArray(sp->typeArgs());

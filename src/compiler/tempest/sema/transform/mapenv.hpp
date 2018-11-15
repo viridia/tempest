@@ -28,7 +28,9 @@ namespace tempest::sema::transform {
       : UniqueTypeTransform(types, specs)
       , _params(params)
       , _typeArgs(typeArgs)
-    {}
+    {
+      assert(params.size() == typeArgs.size());
+    }
 
     const Type* transformTypeVar(const TypeVar* in) {
       assert(std::find(_params.begin(), _params.end(), in->param) != _params.end());

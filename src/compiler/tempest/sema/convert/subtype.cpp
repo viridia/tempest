@@ -7,7 +7,7 @@ namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
   using namespace llvm;
   using tempest::error::diag;
-  using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::TempMapTypeVars;
 
   bool isSubtype(
       const TypeDefn* st, Env& stEnv,
@@ -37,7 +37,7 @@ namespace tempest::sema::convert {
     for (auto base : bases) {
       if (base->kind == Defn::Kind::SPECIALIZED) {
         auto sp = static_cast<const SpecializedDefn*>(base);
-        ApplySpecialization apply(stEnv.args);
+        TempMapTypeVars apply(stEnv.args);
         Env newEnv;
         newEnv.params = sp->typeParams();
         newEnv.args = apply.transformArray(sp->typeArgs());

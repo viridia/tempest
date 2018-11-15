@@ -19,9 +19,9 @@ namespace tempest::sema::transform {
       This class retains ownership of any types thus created; They will go away when this class
       does.
   */
-  class ApplySpecialization : public TypeTransform {
+  class TempMapTypeVars : public TypeTransform {
   public:
-    ApplySpecialization(llvm::ArrayRef<const Type*> typeArgs)
+    TempMapTypeVars(llvm::ArrayRef<const Type*> typeArgs)
       : TypeTransform(_alloc)
       , _typeArgs(typeArgs)
     {}
@@ -32,30 +32,6 @@ namespace tempest::sema::transform {
 
   private:
     tempest::support::BumpPtrAllocator _alloc;
-    llvm::ArrayRef<const Type*> _typeArgs;
-  };
-
-  /** Helper class that accepts a type and returns that type with all type variables replaced
-      by the types they are bound to. So for example, if the type arguments are T -> i32, and
-      the input type is T | void, then the output is i32 | void.
-
-      Any newly-created types will belong to the compilation unit.
-  */
-  class ApplySpecUnique : public UniqueTypeTransform {
-  public:
-    ApplySpecUnique(
-        tempest::sema::graph::TypeStore& types,
-        tempest::sema::graph::SpecializationStore& specs,
-        llvm::ArrayRef<const Type*> typeArgs)
-      : UniqueTypeTransform(types, specs)
-      , _typeArgs(typeArgs)
-    {}
-
-    const Type* transformTypeVar(const TypeVar* in) {
-      return _typeArgs[static_cast<const TypeVar*>(in)->index()];
-    }
-
-  private:
     llvm::ArrayRef<const Type*> _typeArgs;
   };
 }

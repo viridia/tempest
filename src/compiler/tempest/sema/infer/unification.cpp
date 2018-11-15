@@ -10,7 +10,7 @@ namespace tempest::sema::infer {
   using namespace tempest::sema::graph;
   using namespace tempest::sema::convert;
   using tempest::error::diag;
-  using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::TempMapTypeVars;
 
   bool isNonGeneric(const Type* t) {
     return (t->kind >= Type::Kind::VOID && t->kind <= Type::Kind::FLOAT) ||
@@ -177,7 +177,7 @@ namespace tempest::sema::infer {
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
       if (ltEnv.args.size() > 0) {
-        ApplySpecialization apply(ltEnv.args);
+        TempMapTypeVars apply(ltEnv.args);
         newEnv.args = apply.transformArray(sp->spec->typeArgs());
         return unify(result, genType, newEnv, rt, rtEnv, when, predicate, alloc);
       } else {
@@ -192,7 +192,7 @@ namespace tempest::sema::infer {
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
       if (rtEnv.args.size() > 0) {
-        ApplySpecialization apply(rtEnv.args);
+        TempMapTypeVars apply(rtEnv.args);
         newEnv.args = apply.transformArray(sp->spec->typeArgs());
         return unify(result, lt, ltEnv, genType, newEnv, when, predicate, alloc);
       } else {

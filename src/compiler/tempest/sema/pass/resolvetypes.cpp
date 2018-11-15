@@ -21,7 +21,7 @@
 #include "tempest/sema/names/unqualnamelookup.hpp"
 #include "tempest/sema/pass/resolvetypes.hpp"
 #include "tempest/sema/pass/transform/loweroperators.hpp"
-#include "tempest/sema/transform/applyspec.hpp"
+#include "tempest/sema/transform/mapenv.hpp"
 #include "tempest/sema/transform/visitor.hpp"
 #include "llvm/Support/Casting.h"
 #include <assert.h>
@@ -43,7 +43,7 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::ParamError;
   using tempest::sema::infer::SolutionTransform;
   using tempest::sema::infer::TypeRelation;
-  using tempest::sema::transform::ApplySpecUnique;
+  using tempest::sema::transform::MapEnvTransform;
 
   // Processing
 
@@ -721,7 +721,7 @@ namespace tempest::sema::pass {
         env.params = function->allTypeParams();
         env.args = cc->typeArgs;
         llvm::SmallVector<const Type*, 8> mappedParamTypes;
-        ApplySpecUnique transform(_cu.types(), _cu.spec(), env.args);
+        MapEnvTransform transform(_cu.types(), _cu.spec(), env.params, env.args);
         transform.transformArray(mappedParamTypes, function->type()->paramTypes);
         cc->paramTypes = cs.alloc().copyOf(mappedParamTypes);
         returnType = transform.transform(returnType);
@@ -1037,7 +1037,8 @@ namespace tempest::sema::pass {
     if (candidate->typeArgs.size() > 0) {
       llvm::SmallVector<const Type*, 8> typeArgs;
       st.transformArray(typeArgs, candidate->typeArgs);
-      ApplySpecUnique asu(_cu.types(), _cu.spec(), typeArgs);
+      MapEnvTransform asu(
+          _cu.types(), _cu.spec(), cast<GenericDefn>(method)->allTypeParams(), typeArgs);
       for (auto ta : typeArgs) {
         assert(ta);
       }
@@ -1267,7 +1268,7 @@ namespace tempest::sema::pass {
         coerceExpr(dref->stem, nullptr);
 
         if (auto fd = dyn_cast<FunctionDefn>(method)) {
-          ApplySpecUnique transform(_cu.types(), _cu.spec(), typeArgs);
+          MapEnvTransform transform(_cu.types(), _cu.spec(), fd->allTypeParams(), typeArgs);
           dref->type = transform.transform(fd->type());
         } else {
           assert(false && "Invalid function ref");

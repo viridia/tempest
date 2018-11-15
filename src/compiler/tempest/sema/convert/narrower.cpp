@@ -10,7 +10,7 @@ namespace tempest::sema::convert {
   using namespace tempest::sema::infer;
   using namespace llvm;
   using tempest::error::diag;
-  using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::TempMapTypeVars;
 
   bool isEqualOrNarrower(const Type* l, const Type* r) {
     Env emptyEnv;
@@ -40,7 +40,7 @@ namespace tempest::sema::convert {
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
       if (lEnv.args.size() > 0) {
-        ApplySpecialization apply(lEnv.args);
+        TempMapTypeVars apply(lEnv.args);
         newEnv.args = apply.transformArray(sp->spec->typeArgs());
         return isEqualOrNarrower(genType, newEnv, r, rEnv);
       } else {
@@ -51,7 +51,7 @@ namespace tempest::sema::convert {
 
     if (r->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(r);
-      ApplySpecialization apply(rEnv.args);
+      TempMapTypeVars apply(rEnv.args);
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
       newEnv.args = apply.transformArray(sp->spec->typeArgs());

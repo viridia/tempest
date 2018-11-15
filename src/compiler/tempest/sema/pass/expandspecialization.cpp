@@ -137,9 +137,9 @@ namespace tempest::sema::pass {
             auto defn = unwrapSpecialization(dref->defn, typeArgs);
             if (auto fn = dyn_cast<FunctionDefn>(defn)) {
               if (fn->intrinsic() == IntrinsicFn::FLEX_ALLOC) {
-                assert(typeArgs.size() == 1);
+                assert(typeArgs.size() == 2);
                 assert(call->args.size() == 1);
-                auto udt = cast<UserDefinedType>(typeArgs[0]);
+                auto udt = cast<UserDefinedType>(typeArgs[1]);
                 auto cls = _cu.symbols().addClass(udt->defn(), _env.args);
                 auto size = transform(call->args[0]);
                 return new (alloc()) FlexAllocExpr(call->location, cls, size, udt);

@@ -265,6 +265,18 @@ namespace tempest::sema::graph {
     os << Type::KindName(kind);
     return os;
   }
+
+  inline ::std::ostream& operator<<(::std::ostream& os, const ArrayRef<const Type*>& t) {
+    os << "[";
+    auto sep = "";
+    for (auto el : t) {
+      os << sep;
+      format(os, el);
+      sep = ", ";
+    }
+    os << "]";
+    return os;
+  }
 }
 
 #endif

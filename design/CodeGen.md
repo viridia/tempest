@@ -26,11 +26,3 @@
     * dispatch: DispatchTable
   * OutputGlobalVarSym
     * vd: ValueDefn
-
-
-FlexAlloc needs to work as follows:
-
-  new() {
-    self = super(size);
-    // etc...
-  }

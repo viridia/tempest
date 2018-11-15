@@ -8,7 +8,7 @@ namespace tempest::sema::convert {
   using namespace tempest::sema::graph;
   using namespace llvm;
   using tempest::error::diag;
-  using tempest::sema::transform::ApplySpecialization;
+  using tempest::sema::transform::TempMapTypeVars;
 
   bool isEqual(const Type* dst, const Type* src) {
     Env srcEnv;
@@ -48,7 +48,7 @@ namespace tempest::sema::convert {
     if (src->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(src);
       if (srcEnv.args.size() > 0) {
-        ApplySpecialization apply(srcEnv.args);
+        TempMapTypeVars apply(srcEnv.args);
         Env newEnv;
         newEnv.params = sp->spec->typeParams();
         newEnv.args = apply.transformArray(sp->spec->typeArgs());
@@ -67,7 +67,7 @@ namespace tempest::sema::convert {
 
     if (dst->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(dst);
-      ApplySpecialization apply(dstEnv.args);
+      TempMapTypeVars apply(dstEnv.args);
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
       newEnv.args = apply.transformArray(sp->spec->typeArgs());

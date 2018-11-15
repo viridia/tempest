@@ -1,3 +1,4 @@
+#include "tempest/intrinsic/builder.hpp"
 #include "tempest/intrinsic/defns.hpp"
 #include "tempest/sema/graph/primitivetype.hpp"
 
@@ -15,56 +16,38 @@ namespace tempest::intrinsic {
     objectClass->setIntrinsic(IntrinsicType::OBJECT_CLASS);
 
     // Object constructor
-    auto objectCtor = new FunctionDefn(Location(), "new", objectClass.get());
-    objectCtor->setConstructor(true);
-    objectCtor->setIntrinsic(IntrinsicFn::OBJECT_CTOR);
-    objectCtor->setType(_types.createFunctionType(&VoidType::VOID, {}, false));
-    objectCtor->setSelfType(objectClass->type());
-    objectClass->members().push_back(objectCtor);
-    objectClass->memberScope()->addMember(objectCtor);
+    BuiltinMethodBuilder(_types, objectClass, "new")
+        .intrinsic(IntrinsicFn::OBJECT_CTOR)
+        .constructor()
+        .build();
 
     // Base class of flex-alloc containers
-    auto flexAllocT = new (_types.alloc()) TypeParameter(Location(), "T");
+    auto flexAllocT = new (_types.alloc()) TypeParameter(Location(), "El");
     flexAllocT->setTypeVar(new (_types.alloc()) TypeVar(flexAllocT));
+
     flexAllocClass = makeTypeDefn(Type::Kind::CLASS, "FlexAlloc");
     flexAllocClass->setIntrinsic(IntrinsicType::FLEXALLOC_CLASS);
     flexAllocClass->extends().push_back(objectClass.get());
     flexAllocClass->typeParams().push_back(flexAllocT);
     flexAllocClass->allTypeParams().push_back(flexAllocT);
 
-    // FlexAlloc constructor
-    auto flexAllocCtor = new FunctionDefn(Location(), "new", flexAllocClass.get());
-    flexAllocCtor->setConstructor(true);
-    flexAllocCtor->setIntrinsic(IntrinsicFn::OBJECT_CTOR);
-
-    auto count = new (_types.alloc()) ParameterDefn(
-        Location(), "size", flexAllocCtor, &IntegerType::I64);
-    flexAllocCtor->params().push_back(count);
-    flexAllocCtor->setType(_types.createFunctionType(
-        &VoidType::VOID, { &IntegerType::I64 }, false));
-    flexAllocCtor->setSelfType(flexAllocClass->type());
-    flexAllocClass->members().push_back(flexAllocCtor);
-    flexAllocClass->memberScope()->addMember(flexAllocCtor);
+    BuiltinMethodBuilder(_types, flexAllocClass, "new")
+        .addParam("size", &IntegerType::I64)
+        .intrinsic(IntrinsicFn::OBJECT_CTOR)
+        .constructor()
+        .build();
 
     // FlexAlloc __alloc
-    auto flexAllocFn = new FunctionDefn(Location(), "__alloc", flexAllocClass.get());
-    flexAllocFn->setIntrinsic(IntrinsicFn::FLEX_ALLOC);
-
     auto AllocT = new (_types.alloc()) TypeParameter(Location(), "T");
     AllocT->setTypeVar(new (_types.alloc()) TypeVar(AllocT));
-    flexAllocFn->typeParams().push_back(AllocT);
-    flexAllocFn->allTypeParams().push_back(AllocT);
-    flexAllocFn->setStatic(true);
-    // flexAllocFn->setVisibility(Visibility::PROTECTED);
 
-    count = new (_types.alloc()) ParameterDefn(
-        Location(), "size", flexAllocFn, &IntegerType::I64);
-    flexAllocFn->params().push_back(count);
-    flexAllocFn->setType(_types.createFunctionType(
-        AllocT->typeVar(), { &IntegerType::I64 }, false));
-    flexAllocFn->setSelfType(flexAllocClass->type());
-    flexAllocClass->members().push_back(flexAllocFn);
-    flexAllocClass->memberScope()->addMember(flexAllocFn);
+    BuiltinMethodBuilder(_types, flexAllocClass, "__alloc")
+        .addTypeParam(AllocT)
+        .addParam("size", &IntegerType::I64)
+        .returnType(AllocT->typeVar())
+        .intrinsic(IntrinsicFn::FLEX_ALLOC)
+        .setStatic()
+        .build();
 
     // std::unique_ptr<TypeDefn*> throwableClass;
     // std::unique_ptr<TypeDefn*> classDescriptorStruct;

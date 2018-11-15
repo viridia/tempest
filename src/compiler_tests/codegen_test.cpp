@@ -45,7 +45,7 @@ public:
 namespace {
   /** Parse a module definition and apply buildgraph & nameresolution pass. */
   CGModule* compile(CompilationUnit &cu, CodeGen& gen, const char* srcText) {
-    auto prevErrorCount = diag.errorCount();
+    diag.reset();
     auto mod = std::make_unique<Module>(std::make_unique<TestSource>(srcText), "test.mod");
     Parser parser(mod->source(), mod->astAlloc());
     CompilationUnit::theCU = &cu;
@@ -57,13 +57,17 @@ namespace {
     nrPass.process(mod.get());
     ResolveTypesPass rtPass(cu);
     rtPass.process(mod.get());
-    DataFlowPass dfPass(cu);
-    dfPass.process(mod.get());
-    ExpandSpecializationPass esPass(cu);
-    esPass.process(mod.get());
-    esPass.run();
+    if (diag.errorCount() == 0) {
+      DataFlowPass dfPass(cu);
+      dfPass.process(mod.get());
+    }
+    if (diag.errorCount() == 0) {
+      ExpandSpecializationPass esPass(cu);
+      esPass.process(mod.get());
+      esPass.run();
+    }
     CompilationUnit::theCU = nullptr;
-    REQUIRE(diag.errorCount() == prevErrorCount);
+    REQUIRE(diag.errorCount() == 0);
 
     auto cgMod = gen.createModule("TestMod");
     cgMod->diInit("testmod.te", "");

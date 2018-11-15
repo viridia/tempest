@@ -1,3 +1,30 @@
+import { Slice } from .slice;
+
 /** Standard built-in array class. */
 export final class Array[T] extends FlexAlloc[u8] {
+  const size: int;
+
+  new() {
+    self = __alloc(0);
+    size = 0;
+  }
+
+  new(sz: int, init: T) {
+    self = __alloc(0);
+    // TODO: Fill array
+    size = sz;
+  }
+
+  new(init: Slice[T]) {
+    self = __alloc(init.size);
+    // TODO: Copy elements
+    size = init.size;
+  }
+
+  static of() -> Array {
+    return Array();
+  }
+
+  /** True if the array is empty. */
+  get empty: bool => size == 0;
 }

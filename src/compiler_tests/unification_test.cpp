@@ -204,7 +204,7 @@ TEST_CASE("Unification.composite", "[sema]") {
     Env empty;
     env.params = typeDefA->typeParams();
     InferredType a(env.params[0], nullptr);
-    env.args.push_back(&a);
+    env.args = { &a };
 
     REQUIRE_FALSE(
         unify(result, clsA, env, clsB, empty, conditions, TypeRelation::EQUAL, alloc));
@@ -243,7 +243,7 @@ TEST_CASE("Unification.composite", "[sema]") {
     Env empty;
     env.params = typeDefA->typeParams();
     InferredType a(env.params[0], nullptr);
-    env.args.push_back(&a);
+    env.args = { &a };
 
     REQUIRE_FALSE(
         unify(result, clsB, empty, clsA, env, conditions, TypeRelation::EQUAL, alloc));
@@ -293,7 +293,7 @@ TEST_CASE("Unification.derived", "[sema]") {
     Env env;
     env.params = fnA->typeParams();
     InferredType a(env.params[0], nullptr);
-    env.args.push_back(&a);
+    env.args = { &a };
 
     REQUIRE(unify(result, argA, env, argB, empty, conditions, TypeRelation::EQUAL, alloc));
     REQUIRE(result.size() == 1);
@@ -338,19 +338,18 @@ TEST_CASE("Unification.derived", "[sema]") {
     Env envA;
     envA.params = fnA->typeParams();
     InferredType a(envA.params[0], nullptr);
-    envA.args.push_back(&a);
+    envA.args = { &a };
 
     Env envB;
     envB.params = fnB->typeParams();
     InferredType b(envB.params[0], nullptr);
-    envB.args.push_back(&b);
+    envB.args = { &b };
 
     Env envC;
     envC.params = fnC->typeParams();
     InferredType cs(envC.params[0], nullptr);
     InferredType ct(envC.params[1], nullptr);
-    envC.args.push_back(&cs);
-    envC.args.push_back(&ct);
+    envC.args = { &cs, &ct };
 
     // Generic union with generic union
     REQUIRE(unify(result, typeA, envA, typeB, envB, conditions, TypeRelation::EQUAL, alloc));
@@ -462,7 +461,7 @@ TEST_CASE("Unification.derived", "[sema]") {
     Env envA;
     envA.params = fnA->typeParams();
     InferredType a(envA.params[0], nullptr);
-    envA.args.push_back(&a);
+    envA.args = { &a };
 
     // (i32 | void | T) is not the same as i32.
     REQUIRE_FALSE(unify(result, typeA, envA, typeB, empty, conditions,

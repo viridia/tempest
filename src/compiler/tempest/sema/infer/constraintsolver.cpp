@@ -110,7 +110,7 @@ namespace tempest::sema::infer {
           when,
           TypeRelation::ASSIGNABLE_FROM,
           _alloc)) {
-        diag.error(assign.location) << "Cannot convert type " << assign.srcType << " to "
+        diag.error(assign.location) << "Cannot convert " << assign.srcType << " to "
             << assign.dstType << ".";
         _failed = true;
         break;

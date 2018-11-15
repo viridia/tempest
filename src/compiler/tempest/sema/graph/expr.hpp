@@ -192,8 +192,7 @@ namespace tempest::sema::graph {
     const Type* type = nullptr;
 
     Expr(Kind kind, Location location) : kind(kind), location(location) {}
-    Expr(Kind kind, Location location, const Type* type)
-        : kind(kind), location(location), type(type) {}
+    Expr(Kind kind, Location location, const Type* type);
     Expr() = delete;
     Expr(const Expr& src) = delete;
 

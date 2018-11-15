@@ -25,10 +25,7 @@ namespace tempest::sema::convert {
         ApplySpecialization apply(dstEnv.args);
         Env newEnv;
         newEnv.params = sp->typeParams();
-        for (auto param : newEnv.params) {
-          auto typeArg = sp->typeArgs()[param->index()];
-          newEnv.args.push_back(apply.transform(typeArg));
-        }
+        newEnv.args = apply.transformArray(sp->typeArgs());
         if (auto baseDefn = dyn_cast<TypeDefn>(sp->generic())) {
           if (!implementsMembers(src, srcEnv, baseDefn, newEnv)) {
             return false;

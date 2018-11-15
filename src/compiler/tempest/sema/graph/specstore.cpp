@@ -16,6 +16,9 @@ namespace tempest::sema::graph {
   SpecializedDefn* SpecializationStore::specialize(GenericDefn* base, const TypeArray& typeArgs) {
     assert(!typeArgs.empty());
     assert(isa<GenericDefn>(base));
+    for (auto ta : typeArgs) {
+      assert(ta);
+    }
     SpecializationKey<Defn> key(base, typeArgs);
     auto it = _specs.find(key);
     if (it != _specs.end()) {
@@ -33,6 +36,9 @@ namespace tempest::sema::graph {
 
   SpecializedDefn* SpecializationStore::specialize(Defn* base, const TypeArray& typeArgs) {
     assert(!typeArgs.empty());
+    for (auto ta : typeArgs) {
+      assert(ta);
+    }
     GenericDefn* genericParent = nullptr;
     for (Member* m = base; m; m = m->definedIn()) {
       if (auto generic = dyn_cast<GenericDefn>(m)) {

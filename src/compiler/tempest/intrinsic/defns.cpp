@@ -24,11 +24,13 @@ namespace tempest::intrinsic {
     objectClass->memberScope()->addMember(objectCtor);
 
     // Base class of flex-alloc containers
+    auto flexAllocT = new (_types.alloc()) TypeParameter(Location(), "T");
+    flexAllocT->setTypeVar(new (_types.alloc()) TypeVar(flexAllocT));
     flexAllocClass = makeTypeDefn(Type::Kind::CLASS, "FlexAlloc");
     flexAllocClass->setIntrinsic(IntrinsicType::FLEXALLOC_CLASS);
     flexAllocClass->extends().push_back(objectClass.get());
-    flexAllocClass->typeParams().push_back(new (_types.alloc()) TypeParameter(Location(), "T"));
-    flexAllocClass->allTypeParams().push_back(flexAllocClass->typeParams().front());
+    flexAllocClass->typeParams().push_back(flexAllocT);
+    flexAllocClass->allTypeParams().push_back(flexAllocT);
 
     // FlexAlloc constructor
     auto flexAllocCtor = new FunctionDefn(Location(), "new", flexAllocClass.get());

@@ -67,7 +67,10 @@ namespace tempest::sema::pass {
 
     // Types
 
-    Type* resolveType(LookupScope* scope, const ast::Node* ast);
+    Type* resolveType(
+        LookupScope* scope,
+        const ast::Node* ast,
+        bool implicitSpecialization = false);
 
     // Utility
 
@@ -88,6 +91,7 @@ namespace tempest::sema::pass {
     size_t _sourcesProcessed = 0;
     size_t _importSourcesProcessed = 0;
     size_t _numInstanceVars = 0;
+    TypeDefn* _typeDefn = nullptr;
     FunctionDefn* _func = nullptr;
     tempest::support::BumpPtrAllocator* _alloc = nullptr;
 

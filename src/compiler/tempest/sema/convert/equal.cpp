@@ -51,18 +51,14 @@ namespace tempest::sema::convert {
         ApplySpecialization apply(srcEnv.args);
         Env newEnv;
         newEnv.params = sp->spec->typeParams();
-        newEnv.args.assign(sp->spec->typeArgs().begin(), sp->spec->typeArgs().end());
-        for (auto param : newEnv.params) {
-          auto typeArg = sp->spec->typeArgs()[param->index()];
-          newEnv.args.push_back(apply.transform(typeArg));
-        }
+        newEnv.args = apply.transformArray(sp->spec->typeArgs());
         return isEqual(
             cast<TypeDefn>(sp->spec->generic())->type(), srcMods, newEnv,
             dst, dstMods, dstEnv);
       } else {
         Env newEnv;
         newEnv.params = sp->spec->typeParams();
-        newEnv.args.assign(sp->spec->typeArgs().begin(), sp->spec->typeArgs().end());
+        newEnv.args = sp->spec->typeArgs();
         return isEqual(
             cast<TypeDefn>(sp->spec->generic())->type(), srcMods, newEnv,
             dst, dstMods, dstEnv);
@@ -74,10 +70,7 @@ namespace tempest::sema::convert {
       ApplySpecialization apply(dstEnv.args);
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
-      }
+      newEnv.args = apply.transformArray(sp->spec->typeArgs());
       return isEqual(
           src, srcMods, srcEnv,
           cast<TypeDefn>(sp->spec->generic())->type(), dstMods, newEnv);

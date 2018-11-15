@@ -57,10 +57,7 @@ namespace tempest::sema::convert {
       ApplySpecialization apply(srcEnv.args);
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
-      }
+      newEnv.args = apply.transformArray(sp->spec->typeArgs());
       auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       return isAssignable(dst, dstMods, dstEnv, genType, srcMods, newEnv);
     }
@@ -70,10 +67,7 @@ namespace tempest::sema::convert {
       ApplySpecialization apply(dstEnv.args);
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
-      }
+      newEnv.args = apply.transformArray(sp->spec->typeArgs());
       auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       return isAssignable(genType, dstMods, newEnv, src, srcMods, srcEnv);
     }

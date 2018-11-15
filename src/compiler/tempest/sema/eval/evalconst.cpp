@@ -313,7 +313,7 @@ namespace tempest::sema::eval {
           bool ignored;
           result.type = EvalResult::FLOAT;
           result.size = std::max(lhsResult.size, rhsResult.size);
-          llvm::APFloat::opStatus st;
+          llvm::APFloat::opStatus st = llvm::APFloat::opOK;
           if (lhsResult.size != result.size) {
             switch (result.size) {
               case EvalResult::F16:

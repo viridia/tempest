@@ -15,7 +15,7 @@ namespace tempest::sema::graph {
   /** Class used to temporarily contain a mapping from type parameter to type argument. */
   struct Env {
     llvm::ArrayRef<TypeParameter*> params;
-    llvm::SmallVector<const Type*, 4> args;
+    llvm::ArrayRef<const Type*> args;
 
     /** True if this type variable is included in the environment. */
     bool has(const TypeVar* tvar);

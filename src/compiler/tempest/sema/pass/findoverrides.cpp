@@ -25,10 +25,10 @@ namespace tempest::sema::pass {
     }
     Env faEnv;
     faEnv.params = fa->allTypeParams();
-    faEnv.args.assign(faArgs.begin(), faArgs.end());
+    faEnv.args = faArgs;
     Env fbEnv;
     fbEnv.params = fb->allTypeParams();
-    fbEnv.args.assign(fbArgs.begin(), fbArgs.end());
+    fbEnv.args = fbArgs;
 
     for (size_t i = 0; i < fa->params().size(); i += 1) {
       if (!convert::isEqual(
@@ -55,10 +55,10 @@ namespace tempest::sema::pass {
     }
     Env mEnv;
     mEnv.params = m->allTypeParams();
-    mEnv.args.assign(mArgs.begin(), mArgs.end());
+    mEnv.args = mArgs;
     Env imEnv;
     imEnv.params = im->allTypeParams();
-    imEnv.args.assign(imArgs.begin(), imArgs.end());
+    imEnv.args = imArgs;
 
     for (size_t i = 0; i < m->params().size(); i += 1) {
       if (!convert::isEqual(
@@ -490,7 +490,7 @@ namespace tempest::sema::pass {
             mEnv.params = fd->allTypeParams();
             Env imEnv;
             imEnv.params = im.memberDefn->allTypeParams();
-            imEnv.args.assign(im.typeArgs.begin(), im.typeArgs.end());
+            imEnv.args = im.typeArgs;
 
             if (fd->visibility() == Visibility::PRIVATE) {
               diag.info(fd->location()) << "Can't override: method is private.";

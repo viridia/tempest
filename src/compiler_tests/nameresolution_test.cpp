@@ -285,6 +285,26 @@ TEST_CASE("NameResolution.Class", "[sema]") {
     auto param = td->typeParams().front();
     REQUIRE(param->subtypeConstraints().size() == 2);
   }
+
+  SECTION("Implicit specialization") {
+    auto mod = compile(cu,
+      "class A[T] {\n"
+      "  x: A;\n"
+      "  y: A | i32;\n"
+      "  x: (A, i32);\n"
+      "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().front());
+    auto vdef = cast<ValueDefn>(td->members()[1]);
+    REQUIRE(vdef->type()->kind == Type::Kind::SPECIALIZED);
+    REQUIRE_THAT(vdef->type(), TypeEQ("class A[T]"));
+
+    vdef = cast<ValueDefn>(td->members()[2]);
+    REQUIRE_THAT(vdef->type(), TypeEQ("i32 | class A[T]"));
+
+    vdef = cast<ValueDefn>(td->members()[3]);
+    REQUIRE_THAT(vdef->type(), TypeEQ("(class A[T], i32)"));
+  }
 }
 
 TEST_CASE("NameResolution.Interface", "[sema]") {

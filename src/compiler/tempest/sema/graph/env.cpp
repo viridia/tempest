@@ -22,7 +22,7 @@ namespace tempest::sema::graph {
   }
 
   void Env::fromSpecialization(SpecializedDefn* sd) {
-    args.assign(sd->typeArgs().begin(), sd->typeArgs().end());
+    args = sd->typeArgs();
     params = sd->typeParams();
   }
 

@@ -1,7 +1,13 @@
 #include "tempest/sema/graph/expr.hpp"
+#include "tempest/sema/graph/type.hpp"
 
 namespace tempest::sema::graph {
   Expr Expr::ERROR(Expr::Kind::INVALID, Location());
+
+  Expr::Expr(Kind kind, Location location, const Type* type)
+      : kind(kind), location(location), type(type) {
+    assert(type == nullptr || type->kind <= Type::Kind::INFERRED);
+  }
 
   const char* Expr::KindName(Kind kind) {
     switch (kind) {

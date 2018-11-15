@@ -145,7 +145,7 @@ namespace tempest::sema::infer {
         diag.debug() << "rt: " << rt;
         assert(false && "Implement subtype constraints");
       }
-      if (rt->kind != Type::Kind::INFERRED) {
+      if (rt->kind != Type::Kind::INFERRED && rt->kind != Type::Kind::TYPE_VAR) {
         return false;
       }
       // Fall through to inferred case below
@@ -156,6 +156,7 @@ namespace tempest::sema::infer {
       if (size_t(rtTypeVar->index()) < rtEnv.args.size()) {
         Env newEnv;
         assert(rtEnv.has(rtTypeVar));
+        assert(rtEnv.args[rtTypeVar->index()]);
         return unify(
             result, lt, ltEnv, rtEnv.args[rtTypeVar->index()], newEnv, when, predicate, alloc);
       }
@@ -172,28 +173,32 @@ namespace tempest::sema::infer {
     // If we see a specialized, expand it's type args and recurse with the new env.
     if (lt->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(lt);
-      ApplySpecialization apply(ltEnv.args);
+      auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
+      if (ltEnv.args.size() > 0) {
+        ApplySpecialization apply(ltEnv.args);
+        newEnv.args = apply.transformArray(sp->spec->typeArgs());
+        return unify(result, genType, newEnv, rt, rtEnv, when, predicate, alloc);
+      } else {
+        newEnv.args = sp->spec->typeArgs();
+        return unify(result, genType, newEnv, rt, rtEnv, when, predicate, alloc);
       }
-      auto genType = cast<TypeDefn>(sp->spec->generic())->type();
-      return unify(result, genType, newEnv, rt, rtEnv, when, predicate, alloc);
     }
 
     if (rt->kind == Type::Kind::SPECIALIZED) {
       auto sp = static_cast<const SpecializedType*>(rt);
-      ApplySpecialization apply(rtEnv.args);
+      auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
+      if (rtEnv.args.size() > 0) {
+        ApplySpecialization apply(rtEnv.args);
+        newEnv.args = apply.transformArray(sp->spec->typeArgs());
+        return unify(result, lt, ltEnv, genType, newEnv, when, predicate, alloc);
+      } else {
+        newEnv.args = sp->spec->typeArgs();
+        return unify(result, lt, ltEnv, genType, newEnv, when, predicate, alloc);
       }
-      auto genType = cast<TypeDefn>(sp->spec->generic())->type();
-      return unify(result, lt, ltEnv, genType, newEnv, when, predicate, alloc);
     }
 
     // Inferred types - add to unification results.

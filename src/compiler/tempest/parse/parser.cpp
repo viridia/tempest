@@ -292,7 +292,11 @@ namespace tempest::parse {
       case TOKEN_LET:
         diag.error(location()) << "'let' keyword not needed for member declaration.";
         next();
-        return nullptr;
+        if (_token != TOKEN_ID) {
+          return nullptr;
+        }
+        result = fieldDef(Node::Kind::MEMBER_CONST, "");
+        break;
       case TOKEN_CLASS:
       case TOKEN_STRUCT:
       case TOKEN_INTERFACE:

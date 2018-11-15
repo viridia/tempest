@@ -41,13 +41,10 @@ namespace tempest::sema::convert {
       newEnv.params = sp->spec->typeParams();
       if (lEnv.args.size() > 0) {
         ApplySpecialization apply(lEnv.args);
-        for (auto param : newEnv.params) {
-          auto typeArg = sp->spec->typeArgs()[param->index()];
-          newEnv.args.push_back(apply.transform(typeArg));
-        }
+        newEnv.args = apply.transformArray(sp->spec->typeArgs());
         return isEqualOrNarrower(genType, newEnv, r, rEnv);
       } else {
-        newEnv.args.assign(sp->spec->typeArgs().begin(), sp->spec->typeArgs().end());
+        newEnv.args = sp->spec->typeArgs();
         return isEqualOrNarrower(genType, newEnv, r, rEnv);
       }
     }
@@ -57,10 +54,7 @@ namespace tempest::sema::convert {
       ApplySpecialization apply(rEnv.args);
       Env newEnv;
       newEnv.params = sp->spec->typeParams();
-      for (auto param : newEnv.params) {
-        auto typeArg = sp->spec->typeArgs()[param->index()];
-        newEnv.args.push_back(apply.transform(typeArg));
-      }
+      newEnv.args = apply.transformArray(sp->spec->typeArgs());
       auto genType = cast<TypeDefn>(sp->spec->generic())->type();
       return isEqualOrNarrower(l, lEnv, genType, newEnv);
     }

@@ -253,7 +253,7 @@ namespace tempest::sema::pass {
     Env env;
     env.params = fsym->function->allTypeParams();
     if (fsym->typeArgs.size()) {
-      env.args.assign(fsym->typeArgs.begin(), fsym->typeArgs.end());
+      env.args = fsym->typeArgs;
     }
 
     auto fd = fsym->function;
@@ -346,7 +346,7 @@ namespace tempest::sema::pass {
   void ExpandSpecializationPass::visitGlobalVarSym(GlobalVarSym* gsym) {
     Env env;
     // env.params = vsym->varDefn->allTypeParams();
-    env.args.assign(gsym->typeArgs.begin(), gsym->typeArgs.end());
+    env.args = gsym->typeArgs;
   }
 
   // void ExpandSpecializationPass::visitTypeDefn(TypeDefn* td, Env& env) {

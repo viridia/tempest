@@ -195,7 +195,7 @@ namespace tempest::sema::pass {
     // typeDefn.setFriends(self.visitList(typeDefn.getFriends()))
     if (td->type()->kind == Type::Kind::ALIAS) {
       TypeParamScope tpScope(scope, td); // Scope used in resolving param types only.
-      td->setAliasTarget(resolveType(&tpScope, td->ast()->extends[0]));
+      td->setAliasTarget(resolveType(&tpScope, td->ast()->extends[0], true));
     } else if (td->type()->kind == Type::Kind::ENUM) {
       visitEnumDefn(scope, td);
     } else if (auto udt = dyn_cast<UserDefinedType>(td->type())) {
@@ -245,11 +245,14 @@ namespace tempest::sema::pass {
       _numInstanceVars = cast<TypeDefn>(baseDef)->numInstanceVars();
     }
 
+    auto prevTypeDefn = _typeDefn;
+    _typeDefn = td;
     TypeDefnScope tdScope(scope, td, _cu.spec());
     visitList(&tdScope, td->members());
 
     td->setNumInstanceVars(_numInstanceVars);
     _numInstanceVars = prevNumInstanceVars;
+    _typeDefn = prevTypeDefn;
 
     // Create default/inherited constructors if needed.
     if (td->type()->kind == Type::Kind::CLASS) {
@@ -453,7 +456,7 @@ namespace tempest::sema::pass {
     TypeParamScope tpScope(scope, fd); // Scope used in resolving param types only.
     Type* returnType = nullptr;
     if (fd->ast()->returnType) {
-      returnType = resolveType(&tpScope, fd->ast()->returnType);
+      returnType = resolveType(&tpScope, fd->ast()->returnType, true);
     } else if (!fd->ast()->body) {
       diag.error(fd) << "No function body, function return type cannot be inferred.";
     }
@@ -485,7 +488,7 @@ namespace tempest::sema::pass {
     for (auto param : fd->params()) {
       visitAttributes(&tpScope, param, param->ast());
       if (param->ast()->type) {
-        param->setType(resolveType(&tpScope, param->ast()->type));
+        param->setType(resolveType(&tpScope, param->ast()->type, true));
         if (param->type()->kind == Type::Kind::TRAIT) {
           diag.error(param) << "Parameter type cannot be a trait.";
         }
@@ -523,7 +526,7 @@ namespace tempest::sema::pass {
 
     visitAttributes(scope, vd, vd->ast());
     if (vd->ast()->type) {
-      vd->setType(resolveType(scope, vd->ast()->type));
+      vd->setType(resolveType(scope, vd->ast()->type, true));
       if (vd->type()->kind == Type::Kind::TRAIT) {
         diag.error(vd) << "Variable type cannot be a trait.";
       }
@@ -952,7 +955,7 @@ namespace tempest::sema::pass {
         );
         defn->setConstant(node->kind == ast::Node::Kind::LOCAL_CONST);
         if (decl->type) {
-          defn->setType(resolveType(scope, decl->type));
+          defn->setType(resolveType(scope, decl->type, true));
         }
         if (decl->init) {
           defn->setInit(visitExpr(scope, decl->init));
@@ -1062,7 +1065,8 @@ namespace tempest::sema::pass {
         base->kind, base->location, baseRef->name, _alloc->copyOf(specMembers));
   }
 
-  Type* NameResolutionPass::resolveType(LookupScope* scope, const ast::Node* node) {
+  Type* NameResolutionPass::resolveType(
+      LookupScope* scope, const ast::Node* node, bool implicitSpecialization) {
     switch (node->kind) {
       // What these all have in common is that they resolve to a definition, possibly
       // specialized, and then determine if that definition is a type.
@@ -1077,7 +1081,20 @@ namespace tempest::sema::pass {
         llvm::SmallVector<Type*, 8> types;
         for (auto m : lookupResult) {
           if (m.member->kind == Member::Kind::TYPE) {
-            types.push_back(static_cast<TypeDefn*>(m.member)->type());
+            // If it's a bare reference to a generic type, and the type is the same as
+            // the enclosing type definition, then automatically specialize it.
+            if (implicitSpecialization &&
+                m.member == _typeDefn &&
+                _typeDefn->allTypeParams().size() > 0) {
+              SmallVector<const Type*, 4> typeArgs;
+              for (auto tp : _typeDefn->allTypeParams()) {
+                typeArgs.push_back(tp->typeVar());
+              }
+              auto sp = _cu.spec().specialize(_typeDefn, typeArgs);
+              types.push_back(sp->type());
+            } else {
+              types.push_back(static_cast<TypeDefn*>(m.member)->type());
+            }
           } else if (m.member->kind == Member::Kind::TYPE_PARAM) {
             types.push_back(static_cast<TypeParameter*>(m.member)->typeVar());
           } else if (m.member->kind == Member::Kind::SPECIALIZED) {
@@ -1146,7 +1163,7 @@ namespace tempest::sema::pass {
               flatUnion(oper);
             }
           } else {
-            auto t = resolveType(scope, in);
+            auto t = resolveType(scope, in, true);
             if (t) {
               // TODO: check if it's a union here as well.
               unionMembers.push_back(t);
@@ -1162,7 +1179,7 @@ namespace tempest::sema::pass {
         llvm::SmallVector<Type*, 8> tupleMembers;
         auto tupleOp = static_cast<const ast::Oper*>(node);
         for (auto oper : tupleOp->operands) {
-          tupleMembers.push_back(resolveType(scope, oper));
+          tupleMembers.push_back(resolveType(scope, oper, true));
         }
         return _cu.types().createTupleType(tupleMembers);
       }
@@ -1329,7 +1346,7 @@ namespace tempest::sema::pass {
         }
         llvm::SmallVector<Type*, 8> typeArgs;
         for (auto param : spec->operands) {
-          auto paramType = resolveType(scope, param);
+          auto paramType = resolveType(scope, param, true);
           if (Type::isError(paramType)) {
             return false;
           }

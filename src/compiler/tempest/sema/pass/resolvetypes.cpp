@@ -43,7 +43,6 @@ namespace tempest::sema::pass {
   using tempest::sema::infer::ParamError;
   using tempest::sema::infer::SolutionTransform;
   using tempest::sema::infer::TypeRelation;
-  using tempest::sema::transform::ApplySpecialization;
   using tempest::sema::transform::ApplySpecUnique;
 
   // Processing
@@ -319,13 +318,6 @@ namespace tempest::sema::pass {
       case Expr::Kind::CALL:
         return visitCall(static_cast<ApplyFnOp*>(e), cs);
 
-  // def visitSelf(self, expr, cs):
-  //   if isinstance(self.nameLookup.subject, graph.Function) and \
-  //       self.nameLookup.subject.hasSelfType():
-  //     return cs.renamer.transformType(self.nameLookup.subject.getSelfType())
-  //   assert expr.hasType()
-  //   return cs.renamer.transformType(expr.getType())
-
   // def visitSuper(self, expr, cs):
   //   assert expr.hasType()
   //   # TODO - this isn't right, it should probably be some special type
@@ -334,6 +326,9 @@ namespace tempest::sema::pass {
 
       case Expr::Kind::MEMBER_NAME_REF: {
         auto mlist = resolveMemberNameRef(static_cast<MemberNameRef*>(e));
+        if (mlist->kind == Expr::Kind::VAR_REF) {
+          return cast<ValueDefn>(static_cast<DefnRef*>(mlist)->defn)->type();
+        }
         (void)mlist;
         assert(false && "Implement");
       }
@@ -684,7 +679,7 @@ namespace tempest::sema::pass {
 
       // Make sure function type is resolved.
       auto function = cast<FunctionDefn>(method.member);
-      auto params = function->params();
+      auto& params = function->params();
       if (!function->type()) {
         if (!resolve(function)) {
           return &Type::ERROR;
@@ -704,6 +699,7 @@ namespace tempest::sema::pass {
         // * inferred - type arguments that need to be deduced by type solver
         // * outer - type parameters that should not be bound, because they are
         //     part of the enclosing template context of the current function.
+        SmallVector<const Type*, 4> typeArgs;
         cc->typeArgs.resize(function->allTypeParams().size(), nullptr);
         for (size_t i = 0; i < cc->typeArgs.size(); i += 1) {
           auto typeParam = function->allTypeParams()[i];
@@ -715,6 +711,9 @@ namespace tempest::sema::pass {
             // Don't infer params from the enclosing scope.
             auto inferred = new InferredType(typeParam, &cs);
             cc->typeArgs[i] = inferred;
+          } else {
+            // Use the param from the enclosing scope literally.
+            cc->typeArgs[i] = typeParam->typeVar();
           }
         }
 
@@ -1014,12 +1013,6 @@ namespace tempest::sema::pass {
 
     SolutionTransform transform(*_alloc);
     applySolution(cs, transform);
-
-//         if exprType:
-//           finalExprType = typesubstitution.ApplyEnv(solutionEnv).traverseType(exprType)
-//           finalExprType = callsite.CollapseAmbiguousTypes(
-//               self.typeStore).traverseType(finalExprType)
-//           return finalExprType
     return transform.transform(exprType);
   }
 
@@ -1045,6 +1038,9 @@ namespace tempest::sema::pass {
       llvm::SmallVector<const Type*, 8> typeArgs;
       st.transformArray(typeArgs, candidate->typeArgs);
       ApplySpecUnique asu(_cu.types(), _cu.spec(), typeArgs);
+      for (auto ta : typeArgs) {
+        assert(ta);
+      }
       fnType = asu(fnType);
       returnType = asu(returnType);
       fnSelfType = asu(fnSelfType);
@@ -1251,6 +1247,7 @@ namespace tempest::sema::pass {
         auto mref = cast<MemberNameRef>(e);
         assert(mref->refs != nullptr);
         coerceExpr(mref->refs, nullptr);
+        return mref->refs;
       }
 
       case Expr::Kind::VAR_REF: {
@@ -1270,7 +1267,7 @@ namespace tempest::sema::pass {
         coerceExpr(dref->stem, nullptr);
 
         if (auto fd = dyn_cast<FunctionDefn>(method)) {
-          ApplySpecialization transform(typeArgs);
+          ApplySpecUnique transform(_cu.types(), _cu.spec(), typeArgs);
           dref->type = transform.transform(fd->type());
         } else {
           assert(false && "Invalid function ref");

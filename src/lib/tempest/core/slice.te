@@ -6,6 +6,8 @@ import { Iterable, Iterator } from .iterate;
     a contiguous, linear memory layout.
 */
 export struct Slice[T] implements Iterable[T] {
+  size: int = 0;
+
   iterate => SliceIterator[T]();
 }
 

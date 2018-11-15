@@ -623,6 +623,32 @@ TEST_CASE("ResolveTypes.Types", "[sema][resolve][types]") {
     REQUIRE_THAT(constB->defn->init()->type, TypeEQ("class B[class A]"));
     // REQUIRE_THAT(constB->init(), ExprEQ("x.f()"));
   }
+
+  SECTION("Static method returning generic type with explicit type param") {
+    auto mod = compile(cu,
+        "export final class Array[T] {\n"
+        "  new() {}\n"
+        "  static of() -> Array[T] {\n"
+        "    return Array[T]();\n"
+        "  }\n"
+        "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().front());
+    (void)td;
+  }
+
+  SECTION("Static method returning generic type with implicit type param") {
+    auto mod = compile(cu,
+        "export final class Array[T] {\n"
+        "  new() {}\n"
+        "  static of() -> Array {\n"
+        "    return Array();\n"
+        "  }\n"
+        "}\n"
+    );
+    auto td = cast<TypeDefn>(mod->members().front());
+    (void)td;
+  }
 }
 
 TEST_CASE("ResolveTypes.Operators", "[sema][resolve][operators]") {

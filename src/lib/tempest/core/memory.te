@@ -1,0 +1,23 @@
+/** A data type that represents a machine pointer. */
+export __intrinsic__ struct Address[T] {}
+
+/** Copy memory from a source to destination address.
+    @param dst The destination address.
+    @param src The source address.
+    @param count The number of elements to copy.
+*/
+export __intrinsic__ unsafe fn copy[T](dst: Address[T], src: Address[T], count: int) -> void;
+
+/** Move memory from a source to destination address, similar to clib memmove().
+    @param dst The destination address.
+    @param src The source address.
+    @param count The number of elements to copy.
+*/
+export __intrinsic__ unsafe fn move[T](dst: Address[T], src: Address[T], count: int) -> void;
+
+/** Fill a range of memory with a value.
+    @param dst The destination address.
+    @param src The value to fill the destination bufer with.
+    @param count The number of elements to copy.
+*/
+export __intrinsic__ unsafe fn fill[T](dst: Address[T], src: T, count: int) -> void;

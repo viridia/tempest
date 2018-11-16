@@ -374,6 +374,8 @@ namespace tempest::sema::pass {
     auto enclosingType = dyn_cast_or_null<TypeDefn>(fd->definedIn());
     auto enclosingKind = enclosingType ? enclosingType->type()->kind : Type::Kind::VOID;
 
+    visitAttributes(scope, fd, fd->ast());
+
     if (fd->isNative()) {
       if (fd->isAbstract()) {
         diag.error(fd) << "Native functions cannot be abstract.";
@@ -405,6 +407,12 @@ namespace tempest::sema::pass {
         diag.error(fd) << "A function defined within an interface is implicitly abstract.";
       } else if (enclosingKind == Type::Kind::EXTENSION) {
         diag.error(fd) << "A function defined within a type extension cannot be abstract.";
+      }
+    } else if (fd->intrinsic() != IntrinsicFn::NONE) {
+      if (fd->ast()->body) {
+        diag.error(fd) << "Intrinsic function cannot have a function body.";
+      } else if (enclosingKind == Type::Kind::INTERFACE) {
+        diag.error(fd) << "Intrinsic function cannot be defined within an interface.";
       }
     } else if (fd->ast()->body) {
       if (enclosingType && enclosingType->type()->kind == Type::Kind::INTERFACE) {
@@ -450,7 +458,6 @@ namespace tempest::sema::pass {
       }
     }
 
-    visitAttributes(scope, fd, fd->ast());
     visitTypeParams(scope, fd);
 
     TypeParamScope tpScope(scope, fd); // Scope used in resolving param types only.
@@ -548,9 +555,20 @@ namespace tempest::sema::pass {
 
   void NameResolutionPass::visitAttributes(LookupScope* scope, Defn* defn, const ast::Defn* ast) {
     for (auto attr : ast->attributes) {
-      auto expr = visitExpr(scope, attr);
-      if (!Expr::isError(expr)) {
-        defn->attributes().push_back(expr);
+      if (attr->kind == ast::Node::Kind::BUILTIN_ATTRIBUTE) {
+        auto ba = static_cast<const ast::BuiltinAttribute*>(attr);
+        if (ba->attribute == ast::BuiltinAttribute::INTRINSIC) {
+          if (!intrinsic::IntrinsicDefns::get()->registerExternal(defn)) {
+            diag.error(defn->location()) << "Unknown intrinsic definition.";
+          }
+        } else {
+          assert(false && "Implement");
+        }
+      } else {
+        auto expr = visitExpr(scope, attr);
+        if (!Expr::isError(expr)) {
+          defn->attributes().push_back(expr);
+        }
       }
     }
   }

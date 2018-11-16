@@ -86,8 +86,7 @@ namespace tempest::ast {
   public:
     enum Attribute {
       INTRINSIC = 0,
-      TRACEMETHOD,
-      UNSAFE
+      TRACEMETHOD
     };
 
     const Attribute attribute;

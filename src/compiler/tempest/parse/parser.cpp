@@ -91,6 +91,9 @@ namespace tempest::parse {
         } else {
           Defn* d = moduleLevelDeclaration();
           if (d) {
+            if (d->isExport()) {
+              diag.error(d->location) << "Extra 'export' modifier.";
+            }
             d->setExport(true);
             members.append(d);
             declDefined = true;
@@ -178,10 +181,12 @@ namespace tempest::parse {
       attributes.append(attr);
     }
 
+
     Defn* result = nullptr;
     bool isAbstract = false;
     bool isFinal = false;
     bool isStatic = false;
+    bool isExport = match(TOKEN_EXPORT);
     for (;;) {
       if (match(TOKEN_PRIVATE) || match(TOKEN_PRIVATE)) {
         diag.error(location()) << "Visibility qualifier not valid at module level.";
@@ -249,6 +254,7 @@ namespace tempest::parse {
       result->setAbstract(isAbstract);
       result->setFinal(isFinal);
       result->setStatic(isStatic);
+      result->setExport(isExport);
       result->attributes = attributes.build();
     }
     return result;

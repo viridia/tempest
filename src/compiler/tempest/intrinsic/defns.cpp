@@ -6,6 +6,26 @@ namespace tempest::intrinsic {
   using namespace tempest::sema::graph;
   using tempest::source::Location;
 
+  static ExternalIntrinsicFn intrinsicFns[] = {
+    { "tempest.core.memory.copy", IntrinsicFn::MEMORY_COPY },
+    { "tempest.core.memory.move", IntrinsicFn::MEMORY_MOVE },
+    { "tempest.core.memory.fill", IntrinsicFn::MEMORY_FILL },
+  };
+
+  static ExternalIntrinsicType intrinsicTypes[] = {
+    { "tempest.core.memory.Address", IntrinsicType::ADDRESS_TYPE },
+    { "tempest.core.iterate.Iterable", IntrinsicType::ITERABLE_TYPE },
+    { "tempest.core.iterate.Iterator", IntrinsicType::ITERATOR_TYPE },
+  };
+
+  static void qualName(std::string& out, Member* m) {
+    if (m->definedIn()) {
+      qualName(out, m->definedIn());
+      out.append(".");
+    }
+    out.append(m->name().begin(), m->name().end());
+  }
+
   /** Class to contain all of the various intrinsic definitions. */
   IntrinsicDefns::IntrinsicDefns() {
     // Built-in scope
@@ -106,6 +126,48 @@ namespace tempest::intrinsic {
 
     intOps.comp = makeUnaryOp("unaryComplement", &IntegerType::I64, IntrinsicFn::COMPLEMENT);
     uintOps.comp = makeUnaryOp("unaryComplement", &IntegerType::U64, IntrinsicFn::COMPLEMENT);
+  }
+
+  bool IntrinsicDefns::registerExternal(Defn* d) {
+    std::string qname;
+    qname.reserve(64);
+    qualName(qname, d);
+    if (auto fd = dyn_cast<FunctionDefn>(d)) {
+      auto aref = ArrayRef<ExternalIntrinsicFn>(intrinsicFns);
+      auto it = std::find_if(aref.begin(), aref.end(), [&qname](auto& ifn) {
+        return ifn.name == qname;
+      });
+      if (it != aref.end()) {
+        fd->setIntrinsic(it->intrinsic);
+        return true;
+      }
+      return false;
+    } else if (auto td = dyn_cast<TypeDefn>(d)) {
+      auto aref = ArrayRef<ExternalIntrinsicType>(intrinsicTypes);
+      auto it = std::find_if(aref.begin(), aref.end(), [&qname](auto& ifn) {
+        return ifn.name == qname;
+      });
+      if (it != aref.end()) {
+        td->setIntrinsic(it->intrinsic);
+        switch (it->intrinsic) {
+          case IntrinsicType::ADDRESS_TYPE:
+            addressType = td;
+            break;
+          case IntrinsicType::ITERABLE_TYPE:
+            iterableType = td;
+            break;
+          case IntrinsicType::ITERATOR_TYPE:
+            iteratorType = td;
+            break;
+          default:
+            break;
+        }
+        return true;
+      }
+      return false;
+    } else {
+      return false;
+    }
   }
 
   std::unique_ptr<TypeDefn> IntrinsicDefns::makeTypeDefn(Type::Kind kind, llvm::StringRef name) {

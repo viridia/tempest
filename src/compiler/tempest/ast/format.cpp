@@ -77,9 +77,6 @@ namespace tempest::ast {
           case BuiltinAttribute::TRACEMETHOD:
             out << "__tracemethod__";
             break;
-          case BuiltinAttribute::UNSAFE:
-            out << "unsafe";
-            break;
         }
         break;
       }

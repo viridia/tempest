@@ -18,6 +18,7 @@
 #endif
 
 namespace tempest::intrinsic {
+  using tempest::sema::graph::Defn;
   using tempest::sema::graph::FunctionDefn;
   using tempest::sema::graph::Member;
   using tempest::sema::graph::SymbolTable;
@@ -52,10 +53,9 @@ namespace tempest::intrinsic {
     std::unique_ptr<TypeDefn> objectClass;
     std::unique_ptr<TypeDefn> throwableClass;
     std::unique_ptr<TypeDefn> flexAllocClass;
-    // std::unique_ptr<TypeDefn> classDescriptorStruct;
-    // std::unique_ptr<TypeDefn> interfaceDescriptorStruct;
-    std::unique_ptr<TypeDefn> iterableInterface;
-    std::unique_ptr<TypeDefn> iteratorInterface;
+    TypeDefn* iterableType = nullptr;
+    TypeDefn* iteratorType = nullptr;
+    TypeDefn* addressType = nullptr;
 
     PrimitiveOperators intOps;
     PrimitiveOperators uintOps;
@@ -63,6 +63,9 @@ namespace tempest::intrinsic {
 
     // Equality intrinsic
     std::unique_ptr<FunctionDefn> eq;
+
+    // Register an externally-declared intrinsic
+    bool registerExternal(Defn* d);
 
     // Singleton getter.
     static IntrinsicDefns* get();

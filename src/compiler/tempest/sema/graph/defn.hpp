@@ -24,6 +24,7 @@ namespace tempest::ast {
 namespace tempest::sema::graph {
   using tempest::source::Locatable;
   using tempest::intrinsic::IntrinsicFn;
+  using tempest::intrinsic::IntrinsicType;
 
   class Expr;
   class Type;
@@ -38,22 +39,6 @@ namespace tempest::sema::graph {
     PROTECTED,
     PRIVATE,
     INTERNAL,
-  };
-
-  /** Indicates that the type definition is a builtin type .*/
-  enum class IntrinsicType {
-    NONE = 0,
-
-    // Built-in classes
-    OBJECT_CLASS,
-    FLEXALLOC_CLASS,
-
-    // Build-in traits
-    ADDITION_TRAIT,
-    SUBTRACTION_TRAIT,
-    MULTIPLICATION_TRAIT,
-    DIVISION_TRAIT,
-    MODULUS_TRAIT,
   };
 
   /** Base class for semantic graph definitions. */
